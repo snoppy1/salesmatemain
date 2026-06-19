@@ -32,6 +32,7 @@ export async function PUT(request: Request) {
       voice: body?.shop?.voice ?? "",
     },
     rules: Array.isArray(body?.rules) ? body.rules : [],
+    products: Array.isArray(body?.products) ? body.products : [],
   });
 
   return NextResponse.json(saved);

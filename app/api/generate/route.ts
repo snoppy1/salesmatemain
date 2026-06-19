@@ -40,6 +40,7 @@ export async function POST(request: Request) {
     shopName: body.shopName ?? "",
     shopVoice: body.shopVoice ?? "",
     rules: Array.isArray(body.rules) ? body.rules : [],
+    products: Array.isArray(body.products) ? body.products : [],
     customerMsg: body.customerMsg ?? "",
   });
 

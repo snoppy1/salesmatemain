@@ -1,7 +1,7 @@
 import "server-only";
 import { query, queryOne, withTx } from "./db";
 import { newId } from "./auth";
-import type { Rule, ShopData, ShopSummary } from "./types";
+import type { Product, Rule, ShopData, ShopSummary } from "./types";
 
 type RuleRow = {
   id: string;
@@ -10,6 +10,13 @@ type RuleRow = {
   price: string;
   reason: string;
   promo: string;
+};
+
+type ProductRow = {
+  id: string;
+  name: string;
+  description: string;
+  price: string;
 };
 
 /** รายชื่อร้านทั้งหมด (สำหรับ superadmin เลือกดู) */
@@ -59,9 +66,16 @@ export async function getShopData(shopId: string): Promise<ShopData> {
     [shopId],
   );
 
+  const productRows = await query<ProductRow>(
+    `SELECT id, name, description, price
+     FROM products WHERE shop_id = $1 ORDER BY sort_order ASC`,
+    [shopId],
+  );
+
   return {
     shop: { name: shop?.name ?? "", voice: shop?.voice ?? "" },
     rules: ruleRows,
+    products: productRows,
   };
 }
 
@@ -76,7 +90,17 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
     promo: (r.promo ?? "").toString(),
   });
 
+  const cleanProduct = (p: Partial<Product>): ProductRow => ({
+    id: typeof p.id === "string" && p.id ? p.id : newId(),
+    name: (p.name ?? "").toString(),
+    description: (p.description ?? "").toString(),
+    price: (p.price ?? "").toString(),
+  });
+
   const rules = Array.isArray(data.rules) ? data.rules.map(clean) : [];
+  const products = Array.isArray(data.products)
+    ? data.products.map(cleanProduct)
+    : [];
 
   await withTx(async (client) => {
     await client.query("UPDATE shops SET name = $1, voice = $2 WHERE id = $3", [
@@ -91,6 +115,15 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
         `INSERT INTO rules (id, shop_id, "trigger", partner, price, reason, promo, sort_order)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [r.id, shopId, r.trigger, r.partner, r.price, r.reason, r.promo, i],
+      );
+    }
+    await client.query("DELETE FROM products WHERE shop_id = $1", [shopId]);
+    for (let i = 0; i < products.length; i++) {
+      const p = products[i];
+      await client.query(
+        `INSERT INTO products (id, shop_id, name, description, price, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [p.id, shopId, p.name, p.description, p.price, i],
       );
     }
   });

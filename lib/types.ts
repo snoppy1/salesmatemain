@@ -9,10 +9,18 @@ export type Admin = {
   username: string;
 };
 
-/** ข้อมูลร้าน + คู่พ่วง ที่โหลด/บันทึกพร้อมกัน */
+export type Product = {
+  id: string;
+  name: string; // ชื่อสินค้า
+  description: string; // คำอธิบายสินค้า
+  price: string; // ราคา (ว่างได้)
+};
+
+/** ข้อมูลร้าน + คู่พ่วง + คลังสินค้า ที่โหลด/บันทึกพร้อมกัน */
 export type ShopData = {
   shop: Shop;
   rules: Rule[];
+  products: Product[];
 };
 
 /** สรุปร้านในมุมมอง superadmin (ลิสต์เลือกร้าน) */
@@ -37,6 +45,7 @@ export type GenerateRequest = {
   shopName: string;
   shopVoice: string;
   rules: Rule[];
+  products: Product[];
   customerMsg: string; // ข้อความ + บริบทจากลูกค้า รวมในช่องเดียว
 };
 

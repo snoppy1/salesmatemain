@@ -58,6 +58,15 @@ async function ensureSchema(): Promise<void> {
       sort_order INTEGER NOT NULL DEFAULT 0
     );
 
+    CREATE TABLE IF NOT EXISTS products (
+      id          TEXT PRIMARY KEY,
+      shop_id     TEXT NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+      name        TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      price       TEXT NOT NULL DEFAULT '',
+      sort_order  INTEGER NOT NULL DEFAULT 0
+    );
+
     CREATE TABLE IF NOT EXISTS sessions (
       token      TEXT PRIMARY KEY,
       admin_id   TEXT NOT NULL REFERENCES admins(id) ON DELETE CASCADE,
@@ -73,6 +82,7 @@ async function ensureSchema(): Promise<void> {
     );
 
     CREATE INDEX IF NOT EXISTS idx_rules_shop ON rules(shop_id);
+    CREATE INDEX IF NOT EXISTS idx_products_shop ON products(shop_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_admin ON sessions(admin_id);
   `);
 }

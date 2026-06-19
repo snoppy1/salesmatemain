@@ -2,21 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Rule, Shop, ShopData, ShopSummary } from "@/lib/types";
+import type { Product, Rule, Shop, ShopData, ShopSummary } from "@/lib/types";
 import ThemeToggle from "@/components/ThemeToggle";
 
+function genId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
+}
+
 function newRule(): Rule {
-  return {
-    id:
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : Math.random().toString(36).slice(2),
-    trigger: "",
-    partner: "",
-    price: "",
-    reason: "",
-    promo: "",
-  };
+  return { id: genId(), trigger: "", partner: "", price: "", reason: "", promo: "" };
+}
+
+function newProduct(): Product {
+  return { id: genId(), name: "", description: "", price: "" };
 }
 
 type LoadState =
@@ -41,6 +41,7 @@ export default function AdminConsole({
   const [load, setLoad] = useState<LoadState>({ kind: "none" });
   const [shop, setShop] = useState<Shop>({ name: "", voice: "" });
   const [rules, setRules] = useState<Rule[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [save, setSave] = useState<SaveState>("idle");
 
   const selected = list.find((s) => s.id === selectedId) ?? null;
@@ -58,6 +59,7 @@ export default function AdminConsole({
       const data = (await res.json()) as ShopData;
       setShop(data.shop);
       setRules(data.rules);
+      setProducts(data.products ?? []);
       setLoad({ kind: "ready" });
     } catch {
       setLoad({ kind: "error", message: "โหลดข้อมูลร้านไม่สำเร็จ" });
@@ -75,7 +77,7 @@ export default function AdminConsole({
       const res = await fetch(`/api/admin/shops/${selectedId}`, {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ shop, rules } satisfies ShopData),
+        body: JSON.stringify({ shop, rules, products } satisfies ShopData),
       });
       if (!res.ok) {
         setSave("error");
@@ -84,6 +86,7 @@ export default function AdminConsole({
       const data = (await res.json()) as ShopData;
       setShop(data.shop);
       setRules(data.rules);
+      setProducts(data.products ?? []);
       setSave("saved");
       // อัปเดตชื่อ/จำนวนคู่พ่วงในลิสต์ซ้าย
       setList((prev) =>
@@ -216,6 +219,19 @@ export default function AdminConsole({
                 setRules((p) => p.filter((r) => r.id !== id));
                 markDirty();
               }}
+              products={products}
+              addProduct={() => {
+                setProducts((p) => [...p, newProduct()]);
+                markDirty();
+              }}
+              updateProduct={(id, patch) => {
+                setProducts((p) => p.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+                markDirty();
+              }}
+              removeProduct={(id) => {
+                setProducts((p) => p.filter((x) => x.id !== id));
+                markDirty();
+              }}
               save={save}
               onSave={handleSave}
             />
@@ -234,6 +250,10 @@ function ShopEditor({
   addRule,
   updateRule,
   removeRule,
+  products,
+  addProduct,
+  updateProduct,
+  removeProduct,
   save,
   onSave,
 }: {
@@ -244,6 +264,10 @@ function ShopEditor({
   addRule: () => void;
   updateRule: (id: string, patch: Partial<Rule>) => void;
   removeRule: (id: string) => void;
+  products: Product[];
+  addProduct: () => void;
+  updateProduct: (id: string, patch: Partial<Product>) => void;
+  removeProduct: (id: string) => void;
   save: SaveState;
   onSave: () => void;
 }) {
@@ -368,6 +392,69 @@ function ShopEditor({
                         type="text"
                         value={rule.reason}
                         onChange={(e) => updateRule(rule.id, { reason: e.target.value })}
+                        className={inputClass}
+                      />
+                    </Field>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">คลังสินค้า</h3>
+          <button type="button" onClick={addProduct} className={secondaryBtnClass}>
+            + เพิ่มสินค้า
+          </button>
+        </div>
+
+        {products.length === 0 ? (
+          <p className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
+            ร้านนี้ยังไม่มีสินค้าในคลัง
+          </p>
+        ) : (
+          <div className="mt-3 space-y-3">
+            {products.map((product, i) => (
+              <div key={product.id} className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    สินค้า #{i + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeProduct(product.id)}
+                    className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
+                  >
+                    ลบ
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <Field label="ชื่อสินค้า" compact>
+                    <input
+                      type="text"
+                      value={product.name}
+                      onChange={(e) => updateProduct(product.id, { name: e.target.value })}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="ราคา (บาท, ว่างได้)" compact>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={product.price}
+                      onChange={(e) => updateProduct(product.id, { price: e.target.value })}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <div className="sm:col-span-2">
+                    <Field label="คำอธิบายสินค้า" compact>
+                      <input
+                        type="text"
+                        value={product.description}
+                        onChange={(e) => updateProduct(product.id, { description: e.target.value })}
                         className={inputClass}
                       />
                     </Field>

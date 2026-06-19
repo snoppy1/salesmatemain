@@ -2,21 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Rule, Shop, ShopData, GenerateResult } from "@/lib/types";
+import type { Product, Rule, Shop, ShopData, GenerateResult } from "@/lib/types";
 import ThemeToggle from "@/components/ThemeToggle";
 
+function genId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
+}
+
 function newRule(): Rule {
-  return {
-    id:
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : Math.random().toString(36).slice(2),
-    trigger: "",
-    partner: "",
-    price: "",
-    reason: "",
-    promo: "",
-  };
+  return { id: genId(), trigger: "", partner: "", price: "", reason: "", promo: "" };
+}
+
+function newProduct(): Product {
+  return { id: genId(), name: "", description: "", price: "" };
 }
 
 type ResultState =
@@ -38,6 +38,7 @@ export default function Dashboard({
 
   const [shop, setShop] = useState<Shop>(initial.shop);
   const [rules, setRules] = useState<Rule[]>(initial.rules);
+  const [products, setProducts] = useState<Product[]>(initial.products ?? []);
   const [save, setSave] = useState<SaveState>("idle");
 
   const [customerMsg, setCustomerMsg] = useState("");
@@ -62,6 +63,18 @@ export default function Dashboard({
     setShop((s) => ({ ...s, ...patch }));
     markDirty();
   }
+  function updateProduct(id: string, patch: Partial<Product>) {
+    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+    markDirty();
+  }
+  function addProduct() {
+    setProducts((prev) => [...prev, newProduct()]);
+    markDirty();
+  }
+  function removeProduct(id: string) {
+    setProducts((prev) => prev.filter((p) => p.id !== id));
+    markDirty();
+  }
 
   async function handleSave() {
     if (save === "saving") return;
@@ -70,7 +83,7 @@ export default function Dashboard({
       const res = await fetch("/api/shop", {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ shop, rules } satisfies ShopData),
+        body: JSON.stringify({ shop, rules, products } satisfies ShopData),
       });
       if (!res.ok) {
         setSave("error");
@@ -79,6 +92,7 @@ export default function Dashboard({
       const data = (await res.json()) as ShopData;
       setShop(data.shop);
       setRules(data.rules);
+      setProducts(data.products ?? []);
       setSave("saved");
     } catch {
       setSave("error");
@@ -96,6 +110,7 @@ export default function Dashboard({
           shopName: shop.name,
           shopVoice: shop.voice,
           rules,
+          products,
           customerMsg,
         }),
       });
@@ -155,6 +170,10 @@ export default function Dashboard({
           updateRule={updateRule}
           addRule={addRule}
           removeRule={removeRule}
+          products={products}
+          updateProduct={updateProduct}
+          addProduct={addProduct}
+          removeProduct={removeProduct}
           save={save}
           onSave={handleSave}
         />
@@ -178,6 +197,10 @@ function ShopSettings({
   updateRule,
   addRule,
   removeRule,
+  products,
+  updateProduct,
+  addProduct,
+  removeProduct,
   save,
   onSave,
 }: {
@@ -187,6 +210,10 @@ function ShopSettings({
   updateRule: (id: string, patch: Partial<Rule>) => void;
   addRule: () => void;
   removeRule: (id: string) => void;
+  products: Product[];
+  updateProduct: (id: string, patch: Partial<Product>) => void;
+  addProduct: () => void;
+  removeProduct: (id: string) => void;
   save: SaveState;
   onSave: () => void;
 }) {
@@ -245,7 +272,102 @@ function ShopSettings({
           </div>
         )}
       </div>
+
+      <div className="mt-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+            คลังสินค้า
+          </h3>
+          <button type="button" onClick={addProduct} className={secondaryBtnClass}>
+            + เพิ่มสินค้า
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          ใส่สินค้าในร้านไว้ AI จะใช้แนะนำเมื่อไม่มีคู่พ่วงที่ตรง
+        </p>
+
+        {products.length === 0 ? (
+          <p className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
+            ยังไม่มีสินค้า — กด “+ เพิ่มสินค้า”
+          </p>
+        ) : (
+          <div className="mt-3 space-y-3">
+            {products.map((product, i) => (
+              <ProductRow
+                key={product.id}
+                index={i}
+                product={product}
+                onChange={(patch) => updateProduct(product.id, patch)}
+                onRemove={() => removeProduct(product.id)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </section>
+  );
+}
+
+function ProductRow({
+  index,
+  product,
+  onChange,
+  onRemove,
+}: {
+  index: number;
+  product: Product;
+  onChange: (patch: Partial<Product>) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+          สินค้า #{index + 1}
+        </span>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
+          aria-label={`ลบสินค้าที่ ${index + 1}`}
+        >
+          ลบ
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <Field label="ชื่อสินค้า" compact>
+          <input
+            type="text"
+            value={product.name}
+            onChange={(e) => onChange({ name: e.target.value })}
+            placeholder="เช่น เซรั่มบำรุงผิวหน้า"
+            className={inputClass}
+          />
+        </Field>
+        <Field label="ราคา (บาท, ว่างได้)" compact>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={product.price}
+            onChange={(e) => onChange({ price: e.target.value })}
+            placeholder="เช่น 690"
+            className={inputClass}
+          />
+        </Field>
+        <div className="sm:col-span-2">
+          <Field label="คำอธิบายสินค้า" compact>
+            <input
+              type="text"
+              value={product.description}
+              onChange={(e) => onChange({ description: e.target.value })}
+              placeholder="เช่น เซรั่มเข้มข้น ลดเลือนริ้วรอย เหมาะกับผิวแห้ง"
+              className={inputClass}
+            />
+          </Field>
+        </div>
+      </div>
+    </div>
   );
 }
 

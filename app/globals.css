@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background-color: #f3f4f6; /* gray-100 — พื้นเทาอ่อน */
+  color: #111827; /* gray-900 */
+}
+
+/* keyboard focus ที่มองเห็นชัด ทุก interactive element */
+:where(a, button, input, textarea, select):focus-visible {
+  outline: 2px solid #059669; /* emerald-600 */
+  outline-offset: 2px;
+  border-radius: 4px;
+}

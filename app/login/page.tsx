@@ -98,7 +98,7 @@ export function AuthShell({
             พ่วง
           </h1>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            ผู้ช่วยเสนอขายพ่วงสำหรับร้านแชต
+            ผู้ช่วยเสนอขายสำหรับร้านแชต
           </p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">

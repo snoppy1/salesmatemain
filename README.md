@@ -8,21 +8,29 @@
 - Next.js (App Router) + React + Tailwind CSS
 - เรียก Anthropic API ผ่าน server-side route `/api/generate` เท่านั้น
 - **หลายร้าน + login:** แต่ละร้านมีบัญชีแอดมิน (username/password) เห็นเฉพาะข้อมูลร้านตัวเอง
-- เก็บข้อมูลใน **SQLite** (`data/phuang.db` — สร้างอัตโนมัติครั้งแรกที่รัน)
+- เก็บข้อมูลใน **Postgres** (Neon) — ใช้ `DATABASE_URL` เดียวทั้งตอนรันในเครื่องและบน Vercel ตารางสร้างอัตโนมัติครั้งแรกที่รัน
 - รหัสผ่าน hash ด้วย `scrypt`, session แบบ HttpOnly cookie
+- **โซนผู้ดูแลระบบ** (`/admin`) ดู/แก้ได้ทุกร้าน — บัญชีอยู่ใน env (`PHUANG_ADMIN_USER/PASS`)
 
 ## รันในเครื่อง
 
 ```bash
 npm install
-cp .env.local.example .env.local   # แล้วใส่ ANTHROPIC_API_KEY จริง
+cp .env.local.example .env.local   # แล้วใส่ค่าจริง (ดูด้านล่าง)
 npm run dev
 ```
 
 เปิด http://localhost:3000
 
-> **ความปลอดภัย:** API key อยู่ฝั่ง server เท่านั้น (`process.env.ANTHROPIC_API_KEY`)
-> frontend ไม่เคยเห็นคีย์ — เรียกผ่าน `/api/generate` อย่างเดียว
+ค่าใน `.env.local`:
+
+| ตัวแปร | ใช้ทำอะไร |
+|--------|-----------|
+| `ANTHROPIC_API_KEY` | คีย์ Anthropic (เรียกฝั่ง server เท่านั้น) |
+| `DATABASE_URL` | connection string ของ Postgres/Neon |
+| `PHUANG_ADMIN_USER` / `PHUANG_ADMIN_PASS` | บัญชีผู้ดูแลระบบ (ถ้าไม่ตั้ง โซน `/admin` จะปิด) |
+
+> **ความปลอดภัย:** API key อยู่ฝั่ง server เท่านั้น frontend ไม่เคยเห็นคีย์ — เรียกผ่าน `/api/generate` อย่างเดียว
 
 ## การใช้งาน
 
@@ -30,16 +38,16 @@ npm run dev
 2. ครั้งถัดไป → **เข้าสู่ระบบ** (`/login`)
 3. แต่ละบัญชีเห็นเฉพาะข้อมูลร้านตัวเอง กด **บันทึก** เพื่อเซฟชื่อร้าน/โทน/คู่พ่วงลง DB
 
-## Deploy (Vercel)
+## Deploy (Vercel + Neon)
 
-1. push โค้ดขึ้น git แล้ว import เข้า Vercel
-2. ตั้ง environment variable `ANTHROPIC_API_KEY` ใน dashboard
-3. deploy
+1. **สร้าง Postgres ที่ Neon** (https://neon.tech ฟรี) → คัดลอก connection string (ตัวที่มี `-pooler`)
+2. ใส่ `DATABASE_URL` ใน `.env.local` แล้วลอง `npm run dev` ในเครื่องก่อน — ตารางจะถูกสร้างอัตโนมัติ
+3. push โค้ดขึ้น GitHub → import repo เข้า https://vercel.com
+4. ที่ Vercel ตั้ง environment variables: `ANTHROPIC_API_KEY`, `DATABASE_URL`, `PHUANG_ADMIN_USER`, `PHUANG_ADMIN_PASS`
+5. กด Deploy
 
-> ⚠️ **ข้อควรรู้เรื่อง SQLite บน Vercel:** ไฟล์ระบบของ Vercel เป็นแบบ ephemeral —
-> ข้อมูลใน `data/phuang.db` จะหายเมื่อ redeploy/สเกล ถ้าจะใช้จริงบน Vercel ต้องย้ายไป
-> Postgres (Neon/Supabase) หรือ Turso ก่อน โครงสร้าง `lib/db.ts` + `lib/shopRepo.ts`
-> แยก data layer ไว้แล้ว เปลี่ยน driver ได้ในจุดเดียว (รันในเครื่อง/เซิร์ฟเวอร์ตัวเองใช้ SQLite ได้เลย)
+> Neon DB เดียวใช้ได้ทั้ง local และ production การ migrate ตาราง (CREATE TABLE IF NOT EXISTS)
+> ทำงานอัตโนมัติครั้งแรกที่แอปเชื่อม DB ไม่ต้องรันสคริปต์แยก
 
 ## โครงสร้าง
 
@@ -50,7 +58,10 @@ npm run dev
 - `app/api/shop` — โหลด/บันทึกข้อมูลร้าน + คู่พ่วง (ต้อง login)
 - `app/api/generate/route.ts` — เรียก Anthropic (server-side, ต้อง login)
 - `proxy.ts` — กันหน้าแอปไว้หลัง login (redirect ไป `/login` ถ้าไม่มี session)
-- `lib/db.ts` — เปิด SQLite + สร้างตาราง
+- `app/admin` — โซนผู้ดูแลระบบ (เลือกร้าน → ดู/แก้ทุกร้าน)
+- `app/api/admin/*` — login/logout ผู้ดูแล + list/แก้ข้อมูลรายร้าน
+- `lib/db.ts` — เชื่อม Postgres (pool) + สร้างตารางอัตโนมัติ
+- `lib/superAuth.ts` — auth ผู้ดูแลระบบ (env-based, cookie แยก)
 - `lib/auth.ts` — hash รหัสผ่าน (scrypt) + session + cookie
 - `lib/shopRepo.ts` — อ่าน/เขียนข้อมูลร้าน + คู่พ่วง
 - `lib/prompt.ts` — system prompt + ประกอบ user content + parse JSON

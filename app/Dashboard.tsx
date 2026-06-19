@@ -2,7 +2,14 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import type { Product, Rule, Shop, ShopData, GenerateResult } from "@/lib/types";
+import type {
+  Product,
+  Rule,
+  Shop,
+  ShopData,
+  GenerateResult,
+  ImportResult,
+} from "@/lib/types";
 import ThemeToggle from "@/components/ThemeToggle";
 
 function genId(): string {
@@ -157,6 +164,23 @@ export default function Dashboard({
     }
   }
 
+  // นำเข้าอัตโนมัติ: AI แยกข้อความดิบเป็นคู่พ่วง/คลังสินค้า แล้วเพิ่มต่อท้าย
+  async function handleImport(text: string): Promise<{ rules: number; products: number }> {
+    const res = await fetch("/api/import", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) throw new Error("import failed");
+    const data = (await res.json()) as ImportResult;
+    const newRules: Rule[] = data.rules.map((r) => ({ ...newRule(), ...r }));
+    const newProducts: Product[] = data.products.map((p) => ({ ...newProduct(), ...p }));
+    if (newRules.length) setRules((prev) => [...prev, ...newRules]);
+    if (newProducts.length) setProducts((prev) => [...prev, ...newProducts]);
+    if (newRules.length || newProducts.length) markDirty();
+    return { rules: newRules.length, products: newProducts.length };
+  }
+
   async function handleLogout() {
     if (dirty) await handleSave(); // เซฟก่อนออก กันข้อมูลหาย
     await fetch("/api/auth/logout", { method: "POST" });
@@ -207,6 +231,7 @@ export default function Dashboard({
           updateProduct={updateProduct}
           addProduct={addProduct}
           removeProduct={removeProduct}
+          onImport={handleImport}
           save={save}
           onSave={handleSave}
         />
@@ -234,6 +259,7 @@ function ShopSettings({
   updateProduct,
   addProduct,
   removeProduct,
+  onImport,
   save,
   onSave,
 }: {
@@ -247,6 +273,7 @@ function ShopSettings({
   updateProduct: (id: string, patch: Partial<Product>) => void;
   addProduct: () => void;
   removeProduct: (id: string) => void;
+  onImport: (text: string) => Promise<{ rules: number; products: number }>;
   save: SaveState;
   onSave: () => void;
 }) {
@@ -256,6 +283,8 @@ function ShopSettings({
         <h2 className="text-base font-semibold text-gray-900 dark:text-white">ตั้งค่าร้าน</h2>
         <SaveButton save={save} onSave={onSave} />
       </div>
+
+      <ImportBox onImport={onImport} />
 
       <div className="mt-4 space-y-4">
         <Field label="ชื่อร้าน">
@@ -426,6 +455,86 @@ function SaveButton({ save, onSave }: { save: SaveState; onSave: () => void }) {
     >
       {label}
     </button>
+  );
+}
+
+function ImportBox({
+  onImport,
+}: {
+  onImport: (text: string) => Promise<{ rules: number; products: number }>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [msg, setMsg] = useState("");
+
+  async function run() {
+    if (!text.trim() || status === "loading") return;
+    setStatus("loading");
+    setMsg("");
+    try {
+      const { rules, products } = await onImport(text);
+      if (rules === 0 && products === 0) {
+        setStatus("error");
+        setMsg("ไม่พบข้อมูลที่แยกได้ ลองจัดข้อความให้ชัดขึ้น");
+        return;
+      }
+      setStatus("idle");
+      setMsg(`เพิ่มแล้ว: คู่พ่วง ${rules} รายการ, สินค้า ${products} รายการ (ระบบบันทึกให้อัตโนมัติ)`);
+      setText("");
+    } catch {
+      setStatus("error");
+      setMsg("แยกข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 dark:border-emerald-900 dark:bg-emerald-950/20">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between text-left"
+      >
+        <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+          ✨ นำเข้าอัตโนมัติ — วางข้อความ AI แยกคู่พ่วง/สินค้าให้เอง
+        </span>
+        <span className="text-emerald-700 dark:text-emerald-400">{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <div className="mt-3 space-y-2">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={5}
+            placeholder={
+              "วางข้อมูลแบบไหนก็ได้ เช่น:\nแบตเตอรี่รถยนต์ ซื้อคู่กับสายพ่วง 450 บาท ลดเหลือ 290\nน้ำมันเครื่อง 1200 บาท สังเคราะห์แท้ 100%\nใบปัดน้ำฝน 250 บาท"
+            }
+            className={inputClass}
+          />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={run}
+              disabled={!text.trim() || status === "loading"}
+              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {status === "loading" ? "กำลังแยกข้อมูล…" : "แยกและเพิ่มอัตโนมัติ"}
+            </button>
+            {msg && (
+              <span
+                className={`text-xs ${status === "error" ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}
+              >
+                {msg}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            แยกแล้วจะเพิ่มต่อท้ายรายการด้านล่าง ตรวจ/แก้ได้ก่อนใช้งานจริง
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 

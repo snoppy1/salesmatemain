@@ -49,6 +49,12 @@ export type GenerateRequest = {
   customerMsg: string; // ข้อความ + บริบทจากลูกค้า รวมในช่องเดียว
 };
 
+/** ผลลัพธ์การแยกข้อมูลอัตโนมัติจากข้อความดิบ (ยังไม่มี id) */
+export type ImportResult = {
+  rules: Omit<Rule, "id">[];
+  products: Omit<Product, "id">[];
+};
+
 export type GenerateResult = {
   should_upsell: boolean;
   message: string;

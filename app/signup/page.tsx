@@ -62,14 +62,17 @@ export default function SignupPage() {
           autoComplete="new-password"
           placeholder="อย่างน้อย 6 ตัวอักษร"
         />
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
         <button type="submit" disabled={loading} className={btnClass}>
           {loading ? "กำลังสมัคร…" : "สมัครและเริ่มใช้งาน"}
         </button>
       </form>
-      <p className="mt-4 text-center text-sm text-gray-600">
+      <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
         มีร้านอยู่แล้ว?{" "}
-        <Link href="/login" className="font-semibold text-emerald-700 hover:underline">
+        <Link
+          href="/login"
+          className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+        >
           เข้าสู่ระบบ
         </Link>
       </p>

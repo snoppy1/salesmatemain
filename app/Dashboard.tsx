@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Rule, Shop, ShopData, GenerateResult } from "@/lib/types";
+import ThemeToggle from "@/components/ThemeToggle";
 
 function newRule(): Rule {
   return {
@@ -120,18 +121,28 @@ export default function Dashboard({
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
       <header className="mb-6 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">พ่วง</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            ผู้ช่วยแอดมินเจนประโยคขายพ่วง — AI แนะนำ แอดมินอ่านแล้วกดส่งเอง
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-xl font-bold text-white shadow-sm">
+            พ
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+              พ่วง
+            </h1>
+            <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-400">
+              AI แนะนำประโยคขายพ่วง — แอดมินอ่านแล้วกดส่งเอง
+            </p>
+          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-3 text-sm">
-          <span className="hidden text-gray-500 sm:inline">@{username}</span>
+        <div className="flex shrink-0 items-center gap-2 text-sm">
+          <span className="hidden text-gray-500 dark:text-gray-400 sm:inline">
+            @{username}
+          </span>
+          <ThemeToggle />
           <button
             type="button"
             onClick={handleLogout}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 font-medium text-gray-700 transition hover:bg-gray-50"
+            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
           >
             ออกจากระบบ
           </button>
@@ -184,9 +195,9 @@ function ShopSettings({
   onSave: () => void;
 }) {
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-gray-900">ตั้งค่าร้าน</h2>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">ตั้งค่าร้าน</h2>
         <SaveButton save={save} onSave={onSave} />
       </div>
 
@@ -214,14 +225,14 @@ function ShopSettings({
 
       <div className="mt-6">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">รายการคู่พ่วง</h3>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">รายการคู่พ่วง</h3>
           <button type="button" onClick={addRule} className={secondaryBtnClass}>
             + เพิ่มคู่พ่วง
           </button>
         </div>
 
         {rules.length === 0 ? (
-          <p className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-6 text-center text-sm text-gray-500">
+          <p className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
             ยังไม่มีคู่พ่วง — กด “+ เพิ่มคู่พ่วง” เพื่อกำหนดว่าสินค้าไหนเสนอพ่วงกับอะไร
           </p>
         ) : (
@@ -258,7 +269,7 @@ function SaveButton({ save, onSave }: { save: SaveState; onSave: () => void }) {
       disabled={save === "saving"}
       className={`rounded-md px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
         save === "error"
-          ? "border border-red-300 bg-white text-red-600 hover:bg-red-50"
+          ? "border border-red-300 bg-white text-red-600 hover:bg-red-50 dark:border-red-800 dark:bg-transparent dark:text-red-400 dark:hover:bg-red-950/40"
           : "bg-emerald-600 text-white hover:bg-emerald-700"
       }`}
     >
@@ -279,13 +290,13 @@ function RuleRow({
   onRemove: () => void;
 }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-medium text-gray-500">คู่พ่วง #{index + 1}</span>
+        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">คู่พ่วง #{index + 1}</span>
         <button
           type="button"
           onClick={onRemove}
-          className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+          className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
           aria-label={`ลบคู่พ่วงที่ ${index + 1}`}
         >
           ลบ
@@ -367,8 +378,8 @@ function Console({
   const canGenerate = customerMsg.trim().length > 0 && !loading;
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <h2 className="text-base font-semibold text-gray-900">เจนประโยคขายพ่วง</h2>
+    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      <h2 className="text-base font-semibold text-gray-900 dark:text-white">เจนประโยคขายพ่วง</h2>
 
       <div className="mt-4 space-y-4">
         <Field label="ข้อความล่าสุดของลูกค้า">
@@ -412,7 +423,7 @@ function Console({
         <ResultArea result={result} />
       </div>
 
-      <p className="mt-5 border-t border-gray-100 pt-3 text-xs text-gray-500">
+      <p className="mt-5 border-t border-gray-100 pt-3 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
         ประโยคที่ได้เป็นคำแนะนำ แอดมินควรอ่านก่อนกดส่งทุกครั้ง
       </p>
     </section>
@@ -422,7 +433,7 @@ function Console({
 function ResultArea({ result }: { result: ResultState }) {
   if (result.kind === "idle") {
     return (
-      <p className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-8 text-center text-sm text-gray-500">
+      <p className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
         ผลลัพธ์จะแสดงตรงนี้
       </p>
     );
@@ -430,7 +441,7 @@ function ResultArea({ result }: { result: ResultState }) {
 
   if (result.kind === "loading") {
     return (
-      <div className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-8 text-sm text-gray-500">
+      <div className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-8 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
         <Spinner />
         กำลังวิเคราะห์บทสนทนา…
       </div>
@@ -439,7 +450,7 @@ function ResultArea({ result }: { result: ResultState }) {
 
   if (result.kind === "error") {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
+      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
         {result.message}
       </div>
     );
@@ -449,10 +460,10 @@ function ResultArea({ result }: { result: ResultState }) {
 
   if (!data.should_upsell) {
     return (
-      <div className="rounded-lg border border-gray-300 bg-gray-100 px-4 py-4">
-        <p className="font-semibold text-gray-700">ยังไม่ใช่จังหวะเสนอ</p>
+      <div className="rounded-lg border border-gray-300 bg-gray-100 px-4 py-4 dark:border-gray-700 dark:bg-gray-800">
+        <p className="font-semibold text-gray-700 dark:text-gray-200">ยังไม่ใช่จังหวะเสนอ</p>
         {data.reason_for_admin && (
-          <p className="mt-1 text-sm text-gray-600">{data.reason_for_admin}</p>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{data.reason_for_admin}</p>
         )}
       </div>
     );
@@ -480,9 +491,9 @@ function UpsellCard({ data }: { data: GenerateResult }) {
       : null;
 
   return (
-    <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-4">
+    <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-950/30">
       <div className="flex items-start justify-between gap-3">
-        <span className="text-sm font-semibold text-emerald-800">ประโยคที่ส่งได้</span>
+        <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">ประโยคที่ส่งได้</span>
         {value && (
           <span className="shrink-0 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white">
             {value}
@@ -490,7 +501,7 @@ function UpsellCard({ data }: { data: GenerateResult }) {
         )}
       </div>
 
-      <p className="mt-2 whitespace-pre-wrap rounded-md border border-emerald-200 bg-white px-3 py-2.5 text-[15px] leading-relaxed text-gray-900">
+      <p className="mt-2 whitespace-pre-wrap rounded-md border border-emerald-200 bg-white px-3 py-2.5 text-[15px] leading-relaxed text-gray-900 dark:border-emerald-900 dark:bg-gray-900 dark:text-gray-100">
         {data.message}
       </p>
 
@@ -499,11 +510,11 @@ function UpsellCard({ data }: { data: GenerateResult }) {
       </button>
 
       {data.reason_for_admin && (
-        <div className="mt-3 border-t border-emerald-200 pt-2.5">
-          <p className="text-xs font-medium text-emerald-700">
+        <div className="mt-3 border-t border-emerald-200 pt-2.5 dark:border-emerald-900">
+          <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
             เหตุผลสำหรับแอดมิน (ลูกค้าไม่เห็น)
           </p>
-          <p className="mt-0.5 text-sm text-gray-700">{data.reason_for_admin}</p>
+          <p className="mt-0.5 text-sm text-gray-700 dark:text-gray-300">{data.reason_for_admin}</p>
         </div>
       )}
     </div>
@@ -524,7 +535,7 @@ function Field({
   return (
     <label className="block">
       <span
-        className={`mb-1 block font-medium text-gray-700 ${compact ? "text-xs" : "text-sm"}`}
+        className={`mb-1 block font-medium text-gray-700 dark:text-gray-300 ${compact ? "text-xs" : "text-sm"}`}
       >
         {label}
       </span>
@@ -559,13 +570,13 @@ function Spinner() {
 }
 
 const inputClass =
-  "w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500";
+  "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500";
 
 const primaryBtnClass =
-  "w-full rounded-md bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50";
+  "w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50";
 
 const secondaryBtnClass =
-  "rounded-md border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50";
+  "rounded-md border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-700 dark:bg-transparent dark:text-emerald-400 dark:hover:bg-emerald-950/40";
 
 const copyBtnClass =
-  "mt-3 w-full rounded-md border border-emerald-400 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100";
+  "mt-3 w-full rounded-lg border border-emerald-400 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-700 dark:bg-transparent dark:text-emerald-300 dark:hover:bg-emerald-900/40";

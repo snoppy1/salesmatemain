@@ -6,15 +6,27 @@
   color-scheme: light;
 }
 
-html,
+html.dark {
+  color-scheme: dark;
+}
+
+/* พื้นหลัง: สว่าง = เทาอ่อน / มืด = เกือบดำ */
 body {
-  background-color: #f3f4f6; /* gray-100 — พื้นเทาอ่อน */
-  color: #111827; /* gray-900 */
+  background-color: #f1f5f9; /* slate-100 */
+  color: #0f172a; /* slate-900 */
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+html.dark body {
+  background-color: #0b1120; /* เกือบดำ อมน้ำเงิน */
+  color: #e2e8f0; /* slate-200 */
 }
 
 /* keyboard focus ที่มองเห็นชัด ทุก interactive element */
 :where(a, button, input, textarea, select):focus-visible {
-  outline: 2px solid #059669; /* emerald-600 */
+  outline: 2px solid #10b981; /* emerald-500 */
   outline-offset: 2px;
   border-radius: 4px;
 }

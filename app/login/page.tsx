@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -54,14 +55,17 @@ export default function LoginPage() {
           autoComplete="current-password"
           placeholder="••••••••"
         />
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
         <button type="submit" disabled={loading} className={btnClass}>
           {loading ? "กำลังเข้าสู่ระบบ…" : "เข้าสู่ระบบ"}
         </button>
       </form>
-      <p className="mt-4 text-center text-sm text-gray-600">
+      <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
         ยังไม่มีร้าน?{" "}
-        <Link href="/signup" className="font-semibold text-emerald-700 hover:underline">
+        <Link
+          href="/signup"
+          className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+        >
           สมัครเปิดร้านใหม่
         </Link>
       </p>
@@ -81,15 +85,25 @@ export function AuthShell({
   children: React.ReactNode;
 }) {
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-10">
+    <main className="relative flex min-h-screen items-center justify-center px-4 py-10">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">พ่วง</h1>
-          <p className="mt-1 text-sm text-gray-600">ผู้ช่วยเสนอขายพ่วงสำหรับร้านแชต</p>
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600 text-2xl font-bold text-white shadow-sm">
+            พ
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+            พ่วง
+          </h1>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+            ผู้ช่วยเสนอขายพ่วงสำหรับร้านแชต
+          </p>
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-          <p className="mb-4 mt-0.5 text-sm text-gray-500">{subtitle}</p>
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
+          <p className="mb-4 mt-0.5 text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>
           {children}
         </div>
       </div>
@@ -114,18 +128,20 @@ export function FormField({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-gray-700">{label}</span>
+      <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+        {label}
+      </span>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         autoComplete={autoComplete}
         placeholder={placeholder}
-        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500"
       />
     </label>
   );
 }
 
 export const btnClass =
-  "w-full rounded-md bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50";
+  "w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50";

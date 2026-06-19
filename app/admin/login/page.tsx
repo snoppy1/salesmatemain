@@ -57,7 +57,7 @@ export default function AdminLoginPage() {
           autoComplete="current-password"
           placeholder="••••••••"
         />
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
         <button type="submit" disabled={loading} className={btnClass}>
           {loading ? "กำลังเข้าสู่ระบบ…" : "เข้าสู่ระบบผู้ดูแล"}
         </button>

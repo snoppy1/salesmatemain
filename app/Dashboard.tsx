@@ -200,7 +200,11 @@ export default function Dashboard({
         onLogout={handleLogout}
       />
       <main className="pl-16">
-        <div className="mx-auto max-w-3xl px-4 py-6 sm:py-8">
+        <div
+          className={`mx-auto px-4 py-6 sm:py-8 ${
+            view === "catalog" ? "max-w-6xl" : "max-w-3xl"
+          }`}
+        >
           {view === "generate" && (
             <Console
               customerMsg={customerMsg}
@@ -431,65 +435,68 @@ function CatalogView({
         <SaveButton save={save} onSave={onSave} />
       </div>
 
+      {/* นำเข้าอัตโนมัติ อยู่บนกลาง เต็มความกว้าง */}
       <ImportBox onImport={onImport} />
 
-      <div className="mt-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">รายการคู่พ่วง</h3>
-          <button type="button" onClick={addRule} className={secondaryBtnClass}>
-            + เพิ่มคู่พ่วง
-          </button>
+      <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
+        {/* ซ้าย: รายการคู่พ่วง */}
+        <div className="rounded-xl border border-gray-200 p-3 dark:border-gray-800">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">รายการคู่พ่วง</h3>
+            <button type="button" onClick={addRule} className={secondaryBtnClass}>
+              + เพิ่มคู่พ่วง
+            </button>
+          </div>
+
+          {rules.length === 0 ? (
+            <p className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
+              ยังไม่มีคู่พ่วง — กด “+ เพิ่มคู่พ่วง”
+            </p>
+          ) : (
+            <div className="mt-3 max-h-[62vh] space-y-3 overflow-y-auto pr-1">
+              {rules.map((rule, i) => (
+                <RuleRow
+                  key={rule.id}
+                  index={i}
+                  rule={rule}
+                  onChange={(patch) => updateRule(rule.id, patch)}
+                  onRemove={() => removeRule(rule.id)}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
-        {rules.length === 0 ? (
-          <p className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
-            ยังไม่มีคู่พ่วง — กด “+ เพิ่มคู่พ่วง” เพื่อกำหนดว่าสินค้าไหนเสนอพ่วงกับอะไร
-          </p>
-        ) : (
-          <div className="mt-3 space-y-3">
-            {rules.map((rule, i) => (
-              <RuleRow
-                key={rule.id}
-                index={i}
-                rule={rule}
-                onChange={(patch) => updateRule(rule.id, patch)}
-                onRemove={() => removeRule(rule.id)}
-              />
-            ))}
+        {/* ขวา: คลังสินค้า */}
+        <div className="rounded-xl border border-gray-200 p-3 dark:border-gray-800">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">คลังสินค้า</h3>
+            <button type="button" onClick={addProduct} className={secondaryBtnClass}>
+              + เพิ่มสินค้า
+            </button>
           </div>
-        )}
-      </div>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            AI ใช้แนะนำเมื่อไม่มีคู่พ่วงที่ตรง
+          </p>
 
-      <div className="mt-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-            คลังสินค้า
-          </h3>
-          <button type="button" onClick={addProduct} className={secondaryBtnClass}>
-            + เพิ่มสินค้า
-          </button>
+          {products.length === 0 ? (
+            <p className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
+              ยังไม่มีสินค้า — กด “+ เพิ่มสินค้า”
+            </p>
+          ) : (
+            <div className="mt-3 max-h-[62vh] space-y-3 overflow-y-auto pr-1">
+              {products.map((product, i) => (
+                <ProductRow
+                  key={product.id}
+                  index={i}
+                  product={product}
+                  onChange={(patch) => updateProduct(product.id, patch)}
+                  onRemove={() => removeProduct(product.id)}
+                />
+              ))}
+            </div>
+          )}
         </div>
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          ใส่สินค้าในร้านไว้ AI จะใช้แนะนำเมื่อไม่มีคู่พ่วงที่ตรง
-        </p>
-
-        {products.length === 0 ? (
-          <p className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
-            ยังไม่มีสินค้า — กด “+ เพิ่มสินค้า”
-          </p>
-        ) : (
-          <div className="mt-3 space-y-3">
-            {products.map((product, i) => (
-              <ProductRow
-                key={product.id}
-                index={i}
-                product={product}
-                onChange={(patch) => updateProduct(product.id, patch)}
-                onRemove={() => removeProduct(product.id)}
-              />
-            ))}
-          </div>
-        )}
       </div>
     </section>
   );

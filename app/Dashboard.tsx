@@ -41,7 +41,6 @@ export default function Dashboard({
   const [save, setSave] = useState<SaveState>("idle");
 
   const [customerMsg, setCustomerMsg] = useState("");
-  const [customerContext, setCustomerContext] = useState("");
   const [result, setResult] = useState<ResultState>({ kind: "idle" });
 
   function markDirty() {
@@ -98,7 +97,6 @@ export default function Dashboard({
           shopVoice: shop.voice,
           rules,
           customerMsg,
-          customerContext,
         }),
       });
       if (!res.ok) {
@@ -163,8 +161,6 @@ export default function Dashboard({
         <Console
           customerMsg={customerMsg}
           setCustomerMsg={setCustomerMsg}
-          customerContext={customerContext}
-          setCustomerContext={setCustomerContext}
           onGenerate={handleGenerate}
           result={result}
         />
@@ -362,15 +358,11 @@ function RuleRow({
 function Console({
   customerMsg,
   setCustomerMsg,
-  customerContext,
-  setCustomerContext,
   onGenerate,
   result,
 }: {
   customerMsg: string;
   setCustomerMsg: (v: string) => void;
-  customerContext: string;
-  setCustomerContext: (v: string) => void;
   onGenerate: () => void;
   result: ResultState;
 }) {
@@ -382,22 +374,14 @@ function Console({
       <h2 className="text-base font-semibold text-gray-900 dark:text-white">เจนประโยคขายพ่วง</h2>
 
       <div className="mt-4 space-y-4">
-        <Field label="ข้อความล่าสุดของลูกค้า">
+        <Field label="ข้อความ/บริบทจากลูกค้า">
           <textarea
             value={customerMsg}
             onChange={(e) => setCustomerMsg(e.target.value)}
-            placeholder="วางข้อความที่ลูกค้าเพิ่งทักมา เช่น สนใจครีมทารอบดวงตา มีโปรไหมคะ"
-            rows={4}
-            className={inputClass}
-          />
-        </Field>
-
-        <Field label="บริบทลูกค้า (ถ้ารู้)">
-          <input
-            type="text"
-            value={customerContext}
-            onChange={(e) => setCustomerContext(e.target.value)}
-            placeholder="เช่น งบไม่เกิน 500 / ซื้อเป็นของขวัญ / ลูกค้าเก่า"
+            placeholder={
+              "วางข้อความที่ลูกค้าทักมา + บริบทถ้ามี รวมในช่องเดียว\nเช่น: สนใจครีมรอบดวงตาค่ะ งบไม่เกิน 500 ซื้อเป็นของขวัญ"
+            }
+            rows={6}
             className={inputClass}
           />
         </Field>

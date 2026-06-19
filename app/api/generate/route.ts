@@ -41,7 +41,6 @@ export async function POST(request: Request) {
     shopVoice: body.shopVoice ?? "",
     rules: Array.isArray(body.rules) ? body.rules : [],
     customerMsg: body.customerMsg ?? "",
-    customerContext: body.customerContext ?? "",
   });
 
   let anthropicRes: Response;

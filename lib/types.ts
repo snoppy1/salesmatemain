@@ -37,8 +37,7 @@ export type GenerateRequest = {
   shopName: string;
   shopVoice: string;
   rules: Rule[];
-  customerMsg: string;
-  customerContext: string;
+  customerMsg: string; // ข้อความ + บริบทจากลูกค้า รวมในช่องเดียว
 };
 
 export type GenerateResult = {

@@ -34,6 +34,8 @@ type ResultState =
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
+type View = "generate" | "settings" | "catalog";
+
 export default function Dashboard({
   username,
   initial,
@@ -50,6 +52,7 @@ export default function Dashboard({
   const [dirty, setDirty] = useState(false);
   const savingRef = useRef(false);
   const editSeqRef = useRef(0);
+  const [view, setView] = useState<View>("generate");
 
   const [customerMsg, setCustomerMsg] = useState("");
   const [result, setResult] = useState<ResultState>({ kind: "idle" });
@@ -189,91 +192,174 @@ export default function Dashboard({
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
-      <header className="mb-6 flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-xl font-bold text-white shadow-sm">
-            พ
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-              พ่วง
-            </h1>
-            <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-400">
-              AI แนะนำประโยคขายพ่วง — แอดมินอ่านแล้วกดส่งเอง
-            </p>
-          </div>
+    <div className="min-h-screen">
+      <Sidebar
+        view={view}
+        setView={setView}
+        username={username}
+        onLogout={handleLogout}
+      />
+      <main className="pl-16">
+        <div className="mx-auto max-w-3xl px-4 py-6 sm:py-8">
+          {view === "generate" && (
+            <Console
+              customerMsg={customerMsg}
+              setCustomerMsg={setCustomerMsg}
+              onGenerate={handleGenerate}
+              result={result}
+            />
+          )}
+          {view === "settings" && (
+            <SettingsView
+              shop={shop}
+              updateShop={updateShop}
+              save={save}
+              onSave={handleSave}
+            />
+          )}
+          {view === "catalog" && (
+            <CatalogView
+              rules={rules}
+              updateRule={updateRule}
+              addRule={addRule}
+              removeRule={removeRule}
+              products={products}
+              updateProduct={updateProduct}
+              addProduct={addProduct}
+              removeProduct={removeProduct}
+              onImport={handleImport}
+              save={save}
+              onSave={handleSave}
+            />
+          )}
         </div>
-        <div className="flex shrink-0 items-center gap-2 text-sm">
-          <span className="hidden text-gray-500 dark:text-gray-400 sm:inline">
-            @{username}
-          </span>
-          <ThemeToggle />
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-          >
-            ออกจากระบบ
-          </button>
-        </div>
-      </header>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ShopSettings
-          shop={shop}
-          updateShop={updateShop}
-          rules={rules}
-          updateRule={updateRule}
-          addRule={addRule}
-          removeRule={removeRule}
-          products={products}
-          updateProduct={updateProduct}
-          addProduct={addProduct}
-          removeProduct={removeProduct}
-          onImport={handleImport}
-          save={save}
-          onSave={handleSave}
-        />
-        <Console
-          customerMsg={customerMsg}
-          setCustomerMsg={setCustomerMsg}
-          onGenerate={handleGenerate}
-          result={result}
-        />
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
 
-/* ---------------- ฝั่งซ้าย: ตั้งค่า ---------------- */
+/* ---------------- แถบเมนูซ้าย (เลื่อนออกเมื่อ hover) ---------------- */
 
-function ShopSettings({
+function Sidebar({
+  view,
+  setView,
+  username,
+  onLogout,
+}: {
+  view: View;
+  setView: (v: View) => void;
+  username: string;
+  onLogout: () => void;
+}) {
+  const items: { key: View; label: string; icon: React.ReactNode }[] = [
+    { key: "generate", label: "เจนประโยคแนะนำการขาย", icon: <IconSpark /> },
+    { key: "settings", label: "ตั้งค่าร้าน", icon: <IconStore /> },
+    { key: "catalog", label: "รายการคู่พ่วงและคลังสินค้า", icon: <IconList /> },
+  ];
+
+  return (
+    <aside className="group fixed inset-y-0 left-0 z-40 flex w-16 flex-col overflow-hidden border-r border-gray-200 bg-white shadow-sm transition-[width] duration-200 ease-out hover:w-64 dark:border-gray-800 dark:bg-gray-900">
+      {/* โลโก้มุมซ้ายบน — ข้อความ พ่วง เลื่อนออกมาตอน hover */}
+      <div className="flex h-16 items-center gap-3 px-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-xl font-bold text-white shadow-sm">
+          พ
+        </div>
+        <span className="whitespace-nowrap text-lg font-bold tracking-tight text-gray-900 opacity-0 transition-opacity duration-200 group-hover:opacity-100 dark:text-white">
+          พ่วง
+        </span>
+      </div>
+
+      {/* หมวดหมู่ */}
+      <nav className="mt-2 flex flex-1 flex-col gap-1 px-2">
+        {items.map((it) => {
+          const active = view === it.key;
+          return (
+            <button
+              key={it.key}
+              type="button"
+              onClick={() => setView(it.key)}
+              title={it.label}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition ${
+                active
+                  ? "bg-emerald-600 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+              }`}
+            >
+              <span className="shrink-0">{it.icon}</span>
+              <span className="whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                {it.label}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* ฟันเฟืองซ้ายล่าง: บัญชี + ออกจากระบบ + ธีม */}
+      <div className="border-t border-gray-200 p-2 dark:border-gray-800">
+        <div className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 dark:text-gray-400">
+          <IconGear />
+          <span className="truncate whitespace-nowrap text-sm opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+            @{username}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 px-3 pb-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={onLogout}
+            className="whitespace-nowrap rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+          >
+            ออกจากระบบ
+          </button>
+          <ThemeToggle />
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function IconSpark() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z" />
+      <path d="M19 14l.7 1.8 1.8.7-1.8.7L19 19l-.7-1.8-1.8-.7 1.8-.7z" />
+    </svg>
+  );
+}
+function IconStore() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 9l1.5-5h15L21 9" />
+      <path d="M4 9v10a1 1 0 001 1h14a1 1 0 001-1V9" />
+      <path d="M3 9a2.5 2.5 0 005 0 2.5 2.5 0 005 0 2.5 2.5 0 005 0 2.5 2.5 0 005 0" />
+    </svg>
+  );
+}
+function IconList() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+    </svg>
+  );
+}
+function IconGear() {
+  return (
+    <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" />
+    </svg>
+  );
+}
+
+/* ---------------- หมวด: ตั้งค่าร้าน ---------------- */
+
+function SettingsView({
   shop,
   updateShop,
-  rules,
-  updateRule,
-  addRule,
-  removeRule,
-  products,
-  updateProduct,
-  addProduct,
-  removeProduct,
-  onImport,
   save,
   onSave,
 }: {
   shop: Shop;
   updateShop: (patch: Partial<Shop>) => void;
-  rules: Rule[];
-  updateRule: (id: string, patch: Partial<Rule>) => void;
-  addRule: () => void;
-  removeRule: (id: string) => void;
-  products: Product[];
-  updateProduct: (id: string, patch: Partial<Product>) => void;
-  addProduct: () => void;
-  removeProduct: (id: string) => void;
-  onImport: (text: string) => Promise<{ rules: number; products: number }>;
   save: SaveState;
   onSave: () => void;
 }) {
@@ -283,8 +369,6 @@ function ShopSettings({
         <h2 className="text-base font-semibold text-gray-900 dark:text-white">ตั้งค่าร้าน</h2>
         <SaveButton save={save} onSave={onSave} />
       </div>
-
-      <ImportBox onImport={onImport} />
 
       <div className="mt-4 space-y-4">
         <Field label="ชื่อร้าน">
@@ -301,12 +385,53 @@ function ShopSettings({
           <textarea
             value={shop.voice}
             onChange={(e) => updateShop({ voice: e.target.value })}
-            placeholder="เช่น เป็นกันเอง ใช้คำว่า 'นะคะ' น่ารักๆ มีอีโมจิบ้าง ไม่ทางการ"
-            rows={2}
+            placeholder="เช่น เป็นกันเอง ใช้คำว่า 'นะคะ' น่ารักๆ ไม่ทางการ"
+            rows={3}
             className={inputClass}
           />
         </Field>
       </div>
+    </section>
+  );
+}
+
+/* ---------------- หมวด: รายการคู่พ่วงและคลังสินค้า ---------------- */
+
+function CatalogView({
+  rules,
+  updateRule,
+  addRule,
+  removeRule,
+  products,
+  updateProduct,
+  addProduct,
+  removeProduct,
+  onImport,
+  save,
+  onSave,
+}: {
+  rules: Rule[];
+  updateRule: (id: string, patch: Partial<Rule>) => void;
+  addRule: () => void;
+  removeRule: (id: string) => void;
+  products: Product[];
+  updateProduct: (id: string, patch: Partial<Product>) => void;
+  addProduct: () => void;
+  removeProduct: (id: string) => void;
+  onImport: (text: string) => Promise<{ rules: number; products: number }>;
+  save: SaveState;
+  onSave: () => void;
+}) {
+  return (
+    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+          รายการคู่พ่วงและคลังสินค้า
+        </h2>
+        <SaveButton save={save} onSave={onSave} />
+      </div>
+
+      <ImportBox onImport={onImport} />
 
       <div className="mt-6">
         <div className="flex items-center justify-between">

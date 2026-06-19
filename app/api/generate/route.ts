@@ -55,7 +55,7 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 1000,
+        max_tokens: 1200,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: userContent }],
       }),

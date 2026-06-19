@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { Product, Rule, Shop, ShopData, GenerateResult } from "@/lib/types";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -39,12 +39,17 @@ export default function Dashboard({
   const [shop, setShop] = useState<Shop>(initial.shop);
   const [rules, setRules] = useState<Rule[]>(initial.rules);
   const [products, setProducts] = useState<Product[]>(initial.products ?? []);
-  const [save, setSave] = useState<SaveState>("idle");
+  const [save, setSave] = useState<SaveState>("saved");
+  const [dirty, setDirty] = useState(false);
+  const savingRef = useRef(false);
+  const editSeqRef = useRef(0);
 
   const [customerMsg, setCustomerMsg] = useState("");
   const [result, setResult] = useState<ResultState>({ kind: "idle" });
 
   function markDirty() {
+    editSeqRef.current += 1;
+    setDirty(true);
     setSave((s) => (s === "saving" ? s : "idle"));
   }
   function updateRule(id: string, patch: Partial<Rule>) {
@@ -76,8 +81,10 @@ export default function Dashboard({
     markDirty();
   }
 
-  async function handleSave() {
-    if (save === "saving") return;
+  const handleSave = useCallback(async () => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    const seq = editSeqRef.current;
     setSave("saving");
     try {
       const res = await fetch("/api/shop", {
@@ -89,15 +96,40 @@ export default function Dashboard({
         setSave("error");
         return;
       }
-      const data = (await res.json()) as ShopData;
-      setShop(data.shop);
-      setRules(data.rules);
-      setProducts(data.products ?? []);
-      setSave("saved");
+      // ไม่เอา response มาทับ state — กันทับสิ่งที่ผู้ใช้พิมพ์ระหว่างกำลังเซฟ
+      if (editSeqRef.current === seq) {
+        setDirty(false);
+        setSave("saved");
+      } else {
+        setSave("idle"); // มีการแก้ระหว่างเซฟ → ยังไม่ล่าสุด ให้ autosave รอบใหม่จัดการ
+      }
     } catch {
       setSave("error");
+    } finally {
+      savingRef.current = false;
     }
-  }
+  }, [shop, rules, products]);
+
+  // บันทึกอัตโนมัติ: หลังหยุดแก้ ~1.2 วิ (ไม่ยิงซ้อนระหว่างกำลังเซฟ)
+  useEffect(() => {
+    if (!dirty || save === "saving") return;
+    const t = setTimeout(() => {
+      void handleSave();
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [dirty, save, handleSave]);
+
+  // เตือนถ้าปิด/รีเฟรชหน้าทั้งที่ยังมีของยังไม่เซฟ
+  useEffect(() => {
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      if (dirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
 
   async function handleGenerate() {
     if (!customerMsg.trim() || result.kind === "loading") return;
@@ -126,6 +158,7 @@ export default function Dashboard({
   }
 
   async function handleLogout() {
+    if (dirty) await handleSave(); // เซฟก่อนออก กันข้อมูลหาย
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
     router.refresh();

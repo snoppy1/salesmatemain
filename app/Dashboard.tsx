@@ -714,7 +714,7 @@ function RuleRow({
             className={inputClass}
           />
         </Field>
-        <Field label="ราคา (บาท)" compact>
+        <Field label="ราคาของพ่วง (บาท)" compact>
           <input
             type="text"
             inputMode="numeric"

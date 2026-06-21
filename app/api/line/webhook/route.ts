@@ -2,15 +2,12 @@ import { NextResponse } from "next/server";
 import { queryOne } from "@/lib/db";
 import { verifySignature, fetchDisplayName } from "@/lib/lineClient";
 import { ingestCustomerMessage } from "@/lib/inboxRepo";
+import { getChannelByBotUserId } from "@/lib/lineChannelRepo";
 
 export const runtime = "nodejs";
 
-/**
- * หาว่า LINE webhook นี้เข้าร้านไหน
- * - ตอนนี้รองรับร้านเดียวผ่าน env LINE_SHOP_USERNAME (ภายหลังค่อยแยก channel ต่อร้าน)
- * - ถ้าไม่ตั้ง ใช้ร้านแรกสุดในระบบ
- */
-async function resolveShopId(): Promise<string | null> {
+/** fallback ร้านเดียวแบบเดิม (ผ่าน env) — ใช้เมื่อหา channel จาก destination ไม่เจอ */
+async function resolveEnvShopId(): Promise<string | null> {
   const username = process.env.LINE_SHOP_USERNAME;
   if (username) {
     const row = await queryOne<{ shop_id: string }>(
@@ -35,36 +32,52 @@ export async function POST(request: Request) {
   const raw = await request.text();
   const signature = request.headers.get("x-line-signature");
 
-  // กันคนปลอมยิง webhook
-  if (!verifySignature(raw, signature)) {
-    return NextResponse.json({ error: "ลายเซ็นไม่ถูกต้อง" }, { status: 401 });
-  }
-
-  let payload: { events?: LineEvent[] };
+  let payload: { destination?: string; events?: LineEvent[] };
   try {
     payload = JSON.parse(raw);
   } catch {
     return NextResponse.json({ ok: true }); // body เพี้ยน — ตอบ 200 กัน retry
   }
 
-  const shopId = await resolveShopId();
-  const events = payload.events ?? [];
+  // หาว่า webhook นี้เข้าร้านไหน + ใช้ credential ของร้านนั้น
+  let shopId: string | null = null;
+  let channelSecret = "";
+  let accessToken = "";
 
-  // ตอบ 200 เร็วๆ ได้เลย แต่ที่นี่ปริมาณน้อย ประมวลผลก่อนตอบ
-  if (shopId) {
-    for (const ev of events) {
-      if (ev.type !== "message" || ev.message?.type !== "text") continue;
-      const userId = ev.source?.userId ?? "";
-      const text = ev.message.text ?? "";
-      if (!userId || !text.trim()) continue;
-      const displayName = await fetchDisplayName(userId);
-      await ingestCustomerMessage(shopId, {
-        channel: "line",
-        lineUserId: userId,
-        displayName,
-        text,
-      });
-    }
+  const channel = payload.destination
+    ? await getChannelByBotUserId(payload.destination)
+    : null;
+  if (channel) {
+    shopId = channel.shop_id;
+    channelSecret = channel.channel_secret;
+    accessToken = channel.access_token;
+  } else {
+    // fallback env (ร้านเดียวแบบเดิม)
+    shopId = await resolveEnvShopId();
+    channelSecret = process.env.LINE_CHANNEL_SECRET ?? "";
+    accessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN ?? "";
+  }
+
+  // ไม่มีร้าน/secret ที่จะตรวจ → ตอบ 200 เฉยๆ (ไม่บันทึก)
+  if (!shopId || !channelSecret) return NextResponse.json({ ok: true });
+
+  // กันคนปลอมยิง webhook
+  if (!verifySignature(raw, signature, channelSecret)) {
+    return NextResponse.json({ error: "ลายเซ็นไม่ถูกต้อง" }, { status: 401 });
+  }
+
+  for (const ev of payload.events ?? []) {
+    if (ev.type !== "message" || ev.message?.type !== "text") continue;
+    const userId = ev.source?.userId ?? "";
+    const text = ev.message.text ?? "";
+    if (!userId || !text.trim()) continue;
+    const displayName = await fetchDisplayName(accessToken, userId);
+    await ingestCustomerMessage(shopId, {
+      channel: "line",
+      lineUserId: userId,
+      displayName,
+      text,
+    });
   }
 
   return NextResponse.json({ ok: true });

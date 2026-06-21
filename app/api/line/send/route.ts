@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentAdmin } from "@/lib/auth";
 import { getSendTarget, addAdminMessage } from "@/lib/inboxRepo";
+import { getChannelByShop } from "@/lib/lineChannelRepo";
 import { pushMessage } from "@/lib/lineClient";
 
 export const runtime = "nodejs";
@@ -29,8 +30,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "ไม่พบบทสนทนา" }, { status: 404 });
   }
 
+  // ใช้ token ของร้านนั้น (fallback env ถ้ายังไม่เชื่อมผ่านหน้าเว็บ)
+  const channel = await getChannelByShop(admin.shopId);
+  const accessToken =
+    channel?.access_token ?? process.env.LINE_CHANNEL_ACCESS_TOKEN ?? "";
+
   // ส่งเข้า LINE จริง (mock จะ return true โดยไม่ยิงจริง)
-  const ok = await pushMessage(target.lineUserId ?? "", text);
+  const ok = await pushMessage(accessToken, target.lineUserId ?? "", text);
   if (!ok) {
     return NextResponse.json(
       { error: "ส่งเข้า LINE ไม่สำเร็จ (ตรวจ token/สิทธิ์)" },

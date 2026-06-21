@@ -1,8 +1,14 @@
 import "server-only";
 import { query, queryOne } from "./db";
 import { newId } from "./auth";
-import { refreshTokens, type TokenSet } from "./marketplace";
+import { refreshTokens as refreshLazada, type TokenSet } from "./marketplace";
+import { refreshTokens as refreshShopee } from "./shopee";
 import type { ConnectionStatus } from "./types";
+
+/** เลือกฟังก์ชัน refresh token ตาม marketplace */
+function refresherFor(platform: string) {
+  return platform === "shopee" ? refreshShopee : refreshLazada;
+}
 
 type ConnRow = {
   id: string;
@@ -89,7 +95,7 @@ export async function getValidAccessToken(
   const nearExpiry = expiresAt - Date.now() < 1000 * 60 * 60 * 24; // < 1 วัน
   if (!nearExpiry) return row.access_token;
 
-  const refreshed = await refreshTokens(row.refresh_token);
+  const refreshed = await refresherFor(platform)(row.refresh_token, row.seller_id);
   await saveConnection(shopId, platform, refreshed);
   return refreshed.accessToken;
 }

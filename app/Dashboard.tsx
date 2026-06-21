@@ -185,9 +185,9 @@ export default function Dashboard({
     return { rules: newRules.length, products: newProducts.length };
   }
 
-  // ดึงสินค้าจาก Lazada → เพิ่มเข้าคลัง (กันซ้ำด้วย externalId)
-  async function handleImportMarketplace(): Promise<number> {
-    const res = await fetch("/api/connect/lazada/import", { method: "POST" });
+  // ดึงสินค้าจาก marketplace (lazada/shopee) → เพิ่มเข้าคลัง (กันซ้ำด้วย externalId)
+  async function handleImportMarketplace(platform: string): Promise<number> {
+    const res = await fetch(`/api/connect/${platform}/import`, { method: "POST" });
     if (!res.ok) throw new Error("import failed");
     const data = (await res.json()) as { products: Product[] };
     const existing = new Set(
@@ -452,7 +452,7 @@ function CatalogView({
   addProduct: () => void;
   removeProduct: (id: string) => void;
   onImport: (text: string) => Promise<{ rules: number; products: number }>;
-  onImportMarketplace: () => Promise<number>;
+  onImportMarketplace: (platform: string) => Promise<number>;
   save: SaveState;
   onSave: () => void;
 }) {
@@ -465,8 +465,16 @@ function CatalogView({
         <SaveButton save={save} onSave={onSave} />
       </div>
 
-      {/* เชื่อมต่อ marketplace (Lazada) */}
-      <MarketplaceBox onImport={onImportMarketplace} />
+      {/* เชื่อมต่อ marketplace (Lazada + Shopee) */}
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {MARKETPLACES.map((cfg) => (
+          <MarketplaceBox
+            key={cfg.platform}
+            cfg={cfg}
+            onImport={() => onImportMarketplace(cfg.platform)}
+          />
+        ))}
+      </div>
 
       {/* นำเข้าอัตโนมัติ อยู่บนกลาง เต็มความกว้าง */}
       <ImportBox onImport={onImport} />
@@ -551,9 +559,9 @@ function ProductRow({
       <div className="mb-2 flex items-center justify-between">
         <span className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
           สินค้า #{index + 1}
-          {product.source === "lazada" && (
-            <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700 dark:bg-orange-950/50 dark:text-orange-300">
-              Lazada
+          {product.source && PLATFORM_BADGE[product.source] && (
+            <span className={PLATFORM_BADGE[product.source].cls}>
+              {PLATFORM_BADGE[product.source].label}
             </span>
           )}
         </span>
@@ -628,7 +636,57 @@ function SaveButton({ save, onSave }: { save: SaveState; onSave: () => void }) {
   );
 }
 
-function MarketplaceBox({ onImport }: { onImport: () => Promise<number> }) {
+/** ตั้งค่าหน้าตาแต่ละ marketplace (คลาส Tailwind เขียนเต็มเพื่อไม่ให้โดน purge) */
+type MktConfig = {
+  platform: string;
+  label: string;
+  emoji: string;
+  box: string;
+  title: string;
+  mockText: string;
+  btn: string;
+};
+
+const MARKETPLACES: MktConfig[] = [
+  {
+    platform: "lazada",
+    label: "Lazada",
+    emoji: "🛒",
+    box: "border-orange-200 bg-orange-50/50 dark:border-orange-900/60 dark:bg-orange-950/20",
+    title: "text-orange-800 dark:text-orange-300",
+    mockText: "text-orange-600 dark:text-orange-400",
+    btn: "bg-orange-600 hover:bg-orange-700",
+  },
+  {
+    platform: "shopee",
+    label: "Shopee",
+    emoji: "🛍️",
+    box: "border-red-200 bg-red-50/50 dark:border-red-900/60 dark:bg-red-950/20",
+    title: "text-red-800 dark:text-red-300",
+    mockText: "text-red-600 dark:text-red-400",
+    btn: "bg-red-600 hover:bg-red-700",
+  },
+];
+
+/** ป้ายกำกับที่มาของสินค้าในคลัง */
+const PLATFORM_BADGE: Record<string, { label: string; cls: string }> = {
+  lazada: {
+    label: "Lazada",
+    cls: "rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700 dark:bg-orange-950/50 dark:text-orange-300",
+  },
+  shopee: {
+    label: "Shopee",
+    cls: "rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-950/50 dark:text-red-300",
+  },
+};
+
+function MarketplaceBox({
+  cfg,
+  onImport,
+}: {
+  cfg: MktConfig;
+  onImport: () => Promise<number>;
+}) {
   const [status, setStatus] = useState<
     (ConnectionStatus & { configured?: boolean }) | null
   >(null);
@@ -636,11 +694,11 @@ function MarketplaceBox({ onImport }: { onImport: () => Promise<number> }) {
   const [msg, setMsg] = useState("");
 
   useEffect(() => {
-    fetch("/api/connect/lazada/status")
+    fetch(`/api/connect/${cfg.platform}/status`)
       .then((r) => (r.ok ? r.json() : null))
       .then(setStatus)
       .catch(() => {});
-  }, []);
+  }, [cfg.platform]);
 
   async function doImport() {
     if (busy) return;
@@ -650,7 +708,7 @@ function MarketplaceBox({ onImport }: { onImport: () => Promise<number> }) {
       const n = await onImport();
       setMsg(
         n > 0
-          ? `ดึงสินค้าจาก Lazada ${n} รายการ (บันทึกอัตโนมัติ)`
+          ? `ดึงสินค้าจาก ${cfg.label} ${n} รายการ (บันทึกอัตโนมัติ)`
           : "ไม่มีสินค้าใหม่ (ดึงครบแล้ว)",
       );
     } catch {
@@ -663,8 +721,10 @@ function MarketplaceBox({ onImport }: { onImport: () => Promise<number> }) {
   async function disconnect() {
     if (busy) return;
     setBusy(true);
-    await fetch("/api/connect/lazada/disconnect", { method: "POST" }).catch(() => {});
-    setStatus({ connected: false, platform: "lazada" });
+    await fetch(`/api/connect/${cfg.platform}/disconnect`, { method: "POST" }).catch(
+      () => {},
+    );
+    setStatus({ connected: false, platform: cfg.platform });
     setMsg("");
     setBusy(false);
   }
@@ -673,10 +733,13 @@ function MarketplaceBox({ onImport }: { onImport: () => Promise<number> }) {
   const mock = status?.mock || status?.configured === false;
 
   return (
-    <div className="mt-4 rounded-xl border border-orange-200 bg-orange-50/50 p-3 dark:border-orange-900/60 dark:bg-orange-950/20">
+    <div className={`rounded-xl border p-3 ${cfg.box}`}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-orange-800 dark:text-orange-300">
-          🛒 เชื่อมต่อร้านค้า Lazada {mock && <span className="text-xs font-normal text-orange-600 dark:text-orange-400">(โหมดทดลอง)</span>}
+        <span className={`text-sm font-semibold ${cfg.title}`}>
+          {cfg.emoji} เชื่อมต่อร้านค้า {cfg.label}{" "}
+          {mock && (
+            <span className={`text-xs font-normal ${cfg.mockText}`}>(โหมดทดลอง)</span>
+          )}
         </span>
         {connected ? (
           <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
@@ -692,13 +755,13 @@ function MarketplaceBox({ onImport }: { onImport: () => Promise<number> }) {
       {!connected ? (
         <div className="mt-2">
           <a
-            href="/api/connect/lazada"
-            className="inline-block rounded-lg bg-orange-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-orange-700"
+            href={`/api/connect/${cfg.platform}`}
+            className={`inline-block rounded-lg px-3 py-1.5 text-sm font-semibold text-white transition ${cfg.btn}`}
           >
-            เชื่อมต่อ Lazada
+            เชื่อมต่อ {cfg.label}
           </a>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            เชื่อมแล้วดึงสินค้าจากร้าน Lazada เข้าคลังได้อัตโนมัติ
+            เชื่อมแล้วดึงสินค้าจากร้าน {cfg.label} เข้าคลังได้อัตโนมัติ
           </p>
         </div>
       ) : (
@@ -707,9 +770,9 @@ function MarketplaceBox({ onImport }: { onImport: () => Promise<number> }) {
             type="button"
             onClick={doImport}
             disabled={busy}
-            className="rounded-lg bg-orange-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:opacity-50"
+            className={`rounded-lg px-3 py-1.5 text-sm font-semibold text-white transition disabled:opacity-50 ${cfg.btn}`}
           >
-            {busy ? "กำลังดึง…" : "ดึงสินค้าจาก Lazada"}
+            {busy ? "กำลังดึง…" : `ดึงสินค้าจาก ${cfg.label}`}
           </button>
           <button
             type="button"

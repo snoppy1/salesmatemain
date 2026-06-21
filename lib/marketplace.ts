@@ -93,7 +93,10 @@ export async function exchangeCode(code: string): Promise<TokenSet> {
   };
 }
 
-export async function refreshTokens(refreshToken: string): Promise<TokenSet> {
+export async function refreshTokens(
+  refreshToken: string,
+  _sellerId = "", // Lazada ไม่ใช้ — มีไว้ให้ signature ตรงกับ Shopee
+): Promise<TokenSet> {
   if (!isLazadaConfigured() || refreshToken.startsWith("mock-")) {
     return mockTokens();
   }

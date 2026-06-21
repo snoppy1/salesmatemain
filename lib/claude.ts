@@ -3,6 +3,7 @@ import type { GenerateRequest, GenerateResult } from "./types";
 import {
   SYSTEM_PROMPT,
   REPLY_SYSTEM_PROMPT,
+  CHOICES_SYSTEM_PROMPT,
   buildUserContent,
   parseModelJson,
 } from "./prompt";
@@ -18,10 +19,18 @@ export class ClaudeError extends Error {
   }
 }
 
-async function callClaude(
+/** ผลลัพธ์การร่างคำตอบแชต (auto/draft) */
+export type ReplyResult = {
+  message: string;
+  needsHuman: boolean;
+  reason: string;
+};
+
+/** เรียก Claude แล้วคืน JSON object ที่ parse แล้ว (โยน ClaudeError ถ้าพลาด) */
+async function callClaudeRaw(
   systemPrompt: string,
   req: GenerateRequest,
-): Promise<GenerateResult> {
+): Promise<Record<string, unknown>> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new ClaudeError("ยังไม่ได้ตั้งค่า ANTHROPIC_API_KEY ฝั่งเซิร์ฟเวอร์", 500);
@@ -59,26 +68,41 @@ async function callClaude(
   const rawText = data?.content?.find((c) => c.type === "text")?.text ?? "";
 
   try {
-    const obj = parseModelJson(rawText) as Record<string, unknown>;
-    return {
-      should_upsell: Boolean(obj.should_upsell),
-      message: typeof obj.message === "string" ? obj.message : "",
-      reason_for_admin:
-        typeof obj.reason_for_admin === "string" ? obj.reason_for_admin : "",
-      est_added_value:
-        typeof obj.est_added_value === "number" ? obj.est_added_value : null,
-    };
+    return parseModelJson(rawText) as Record<string, unknown>;
   } catch {
     throw new ClaudeError("อ่านคำตอบของ AI ไม่สำเร็จ", 502);
   }
 }
 
 /** หน้า "เจนประโยค": ถ้าไม่มีพ่วงที่เหมาะ message อาจว่างได้ */
-export function generateUpsell(req: GenerateRequest): Promise<GenerateResult> {
-  return callClaude(SYSTEM_PROMPT, req);
+export async function generateUpsell(req: GenerateRequest): Promise<GenerateResult> {
+  const obj = await callClaudeRaw(SYSTEM_PROMPT, req);
+  return {
+    should_upsell: Boolean(obj.should_upsell),
+    message: typeof obj.message === "string" ? obj.message : "",
+    reason_for_admin:
+      typeof obj.reason_for_admin === "string" ? obj.reason_for_admin : "",
+    est_added_value:
+      typeof obj.est_added_value === "number" ? obj.est_added_value : null,
+  };
 }
 
-/** กล่องแชต LINE: ต้องตอบลูกค้าเสมอ (message ห้ามว่าง) + แทรกพ่วงถ้าเหมาะ */
-export function generateReply(req: GenerateRequest): Promise<GenerateResult> {
-  return callClaude(REPLY_SYSTEM_PROMPT, req);
+/** กล่องแชต LINE: ตอบลูกค้าเสมอ + ประเมิน needs_human (ใช้ทั้ง draft และ auto) */
+export async function generateReply(req: GenerateRequest): Promise<ReplyResult> {
+  const obj = await callClaudeRaw(REPLY_SYSTEM_PROMPT, req);
+  return {
+    message: typeof obj.message === "string" ? obj.message : "",
+    needsHuman: Boolean(obj.needs_human),
+    reason: typeof obj.reason_for_admin === "string" ? obj.reason_for_admin : "",
+  };
+}
+
+/** โหมด manual: เสนอ 2-3 คำตอบให้แอดมินเลือก */
+export async function generateChoices(req: GenerateRequest): Promise<string[]> {
+  const obj = await callClaudeRaw(CHOICES_SYSTEM_PROMPT, req);
+  const arr = Array.isArray(obj.choices) ? obj.choices : [];
+  return arr
+    .map((c) => (typeof c === "string" ? c.trim() : ""))
+    .filter(Boolean)
+    .slice(0, 3);
 }

@@ -1,11 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import type {
-  ConversationSummary,
-  ConversationDetail,
-  GenerateResult,
-} from "@/lib/types";
+import type { ConversationSummary, ConversationDetail } from "@/lib/types";
 
 const btnPrimary =
   "rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50";
@@ -40,20 +36,26 @@ export default function InboxView() {
   });
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
+  const [choicesMap, setChoicesMap] = useState<Record<string, string[]>>({});
   const [drafting, setDrafting] = useState(false);
+  const [choosing, setChoosing] = useState(false);
+  const [togglingMode, setTogglingMode] = useState(false);
   const [sending, setSending] = useState(false);
   const [simText, setSimText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const activeIdRef = useRef<string | null>(activeId);
   activeIdRef.current = activeId;
 
-  // ร่าง/เหตุผล เก็บแยกต่อบทสนทนา — สลับแชตแล้วข้อความไม่ปนกัน
+  // ร่าง/เหตุผล/ตัวเลือก เก็บแยกต่อบทสนทนา — สลับแชตแล้วไม่ปนกัน
   const draft = activeId ? (drafts[activeId] ?? "") : "";
   const reason = activeId ? (reasons[activeId] ?? "") : "";
+  const choices = activeId ? (choicesMap[activeId] ?? []) : [];
   const setDraftFor = (id: string, v: string) =>
     setDrafts((m) => ({ ...m, [id]: v }));
   const setReasonFor = (id: string, v: string) =>
     setReasons((m) => ({ ...m, [id]: v }));
+  const setChoicesFor = (id: string, v: string[]) =>
+    setChoicesMap((m) => ({ ...m, [id]: v }));
 
   const loadConversations = useCallback(async () => {
     try {
@@ -127,7 +129,12 @@ export default function InboxView() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ conversationId: id }),
       });
-      const d = (await r.json()) as GenerateResult & { error?: string };
+      const d = (await r.json()) as {
+        message?: string;
+        reason?: string;
+        needsHuman?: boolean;
+        error?: string;
+      };
       if (!r.ok) {
         setReasonFor(id, d.error || "ร่างคำตอบไม่สำเร็จ");
         return;
@@ -135,15 +142,55 @@ export default function InboxView() {
       setDraftFor(id, d.message || "");
       setReasonFor(
         id,
-        d.should_upsell
-          ? d.reason_for_admin || ""
-          : "AI มองว่ารอบนี้ยังไม่ต้องเสนอขายพ่วง — ตอบตามปกติได้",
+        d.needsHuman
+          ? "AI ไม่ค่อยมั่นใจคำตอบนี้ — ตรวจก่อนส่งนะ"
+          : d.reason || "",
       );
     } catch {
       setReasonFor(id, "ร่างคำตอบไม่สำเร็จ ลองใหม่");
     } finally {
       setDrafting(false);
     }
+  }
+
+  // โหมด manual: ให้ AI เสนอ 2-3 คำตอบ
+  async function handleChoices() {
+    if (!activeId || choosing) return;
+    const id = activeId;
+    setChoosing(true);
+    setReasonFor(id, "");
+    try {
+      const r = await fetch("/api/line/choices", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ conversationId: id }),
+      });
+      const d = (await r.json()) as { choices?: string[]; error?: string };
+      if (!r.ok) {
+        setReasonFor(id, d.error || "เสนอคำตอบไม่สำเร็จ");
+        return;
+      }
+      setChoicesFor(id, d.choices ?? []);
+    } catch {
+      setReasonFor(id, "เสนอคำตอบไม่สำเร็จ ลองใหม่");
+    } finally {
+      setChoosing(false);
+    }
+  }
+
+  // สลับโหมด auto/manual ของบทสนทนานี้
+  async function handleToggleMode() {
+    if (!activeId || !detail || togglingMode) return;
+    const id = activeId;
+    const next = detail.mode === "auto" ? "manual" : "auto";
+    setTogglingMode(true);
+    await fetch("/api/line/mode", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ conversationId: id, mode: next }),
+    }).catch(() => {});
+    await loadDetail(id);
+    setTogglingMode(false);
   }
 
   async function handleSend() {
@@ -221,8 +268,15 @@ export default function InboxView() {
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm font-medium text-gray-900 dark:text-white">
-                      {c.customerName}
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                        {c.customerName}
+                      </span>
+                      {c.pendingHuman && (
+                        <span className="shrink-0 rounded bg-red-100 px-1 py-0.5 text-[9px] font-bold text-red-700 dark:bg-red-950/50 dark:text-red-300">
+                          รอตอบ
+                        </span>
+                      )}
                     </span>
                     <span className="shrink-0 text-[10px] text-gray-400">
                       {timeAgo(c.lastMessageAt)}
@@ -256,9 +310,19 @@ export default function InboxView() {
                   {detail.channel.toUpperCase()}
                 </span>
               </div>
-              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                โหมดกดส่งเอง
-              </span>
+              <button
+                type="button"
+                onClick={handleToggleMode}
+                disabled={togglingMode}
+                title="สลับโหมด: AI ตอบเอง / กดส่งเอง"
+                className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition disabled:opacity-50 ${
+                  detail.mode === "auto"
+                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                    : "bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300"
+                }`}
+              >
+                {detail.mode === "auto" ? "🤖 AI ตอบเอง" : "✋ กดส่งเอง"}
+              </button>
             </div>
 
             {/* ข้อความ */}
@@ -289,14 +353,43 @@ export default function InboxView() {
                   💡 {reason}
                 </p>
               )}
+
+              {/* ตัวเลือกคำตอบจาก AI (โหมด manual) — กดเพื่อใส่ในช่องพิมพ์ */}
+              {choices.length > 0 && (
+                <div className="mb-2 space-y-1.5">
+                  {choices.map((c, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        if (!activeId) return;
+                        setDraftFor(activeId, c);
+                        setChoicesFor(activeId, []);
+                      }}
+                      className="block w-full rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-left text-sm text-gray-800 transition hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-gray-100 dark:hover:bg-emerald-950/40"
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <textarea
                 value={draft}
                 onChange={(e) => activeId && setDraftFor(activeId, e.target.value)}
                 rows={2}
-                placeholder="พิมพ์คำตอบ หรือกด “ให้ AI ร่าง” แล้วแก้ก่อนส่ง"
+                placeholder="พิมพ์คำตอบ หรือกด “เสนอคำตอบ”/“ให้ AI ร่าง” แล้วแก้ก่อนส่ง"
                 className={`${inputCls} resize-none`}
               />
-              <div className="mt-2 flex items-center gap-2">
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleChoices}
+                  disabled={choosing}
+                  className={btnGhost}
+                >
+                  {choosing ? "กำลังคิด…" : "💡 เสนอคำตอบ"}
+                </button>
                 <button
                   type="button"
                   onClick={handleDraft}

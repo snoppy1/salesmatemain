@@ -495,6 +495,7 @@ function LineConnectBox() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [copied, setCopied] = useState(false);
+  const [autoReply, setAutoReply] = useState(false);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -507,7 +508,21 @@ function LineConnectBox() {
 
   useEffect(() => {
     void loadStatus();
+    fetch("/api/line/automode")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setAutoReply(Boolean(d.autoReply)))
+      .catch(() => {});
   }, [loadStatus]);
+
+  async function toggleAuto() {
+    const next = !autoReply;
+    setAutoReply(next);
+    await fetch("/api/line/automode", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ autoReply: next }),
+    }).catch(() => setAutoReply(!next));
+  }
 
   async function connect() {
     if (busy) return;
@@ -576,19 +591,36 @@ function LineConnectBox() {
       </div>
 
       {connected ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="text-sm text-gray-700 dark:text-gray-200">
-            OA: <b>{status?.displayName || "—"}</b>{" "}
-            <span className="text-gray-400">{status?.basicId}</span>
-          </span>
-          <button
-            type="button"
-            onClick={disconnect}
-            disabled={busy}
-            className="ml-auto rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-          >
-            ยกเลิกการเชื่อมต่อ
-          </button>
+        <div className="mt-3 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-gray-700 dark:text-gray-200">
+              OA: <b>{status?.displayName || "—"}</b>{" "}
+              <span className="text-gray-400">{status?.basicId}</span>
+            </span>
+            <button
+              type="button"
+              onClick={disconnect}
+              disabled={busy}
+              className="ml-auto rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              ยกเลิกการเชื่อมต่อ
+            </button>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800/50">
+            <div>
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-100">
+                ให้ AI ตอบเองอัตโนมัติ (auto)
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                แชตใหม่จะให้ AI ตอบเอง ถ้าไม่มั่นใจจะเด้ง “รอตอบ” ให้คน — สลับรายแชตได้ในกล่องแชต
+              </p>
+            </div>
+            <EnableToggle
+              enabled={autoReply}
+              onToggle={toggleAuto}
+              label="ให้ AI ตอบเองอัตโนมัติ"
+            />
+          </div>
         </div>
       ) : (
         <div className="mt-3 space-y-3">

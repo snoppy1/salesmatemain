@@ -10,6 +10,7 @@ import type {
   GenerateResult,
   ImportResult,
   ConnectionStatus,
+  LineChannelStatus,
 } from "@/lib/types";
 import ThemeToggle from "@/components/ThemeToggle";
 import InboxView from "./InboxView";
@@ -481,7 +482,163 @@ function SettingsView({
           />
         </Field>
       </div>
+
+      <LineConnectBox />
     </section>
+  );
+}
+
+function LineConnectBox() {
+  const [status, setStatus] = useState<LineChannelStatus | null>(null);
+  const [secret, setSecret] = useState("");
+  const [token, setToken] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const loadStatus = useCallback(async () => {
+    try {
+      const r = await fetch("/api/line/connect/status");
+      if (r.ok) setStatus((await r.json()) as LineChannelStatus);
+    } catch {
+      /* เงียบไว้ */
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadStatus();
+  }, [loadStatus]);
+
+  async function connect() {
+    if (busy) return;
+    setBusy(true);
+    setErr("");
+    try {
+      const r = await fetch("/api/line/connect", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ channelSecret: secret.trim(), accessToken: token.trim() }),
+      });
+      const d = (await r.json()) as { error?: string };
+      if (!r.ok) {
+        setErr(d.error || "เชื่อมไม่สำเร็จ");
+        return;
+      }
+      setSecret("");
+      setToken("");
+      await loadStatus();
+    } catch {
+      setErr("เชื่อมไม่สำเร็จ ลองใหม่");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function disconnect() {
+    if (busy) return;
+    if (!window.confirm("ยกเลิกการเชื่อมต่อ LINE OA นี้?")) return;
+    setBusy(true);
+    await fetch("/api/line/connect/disconnect", { method: "POST" }).catch(() => {});
+    await loadStatus();
+    setBusy(false);
+  }
+
+  function copyWebhook() {
+    if (!status?.webhookUrl) return;
+    void navigator.clipboard.writeText(status.webhookUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+
+  const connected = status?.connected;
+
+  return (
+    <div className="mt-6 rounded-xl border border-green-200 bg-green-50/50 p-4 dark:border-green-900/60 dark:bg-green-950/20">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-green-800 dark:text-green-300">
+          💬 เชื่อม LINE OA{" "}
+          {status?.mock && (
+            <span className="text-xs font-normal text-green-600 dark:text-green-400">
+              (โหมดทดลอง)
+            </span>
+          )}
+        </span>
+        {connected ? (
+          <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
+            เชื่อมแล้ว
+          </span>
+        ) : (
+          <span className="rounded-full bg-gray-400 px-2 py-0.5 text-xs font-semibold text-white dark:bg-gray-600">
+            ยังไม่เชื่อม
+          </span>
+        )}
+      </div>
+
+      {connected ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-gray-700 dark:text-gray-200">
+            OA: <b>{status?.displayName || "—"}</b>{" "}
+            <span className="text-gray-400">{status?.basicId}</span>
+          </span>
+          <button
+            type="button"
+            onClick={disconnect}
+            disabled={busy}
+            className="ml-auto rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+          >
+            ยกเลิกการเชื่อมต่อ
+          </button>
+        </div>
+      ) : (
+        <div className="mt-3 space-y-3">
+          <ol className="list-decimal space-y-1 pl-5 text-xs text-gray-600 dark:text-gray-400">
+            <li>เปิด Messaging API บน LINE OA แล้วเข้า LINE Developers Console</li>
+            <li>
+              วาง Webhook URL นี้ในช่อง Webhook URL ของ LINE แล้วเปิด “Use webhook”:
+              <div className="mt-1 flex items-center gap-2">
+                <code className="flex-1 truncate rounded bg-white px-2 py-1 text-[11px] text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                  {status?.webhookUrl ?? "…"}
+                </code>
+                <button
+                  type="button"
+                  onClick={copyWebhook}
+                  className="shrink-0 rounded border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                >
+                  {copied ? "คัดลอกแล้ว ✓" : "คัดลอก"}
+                </button>
+              </div>
+            </li>
+            <li>ก๊อป Channel secret และ Channel access token มาวางด้านล่าง แล้วกดเชื่อม</li>
+            <li>อย่าลืมปิด auto-reply/greeting ของ OA กันมันตอบชนกัน</li>
+          </ol>
+
+          <input
+            type="text"
+            value={secret}
+            onChange={(e) => setSecret(e.target.value)}
+            placeholder="Channel secret"
+            className={inputClass}
+          />
+          <input
+            type="text"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="Channel access token (long-lived)"
+            className={inputClass}
+          />
+          {err && <p className="text-xs text-red-600 dark:text-red-400">{err}</p>}
+          <button
+            type="button"
+            onClick={connect}
+            disabled={busy || !secret.trim() || !token.trim()}
+            className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
+          >
+            {busy ? "กำลังเชื่อม…" : "เชื่อม LINE"}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

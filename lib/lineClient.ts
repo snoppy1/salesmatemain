@@ -57,6 +57,25 @@ export async function pushMessage(
   return res.ok;
 }
 
+/** ตอบกลับด้วย Reply API (ฟรี ไม่กิน quota) — ใช้ในโหมด auto ตอน webhook ยังมี replyToken */
+export async function replyMessage(
+  accessToken: string,
+  replyToken: string,
+  text: string,
+): Promise<boolean> {
+  if (isMock(accessToken) || !replyToken || replyToken.startsWith("mock-")) return true;
+
+  const res = await fetch(`${API_BASE}/v2/bot/message/reply`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ replyToken, messages: [{ type: "text", text }] }),
+  });
+  return res.ok;
+}
+
 export type BotInfo = { userId: string; basicId: string; displayName: string };
 
 /** ตรวจ token + ดึงข้อมูลบอท (GET /v2/bot/info) — null ถ้า token ใช้ไม่ได้ */

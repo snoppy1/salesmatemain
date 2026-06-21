@@ -58,6 +58,19 @@ export async function shopExists(shopId: string): Promise<boolean> {
   return Boolean(row);
 }
 
+/** ค่าเริ่มต้น auto-reply ของร้าน (LINE เฟส 2) */
+export async function getAutoReply(shopId: string): Promise<boolean> {
+  const row = await queryOne<{ auto_reply: boolean }>(
+    "SELECT auto_reply FROM shops WHERE id = $1",
+    [shopId],
+  );
+  return Boolean(row?.auto_reply);
+}
+
+export async function setAutoReply(shopId: string, value: boolean): Promise<void> {
+  await query("UPDATE shops SET auto_reply = $1 WHERE id = $2", [value, shopId]);
+}
+
 export async function getShopData(shopId: string): Promise<ShopData> {
   const shop = await queryOne<{ name: string; voice: string }>(
     "SELECT name, voice FROM shops WHERE id = $1",

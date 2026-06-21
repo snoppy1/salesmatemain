@@ -3,6 +3,7 @@ import { getCurrentAdmin } from "@/lib/auth";
 import { getConversation } from "@/lib/inboxRepo";
 import { getShopData } from "@/lib/shopRepo";
 import { generateReply, ClaudeError } from "@/lib/claude";
+import { buildConversationContext } from "@/lib/prompt";
 
 export const runtime = "nodejs";
 
@@ -36,15 +37,11 @@ export async function POST(request: Request) {
 
   const shopData = await getShopData(admin.shopId);
 
-  // ประกอบประวัติแชตเป็นบริบทให้ AI (เน้นข้อความล่าสุดของลูกค้า)
-  const history = convo.messages
-    .slice(-12)
-    .map((m) => `${m.sender === "admin" ? "แอดมิน" : "ลูกค้า"}: ${m.text}`)
-    .join("\n");
-  const customerMsg = `นี่คือประวัติแชตกับลูกค้า "${convo.customerName}" (ช่องทาง ${convo.channel}):
-${history}
-
-แอดมินกำลังจะตอบลูกค้าต่อจากข้อความล่าสุด ร่างข้อความตอบที่พร้อมส่งได้เลย`;
+  const customerMsg = buildConversationContext(
+    convo.customerName,
+    convo.channel,
+    convo.messages,
+  );
 
   try {
     const result = await generateReply({

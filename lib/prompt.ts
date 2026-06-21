@@ -103,6 +103,22 @@ ${req.customerMsg.trim()}
 วิเคราะห์แล้วตอบเป็น JSON ตามรูปแบบที่กำหนด`;
 }
 
+/** ประกอบประวัติแชตเป็น customerMsg ให้ AI (เน้นข้อความล่าสุดของลูกค้า) — ใช้ทั้ง draft/choices/auto */
+export function buildConversationContext(
+  customerName: string,
+  channel: string,
+  messages: { sender: "customer" | "admin"; text: string }[],
+): string {
+  const history = messages
+    .slice(-12)
+    .map((m) => `${m.sender === "admin" ? "แอดมิน" : "ลูกค้า"}: ${m.text}`)
+    .join("\n");
+  return `นี่คือประวัติแชตกับลูกค้า "${customerName}" (ช่องทาง ${channel}):
+${history}
+
+แอดมินกำลังจะตอบลูกค้าต่อจากข้อความล่าสุด ร่างข้อความตอบที่พร้อมส่งได้เลย`;
+}
+
 /* ---------------- นำเข้าอัตโนมัติ: แยกคู่พ่วง / คลังสินค้า ---------------- */
 
 export const IMPORT_SYSTEM_PROMPT = `คุณคือผู้ช่วยจัดระเบียบข้อมูลสินค้าให้ร้านค้า

@@ -134,6 +134,21 @@ async function ensureSchema(): Promise<void> {
       created_at      BIGINT NOT NULL
     );
 
+    -- credential ของ LINE OA แยกต่อร้าน (1 ร้าน 1 channel)
+    CREATE TABLE IF NOT EXISTS line_channels (
+      id             TEXT PRIMARY KEY,
+      shop_id        TEXT NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+      channel_secret TEXT NOT NULL,
+      access_token   TEXT NOT NULL,
+      bot_user_id    TEXT NOT NULL,
+      bot_basic_id   TEXT NOT NULL DEFAULT '',
+      display_name   TEXT NOT NULL DEFAULT '',
+      created_at     BIGINT NOT NULL,
+      updated_at     BIGINT NOT NULL,
+      UNIQUE (shop_id),
+      UNIQUE (bot_user_id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_rules_shop ON rules(shop_id);
     CREATE INDEX IF NOT EXISTS idx_products_shop ON products(shop_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_admin ON sessions(admin_id);
@@ -141,6 +156,7 @@ async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_customers_shop ON customers(shop_id);
     CREATE INDEX IF NOT EXISTS idx_conversations_shop ON conversations(shop_id);
     CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_line_channels_bot ON line_channels(bot_user_id);
   `);
 }
 

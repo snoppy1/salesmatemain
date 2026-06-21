@@ -102,3 +102,12 @@ export type ConversationDetail = {
   mode: "manual" | "auto";
   messages: ChatMessage[];
 };
+
+/** สถานะการเชื่อม LINE OA ของร้าน */
+export type LineChannelStatus = {
+  connected: boolean;
+  displayName?: string;
+  basicId?: string;
+  webhookUrl?: string;
+  mock?: boolean;
+};

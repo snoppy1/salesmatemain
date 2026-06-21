@@ -22,16 +22,30 @@ function timeAgo(ts: number): string {
   return `${Math.floor(s / 86400)} วัน`;
 }
 
+// cache ระดับโมดูล — อยู่รอดข้ามการสลับหน้า/รีเมานต์ ทำให้สลับแชตขึ้นทันที
+let convCache: ConversationSummary[] = [];
+let activeIdCache: string | null = null;
+const detailCache = new Map<string, ConversationDetail>();
+
 export default function InboxView() {
-  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [detail, setDetail] = useState<ConversationDetail | null>(null);
+  // เริ่มจาก cache ที่เคยโหลดไว้ (สลับหน้ากลับมาไม่ต้องเริ่มศูนย์)
+  const [conversations, setConversations] =
+    useState<ConversationSummary[]>(() => convCache);
+  const [activeId, setActiveId] = useState<string | null>(
+    () => activeIdCache ?? convCache[0]?.id ?? null,
+  );
+  const [detail, setDetail] = useState<ConversationDetail | null>(() => {
+    const id = activeIdCache ?? convCache[0]?.id ?? null;
+    return id ? (detailCache.get(id) ?? null) : null;
+  });
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [drafting, setDrafting] = useState(false);
   const [sending, setSending] = useState(false);
   const [simText, setSimText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const activeIdRef = useRef<string | null>(activeId);
+  activeIdRef.current = activeId;
 
   // ร่าง/เหตุผล เก็บแยกต่อบทสนทนา — สลับแชตแล้วข้อความไม่ปนกัน
   const draft = activeId ? (drafts[activeId] ?? "") : "";
@@ -46,6 +60,7 @@ export default function InboxView() {
       const r = await fetch("/api/line/conversations");
       if (!r.ok) return;
       const d = (await r.json()) as { conversations: ConversationSummary[] };
+      convCache = d.conversations;
       setConversations(d.conversations);
       setActiveId((cur) => cur ?? d.conversations[0]?.id ?? null);
     } catch {
@@ -58,16 +73,20 @@ export default function InboxView() {
       const r = await fetch(`/api/line/conversation?id=${encodeURIComponent(id)}`);
       if (!r.ok) return;
       const d = (await r.json()) as { conversation: ConversationDetail };
-      setDetail(d.conversation);
+      detailCache.set(id, d.conversation);
+      // เซ็ตเฉพาะถ้ายังเปิดแชตนี้อยู่ (กันคำตอบช้ามาทับแชตที่สลับไปแล้ว)
+      if (activeIdRef.current === id) setDetail(d.conversation);
     } catch {
       /* เงียบไว้ */
     }
   }, []);
 
-  // โหลดลิสต์ + poll ทุก 4 วิ
+  // โหลดลิสต์ + poll ทุก 4 วิ (หยุดเมื่อสลับแท็บไปทำอย่างอื่น)
   useEffect(() => {
     void loadConversations();
-    const t = setInterval(() => void loadConversations(), 4000);
+    const t = setInterval(() => {
+      if (!document.hidden) void loadConversations();
+    }, 4000);
     return () => clearInterval(t);
   }, [loadConversations]);
 
@@ -77,8 +96,12 @@ export default function InboxView() {
       setDetail(null);
       return;
     }
+    // โชว์จาก cache ทันที (ถ้ามี) แล้วค่อยรีเฟรชเบื้องหลัง
+    setDetail(detailCache.get(activeId) ?? null);
     void loadDetail(activeId);
-    const t = setInterval(() => void loadDetail(activeId), 3000);
+    const t = setInterval(() => {
+      if (!document.hidden) void loadDetail(activeId);
+    }, 3000);
     return () => clearInterval(t);
   }, [activeId, loadDetail]);
 
@@ -87,9 +110,10 @@ export default function InboxView() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [detail?.messages.length]);
 
-  // ล้างช่องจำลองลูกค้าเมื่อสลับบทสนทนา (กันค้างข้ามแชต)
+  // ล้างช่องจำลองลูกค้าเมื่อสลับบทสนทนา + จำแชตที่เปิดไว้ (คงไว้ตอนสลับหน้า)
   useEffect(() => {
     setSimText("");
+    activeIdCache = activeId;
   }, [activeId]);
 
   async function handleDraft() {
@@ -219,7 +243,7 @@ export default function InboxView() {
       <div className="flex flex-1 flex-col rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
         {!detail ? (
           <div className="flex flex-1 items-center justify-center text-sm text-gray-400">
-            เลือกบทสนทนา หรือจำลองลูกค้าทักเพื่อเริ่ม
+            {activeId ? "กำลังโหลด…" : "เลือกบทสนทนา หรือจำลองลูกค้าทักเพื่อเริ่ม"}
           </div>
         ) : (
           <>

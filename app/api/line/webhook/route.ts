@@ -1,8 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { queryOne } from "@/lib/db";
-import { verifySignature, fetchDisplayName } from "@/lib/lineClient";
-import { ingestCustomerMessage } from "@/lib/inboxRepo";
+import {
+  verifySignature,
+  fetchDisplayName,
+  replyMessage,
+} from "@/lib/lineClient";
+import {
+  ingestCustomerMessage,
+  getConversationMode,
+  getConversation,
+  setPendingHuman,
+  addAdminMessage,
+} from "@/lib/inboxRepo";
 import { getChannelByBotUserId } from "@/lib/lineChannelRepo";
+import { getShopData } from "@/lib/shopRepo";
+import { generateReply } from "@/lib/claude";
+import { buildConversationContext } from "@/lib/prompt";
 
 export const runtime = "nodejs";
 
@@ -22,9 +35,45 @@ async function resolveEnvShopId(): Promise<string | null> {
   return first?.id ?? null;
 }
 
+/** โหมด auto: AI ร่าง+ประเมิน → มั่นใจ ส่งเอง (Reply API) / ไม่มั่นใจ ตั้ง "รอตอบ" */
+async function processAutoReply(
+  shopId: string,
+  conversationId: string,
+  replyToken: string,
+  accessToken: string,
+): Promise<void> {
+  try {
+    const convo = await getConversation(shopId, conversationId);
+    if (!convo) return;
+    const shopData = await getShopData(shopId);
+    const customerMsg = buildConversationContext(
+      convo.customerName,
+      convo.channel,
+      convo.messages,
+    );
+    const result = await generateReply({
+      shopName: shopData.shop.name,
+      shopVoice: shopData.shop.voice,
+      rules: shopData.rules,
+      products: shopData.products,
+      customerMsg,
+    });
+    if (result.needsHuman || !result.message.trim()) {
+      await setPendingHuman(conversationId, true); // ให้คนตอบ
+      return;
+    }
+    await replyMessage(accessToken, replyToken, result.message);
+    await addAdminMessage(shopId, conversationId, result.message); // เคลียร์ pending ด้วย
+  } catch {
+    // ถ้า AI ล้ม ให้ตกไปเป็น "รอตอบ" จะได้ไม่หาย
+    await setPendingHuman(conversationId, true).catch(() => {});
+  }
+}
+
 type LineEvent = {
   type: string;
-  message?: { type: string; text?: string };
+  replyToken?: string;
+  message?: { id?: string; type: string; text?: string };
   source?: { userId?: string };
 };
 
@@ -36,10 +85,9 @@ export async function POST(request: Request) {
   try {
     payload = JSON.parse(raw);
   } catch {
-    return NextResponse.json({ ok: true }); // body เพี้ยน — ตอบ 200 กัน retry
+    return NextResponse.json({ ok: true });
   }
 
-  // หาว่า webhook นี้เข้าร้านไหน + ใช้ credential ของร้านนั้น
   let shopId: string | null = null;
   let channelSecret = "";
   let accessToken = "";
@@ -52,31 +100,49 @@ export async function POST(request: Request) {
     channelSecret = channel.channel_secret;
     accessToken = channel.access_token;
   } else {
-    // fallback env (ร้านเดียวแบบเดิม)
     shopId = await resolveEnvShopId();
     channelSecret = process.env.LINE_CHANNEL_SECRET ?? "";
     accessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN ?? "";
   }
 
-  // ไม่มีร้าน/secret ที่จะตรวจ → ตอบ 200 เฉยๆ (ไม่บันทึก)
   if (!shopId || !channelSecret) return NextResponse.json({ ok: true });
 
-  // กันคนปลอมยิง webhook
   if (!verifySignature(raw, signature, channelSecret)) {
     return NextResponse.json({ error: "ลายเซ็นไม่ถูกต้อง" }, { status: 401 });
   }
+
+  const autoJobs: { conversationId: string; replyToken: string }[] = [];
 
   for (const ev of payload.events ?? []) {
     if (ev.type !== "message" || ev.message?.type !== "text") continue;
     const userId = ev.source?.userId ?? "";
     const text = ev.message.text ?? "";
     if (!userId || !text.trim()) continue;
+
     const displayName = await fetchDisplayName(accessToken, userId);
-    await ingestCustomerMessage(shopId, {
+    const conversationId = await ingestCustomerMessage(shopId, {
       channel: "line",
       lineUserId: userId,
       displayName,
       text,
+      extId: ev.message.id,
+    });
+    if (!conversationId) continue; // ซ้ำ (retry) — ข้าม
+
+    const mode = await getConversationMode(conversationId);
+    if (mode === "auto" && ev.replyToken) {
+      autoJobs.push({ conversationId, replyToken: ev.replyToken });
+    }
+  }
+
+  // ตอบ 200 เร็ว แล้วค่อยให้ AI ทำงานหลังตอบ (กัน LINE timeout/retry)
+  if (autoJobs.length) {
+    const sid = shopId;
+    const token = accessToken;
+    after(async () => {
+      for (const j of autoJobs) {
+        await processAutoReply(sid, j.conversationId, j.replyToken, token);
+      }
     });
   }
 

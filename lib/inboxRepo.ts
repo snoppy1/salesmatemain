@@ -1,0 +1,218 @@
+import "server-only";
+import { query, queryOne } from "./db";
+import { newId } from "./auth";
+import type {
+  ChatMessage,
+  ConversationSummary,
+  ConversationDetail,
+} from "./types";
+
+/** upsert ลูกค้าตาม (ร้าน, ช่องทาง, lineUserId) — คืน customerId */
+export async function upsertCustomer(
+  shopId: string,
+  channel: string,
+  lineUserId: string,
+  displayName: string,
+): Promise<string> {
+  const existing = await queryOne<{ id: string }>(
+    "SELECT id FROM customers WHERE shop_id = $1 AND channel = $2 AND line_user_id = $3",
+    [shopId, channel, lineUserId],
+  );
+  if (existing) {
+    if (displayName) {
+      await query("UPDATE customers SET display_name = $1 WHERE id = $2", [
+        displayName,
+        existing.id,
+      ]);
+    }
+    return existing.id;
+  }
+  const id = newId();
+  await query(
+    `INSERT INTO customers (id, shop_id, channel, line_user_id, display_name, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [id, shopId, channel, lineUserId, displayName, Date.now()],
+  );
+  return id;
+}
+
+/** หาบทสนทนาของลูกค้า (1 ลูกค้า 1 บทต่อช่องทาง) — สร้างถ้ายังไม่มี */
+export async function ensureConversation(
+  shopId: string,
+  customerId: string,
+  channel: string,
+): Promise<string> {
+  const existing = await queryOne<{ id: string }>(
+    "SELECT id FROM conversations WHERE customer_id = $1 AND channel = $2",
+    [customerId, channel],
+  );
+  if (existing) return existing.id;
+  const id = newId();
+  const now = Date.now();
+  await query(
+    `INSERT INTO conversations (id, shop_id, customer_id, channel, mode, last_message_at, created_at)
+     VALUES ($1, $2, $3, $4, 'manual', $5, $5)`,
+    [id, shopId, customerId, channel, now],
+  );
+  return id;
+}
+
+/** เพิ่มข้อความ + เด้ง last_message_at */
+export async function addMessage(
+  conversationId: string,
+  sender: "customer" | "admin",
+  text: string,
+): Promise<ChatMessage> {
+  const id = newId();
+  const now = Date.now();
+  await query(
+    `INSERT INTO messages (id, conversation_id, sender, text, created_at)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [id, conversationId, sender, text, now],
+  );
+  await query("UPDATE conversations SET last_message_at = $1 WHERE id = $2", [
+    now,
+    conversationId,
+  ]);
+  return { id, sender, text, createdAt: now };
+}
+
+/** ลูกค้าทักเข้ามา (ใช้ทั้ง webhook จริงและแชทจำลอง) — คืน conversationId */
+export async function ingestCustomerMessage(
+  shopId: string,
+  opts: { channel: string; lineUserId: string; displayName: string; text: string },
+): Promise<string> {
+  const customerId = await upsertCustomer(
+    shopId,
+    opts.channel,
+    opts.lineUserId,
+    opts.displayName,
+  );
+  const conversationId = await ensureConversation(shopId, customerId, opts.channel);
+  await addMessage(conversationId, "customer", opts.text);
+  return conversationId;
+}
+
+/** ตรวจว่าบทสนทนานี้เป็นของร้านนี้จริง */
+async function ownsConversation(
+  shopId: string,
+  conversationId: string,
+): Promise<boolean> {
+  const row = await queryOne<{ id: string }>(
+    "SELECT id FROM conversations WHERE id = $1 AND shop_id = $2",
+    [conversationId, shopId],
+  );
+  return Boolean(row);
+}
+
+export async function addAdminMessage(
+  shopId: string,
+  conversationId: string,
+  text: string,
+): Promise<ChatMessage | null> {
+  if (!(await ownsConversation(shopId, conversationId))) return null;
+  return addMessage(conversationId, "admin", text);
+}
+
+export async function listConversations(
+  shopId: string,
+): Promise<ConversationSummary[]> {
+  const rows = await query<{
+    id: string;
+    customername: string;
+    channel: string;
+    lasttext: string | null;
+    lastsender: string | null;
+    last_message_at: string;
+  }>(
+    `SELECT c.id,
+            cu.display_name AS customername,
+            c.channel,
+            c.last_message_at,
+            (SELECT m.text   FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS lasttext,
+            (SELECT m.sender FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS lastsender
+     FROM conversations c
+     JOIN customers cu ON cu.id = c.customer_id
+     WHERE c.shop_id = $1
+     ORDER BY c.last_message_at DESC`,
+    [shopId],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    customerName: r.customername || "ลูกค้า",
+    channel: r.channel,
+    lastText: r.lasttext ?? "",
+    lastMessageAt: Number(r.last_message_at),
+    lastSender: (r.lastsender as "customer" | "admin" | null) ?? null,
+  }));
+}
+
+export async function getConversation(
+  shopId: string,
+  conversationId: string,
+): Promise<ConversationDetail | null> {
+  const head = await queryOne<{
+    id: string;
+    customername: string;
+    channel: string;
+    mode: string;
+  }>(
+    `SELECT c.id, cu.display_name AS customername, c.channel, c.mode
+     FROM conversations c
+     JOIN customers cu ON cu.id = c.customer_id
+     WHERE c.id = $1 AND c.shop_id = $2`,
+    [conversationId, shopId],
+  );
+  if (!head) return null;
+
+  const msgs = await query<{
+    id: string;
+    sender: string;
+    text: string;
+    created_at: string;
+  }>(
+    `SELECT id, sender, text, created_at FROM messages
+     WHERE conversation_id = $1 ORDER BY created_at ASC`,
+    [conversationId],
+  );
+
+  return {
+    id: head.id,
+    customerName: head.customername || "ลูกค้า",
+    channel: head.channel,
+    mode: head.mode === "auto" ? "auto" : "manual",
+    messages: msgs.map((m) => ({
+      id: m.id,
+      sender: m.sender === "admin" ? "admin" : "customer",
+      text: m.text,
+      createdAt: Number(m.created_at),
+    })),
+  };
+}
+
+/** ปลายทางสำหรับส่งกลับ (lineUserId) — null ถ้าไม่ใช่ของร้านนี้ */
+export async function getSendTarget(
+  shopId: string,
+  conversationId: string,
+): Promise<{ channel: string; lineUserId: string | null } | null> {
+  const row = await queryOne<{ channel: string; line_user_id: string | null }>(
+    `SELECT c.channel, cu.line_user_id
+     FROM conversations c
+     JOIN customers cu ON cu.id = c.customer_id
+     WHERE c.id = $1 AND c.shop_id = $2`,
+    [conversationId, shopId],
+  );
+  if (!row) return null;
+  return { channel: row.channel, lineUserId: row.line_user_id };
+}
+
+export async function setMode(
+  shopId: string,
+  conversationId: string,
+  mode: "manual" | "auto",
+): Promise<void> {
+  await query(
+    "UPDATE conversations SET mode = $1 WHERE id = $2 AND shop_id = $3",
+    [mode, conversationId, shopId],
+  );
+}

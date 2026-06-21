@@ -102,10 +102,45 @@ async function ensureSchema(): Promise<void> {
     ALTER TABLE products ADD COLUMN IF NOT EXISTS enabled BOOLEAN NOT NULL DEFAULT true;
     ALTER TABLE rules ADD COLUMN IF NOT EXISTS enabled BOOLEAN NOT NULL DEFAULT true;
 
+    -- ลูกค้าที่ทักเข้ามา (เช่นทาง LINE) ต่อร้าน
+    CREATE TABLE IF NOT EXISTS customers (
+      id            TEXT PRIMARY KEY,
+      shop_id       TEXT NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+      channel       TEXT NOT NULL DEFAULT 'line',
+      line_user_id  TEXT,
+      display_name  TEXT NOT NULL DEFAULT '',
+      created_at    BIGINT NOT NULL,
+      UNIQUE (shop_id, channel, line_user_id)
+    );
+
+    -- บทสนทนา (1 ลูกค้า 1 บทสนทนาต่อช่องทาง)
+    CREATE TABLE IF NOT EXISTS conversations (
+      id              TEXT PRIMARY KEY,
+      shop_id         TEXT NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+      customer_id     TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      channel         TEXT NOT NULL DEFAULT 'line',
+      mode            TEXT NOT NULL DEFAULT 'manual',
+      last_message_at BIGINT NOT NULL,
+      created_at      BIGINT NOT NULL,
+      UNIQUE (customer_id, channel)
+    );
+
+    -- ข้อความในบทสนทนา (sender = 'customer' | 'admin')
+    CREATE TABLE IF NOT EXISTS messages (
+      id              TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+      sender          TEXT NOT NULL,
+      text            TEXT NOT NULL DEFAULT '',
+      created_at      BIGINT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_rules_shop ON rules(shop_id);
     CREATE INDEX IF NOT EXISTS idx_products_shop ON products(shop_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_admin ON sessions(admin_id);
     CREATE INDEX IF NOT EXISTS idx_connections_shop ON connections(shop_id);
+    CREATE INDEX IF NOT EXISTS idx_customers_shop ON customers(shop_id);
+    CREATE INDEX IF NOT EXISTS idx_conversations_shop ON conversations(shop_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id);
   `);
 }
 

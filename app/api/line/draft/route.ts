@@ -1,0 +1,65 @@
+import { NextResponse } from "next/server";
+import { getCurrentAdmin } from "@/lib/auth";
+import { getConversation } from "@/lib/inboxRepo";
+import { getShopData } from "@/lib/shopRepo";
+import { generateReply, ClaudeError } from "@/lib/claude";
+
+export const runtime = "nodejs";
+
+// ให้ AI ร่างคำตอบสำหรับบทสนทนาที่เลือก (จากประวัติแชต + สินค้า/คู่พ่วงของร้าน)
+export async function POST(request: Request) {
+  const admin = await getCurrentAdmin();
+  if (!admin) {
+    return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
+  }
+
+  let body: { conversationId?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "รูปแบบคำขอไม่ถูกต้อง" }, { status: 400 });
+  }
+  if (!body.conversationId) {
+    return NextResponse.json({ error: "ระบุบทสนทนา" }, { status: 400 });
+  }
+
+  const convo = await getConversation(admin.shopId, body.conversationId);
+  if (!convo) {
+    return NextResponse.json({ error: "ไม่พบบทสนทนา" }, { status: 404 });
+  }
+  if (!convo.messages.some((m) => m.sender === "customer")) {
+    return NextResponse.json(
+      { error: "ยังไม่มีข้อความจากลูกค้าให้ร่างคำตอบ" },
+      { status: 400 },
+    );
+  }
+
+  const shopData = await getShopData(admin.shopId);
+
+  // ประกอบประวัติแชตเป็นบริบทให้ AI (เน้นข้อความล่าสุดของลูกค้า)
+  const history = convo.messages
+    .slice(-12)
+    .map((m) => `${m.sender === "admin" ? "แอดมิน" : "ลูกค้า"}: ${m.text}`)
+    .join("\n");
+  const customerMsg = `นี่คือประวัติแชตกับลูกค้า "${convo.customerName}" (ช่องทาง ${convo.channel}):
+${history}
+
+แอดมินกำลังจะตอบลูกค้าต่อจากข้อความล่าสุด ร่างข้อความตอบที่พร้อมส่งได้เลย`;
+
+  try {
+    const result = await generateReply({
+      shopName: shopData.shop.name,
+      shopVoice: shopData.shop.voice,
+      rules: shopData.rules,
+      products: shopData.products,
+      customerMsg,
+    });
+    return NextResponse.json(result);
+  } catch (e) {
+    const err = e as ClaudeError;
+    return NextResponse.json(
+      { error: err.message || "ร่างคำตอบไม่สำเร็จ" },
+      { status: err.status || 502 },
+    );
+  }
+}

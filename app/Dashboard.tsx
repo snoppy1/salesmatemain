@@ -12,6 +12,7 @@ import type {
   ConnectionStatus,
 } from "@/lib/types";
 import ThemeToggle from "@/components/ThemeToggle";
+import InboxView from "./InboxView";
 
 function genId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -43,7 +44,7 @@ type ResultState =
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-type View = "generate" | "settings" | "catalog";
+type View = "generate" | "inbox" | "settings" | "catalog";
 
 export default function Dashboard({
   username,
@@ -276,7 +277,7 @@ export default function Dashboard({
       <main className="pl-16">
         <div
           className={`mx-auto px-4 py-6 sm:py-8 ${
-            view === "catalog" ? "max-w-6xl" : "max-w-3xl"
+            view === "catalog" || view === "inbox" ? "max-w-6xl" : "max-w-3xl"
           }`}
         >
           {view === "generate" && (
@@ -287,6 +288,7 @@ export default function Dashboard({
               result={result}
             />
           )}
+          {view === "inbox" && <InboxView />}
           {view === "settings" && (
             <SettingsView
               shop={shop}
@@ -333,6 +335,7 @@ function Sidebar({
 }) {
   const items: { key: View; label: string; icon: React.ReactNode }[] = [
     { key: "generate", label: "เจนประโยคแนะนำการขาย", icon: <IconSpark /> },
+    { key: "inbox", label: "กล่องแชต (LINE)", icon: <IconChat /> },
     { key: "settings", label: "ตั้งค่าร้าน", icon: <IconStore /> },
     { key: "catalog", label: "รายการคู่พ่วงและคลังสินค้า", icon: <IconList /> },
   ];
@@ -402,6 +405,13 @@ function IconSpark() {
     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z" />
       <path d="M19 14l.7 1.8 1.8.7-1.8.7L19 19l-.7-1.8-1.8-.7 1.8-.7z" />
+    </svg>
+  );
+}
+function IconChat() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
     </svg>
   );
 }

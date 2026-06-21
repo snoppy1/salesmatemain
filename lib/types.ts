@@ -74,3 +74,31 @@ export type GenerateResult = {
   reason_for_admin: string;
   est_added_value: number | null;
 };
+
+/* ---------------- LINE inbox ---------------- */
+
+export type ChatMessage = {
+  id: string;
+  sender: "customer" | "admin";
+  text: string;
+  createdAt: number;
+};
+
+/** สรุปบทสนทนาในลิสต์ฝั่งซ้าย */
+export type ConversationSummary = {
+  id: string;
+  customerName: string;
+  channel: string;
+  lastText: string;
+  lastMessageAt: number;
+  lastSender: "customer" | "admin" | null;
+};
+
+/** บทสนทนาเต็ม (เลือกดูฝั่งขวา) */
+export type ConversationDetail = {
+  id: string;
+  customerName: string;
+  channel: string;
+  mode: "manual" | "auto";
+  messages: ChatMessage[];
+};

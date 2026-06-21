@@ -26,12 +26,20 @@ export default function InboxView() {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
-  const [draft, setDraft] = useState("");
-  const [reason, setReason] = useState("");
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [reasons, setReasons] = useState<Record<string, string>>({});
   const [drafting, setDrafting] = useState(false);
   const [sending, setSending] = useState(false);
   const [simText, setSimText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // ร่าง/เหตุผล เก็บแยกต่อบทสนทนา — สลับแชตแล้วข้อความไม่ปนกัน
+  const draft = activeId ? (drafts[activeId] ?? "") : "";
+  const reason = activeId ? (reasons[activeId] ?? "") : "";
+  const setDraftFor = (id: string, v: string) =>
+    setDrafts((m) => ({ ...m, [id]: v }));
+  const setReasonFor = (id: string, v: string) =>
+    setReasons((m) => ({ ...m, [id]: v }));
 
   const loadConversations = useCallback(async () => {
     try {
@@ -79,48 +87,57 @@ export default function InboxView() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [detail?.messages.length]);
 
+  // ล้างช่องจำลองลูกค้าเมื่อสลับบทสนทนา (กันค้างข้ามแชต)
+  useEffect(() => {
+    setSimText("");
+  }, [activeId]);
+
   async function handleDraft() {
     if (!activeId || drafting) return;
+    const id = activeId; // กันสลับแชตระหว่าง AI กำลังร่าง
     setDrafting(true);
-    setReason("");
+    setReasonFor(id, "");
     try {
       const r = await fetch("/api/line/draft", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ conversationId: activeId }),
+        body: JSON.stringify({ conversationId: id }),
       });
       const d = (await r.json()) as GenerateResult & { error?: string };
       if (!r.ok) {
-        setReason(d.error || "ร่างคำตอบไม่สำเร็จ");
+        setReasonFor(id, d.error || "ร่างคำตอบไม่สำเร็จ");
         return;
       }
-      setDraft(d.message || "");
-      setReason(
+      setDraftFor(id, d.message || "");
+      setReasonFor(
+        id,
         d.should_upsell
           ? d.reason_for_admin || ""
           : "AI มองว่ารอบนี้ยังไม่ต้องเสนอขายพ่วง — ตอบตามปกติได้",
       );
     } catch {
-      setReason("ร่างคำตอบไม่สำเร็จ ลองใหม่");
+      setReasonFor(id, "ร่างคำตอบไม่สำเร็จ ลองใหม่");
     } finally {
       setDrafting(false);
     }
   }
 
   async function handleSend() {
-    const text = draft.trim();
-    if (!activeId || !text || sending) return;
+    if (!activeId || sending) return;
+    const id = activeId;
+    const text = (drafts[id] ?? "").trim();
+    if (!text) return;
     setSending(true);
     try {
       const r = await fetch("/api/line/send", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ conversationId: activeId, text }),
+        body: JSON.stringify({ conversationId: id, text }),
       });
       if (r.ok) {
-        setDraft("");
-        setReason("");
-        await loadDetail(activeId);
+        setDraftFor(id, "");
+        setReasonFor(id, "");
+        await loadDetail(id);
         void loadConversations();
       }
     } finally {
@@ -250,7 +267,7 @@ export default function InboxView() {
               )}
               <textarea
                 value={draft}
-                onChange={(e) => setDraft(e.target.value)}
+                onChange={(e) => activeId && setDraftFor(activeId, e.target.value)}
                 rows={2}
                 placeholder="พิมพ์คำตอบ หรือกด “ให้ AI ร่าง” แล้วแก้ก่อนส่ง"
                 className={`${inputCls} resize-none`}

@@ -3,17 +3,20 @@ import {
   getConversation,
   setPendingHuman,
   addAdminMessage,
+  getSendTarget,
 } from "./inboxRepo";
 import { getShopData } from "./shopRepo";
 import { generateReply } from "./claude";
 import { buildConversationContext } from "./prompt";
-import { replyMessage } from "./lineClient";
+import { replyMessage, pushMessage } from "./lineClient";
 
 /**
  * โหมด auto: AI ร่าง + ประเมินความมั่นใจ
- * - มั่นใจ → ตอบเอง (Reply API ถ้ามี replyToken; แชทจำลองส่ง "" = ไม่ยิงจริง) + บันทึก
+ * - มั่นใจ → ตอบเอง แล้วบันทึก
+ *   - มี replyToken (webhook) → Reply API (ฟรี)
+ *   - ไม่มี replyToken (กดสลับเป็น auto / แชทจำลอง) → Push API
  * - ไม่มั่นใจ → ตั้ง "รอตอบ" ให้คนจัดการ
- * ใช้ร่วมกันทั้ง webhook จริงและแชทจำลอง
+ * ใช้ร่วมกันทั้ง webhook จริง, กดสลับโหมด, และแชทจำลอง
  */
 export async function processAutoReply(
   shopId: string,
@@ -41,7 +44,12 @@ export async function processAutoReply(
       await setPendingHuman(conversationId, true);
       return;
     }
-    await replyMessage(accessToken, replyToken, result.message);
+    if (replyToken) {
+      await replyMessage(accessToken, replyToken, result.message);
+    } else {
+      const target = await getSendTarget(shopId, conversationId);
+      await pushMessage(accessToken, target?.lineUserId ?? "", result.message);
+    }
     await addAdminMessage(shopId, conversationId, result.message); // เคลียร์ pending ด้วย
   } catch {
     await setPendingHuman(conversationId, true).catch(() => {});

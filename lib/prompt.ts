@@ -32,7 +32,7 @@ export const SYSTEM_PROMPT = `คุณคือแอดมินขายเ�
 
 export function buildUserContent(req: GenerateRequest): string {
   const rulesLines = req.rules
-    .filter((r) => r.trigger.trim() && r.partner.trim())
+    .filter((r) => r.enabled !== false && r.trigger.trim() && r.partner.trim())
     .map((r) => {
       const price = r.price.trim() ? `${r.price.trim()} บาท` : "ไม่ระบุราคา";
       const promo = r.promo.trim() ? r.promo.trim() : "ไม่มี";
@@ -43,7 +43,7 @@ export function buildUserContent(req: GenerateRequest): string {
   const rulesBlock = rulesLines || "- (ยังไม่มีรายการคู่พ่วง)";
 
   const productLines = (req.products ?? [])
-    .filter((p) => p.name.trim())
+    .filter((p) => p.enabled !== false && p.name.trim())
     .map((p) => {
       const price = p.price.trim() ? ` (ราคา ${p.price.trim()} บาท)` : "";
       const desc = p.description.trim() ? ` — ${p.description.trim()}` : "";

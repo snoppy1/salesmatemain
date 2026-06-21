@@ -98,6 +98,9 @@ async function ensureSchema(): Promise<void> {
     -- ที่มาของสินค้า (เช่น 'lazada') + รหัสสินค้าฝั่ง marketplace
     ALTER TABLE products ADD COLUMN IF NOT EXISTS source TEXT;
     ALTER TABLE products ADD COLUMN IF NOT EXISTS external_id TEXT;
+    -- เปิด/ปิดรายการ (false = หมดสต็อก/ปิดใช้ AI ไม่เอาไปคิด)
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS enabled BOOLEAN NOT NULL DEFAULT true;
+    ALTER TABLE rules ADD COLUMN IF NOT EXISTS enabled BOOLEAN NOT NULL DEFAULT true;
 
     CREATE INDEX IF NOT EXISTS idx_rules_shop ON rules(shop_id);
     CREATE INDEX IF NOT EXISTS idx_products_shop ON products(shop_id);

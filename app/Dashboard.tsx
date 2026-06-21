@@ -20,11 +20,19 @@ function genId(): string {
 }
 
 function newRule(): Rule {
-  return { id: genId(), trigger: "", partner: "", price: "", reason: "", promo: "" };
+  return { id: genId(), trigger: "", partner: "", price: "", reason: "", promo: "", enabled: true };
 }
 
 function newProduct(): Product {
-  return { id: genId(), name: "", description: "", price: "" };
+  return { id: genId(), name: "", description: "", price: "", enabled: true };
+}
+
+/** แยก source (CSV) เป็นรายชื่อ platform */
+function sourceList(source?: string): string[] {
+  return (source ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 type ResultState =
@@ -185,30 +193,69 @@ export default function Dashboard({
     return { rules: newRules.length, products: newProducts.length };
   }
 
-  // ดึงสินค้าจาก marketplace (lazada/shopee) → เพิ่มเข้าคลัง (กันซ้ำด้วย externalId)
+  // ดึงสินค้าจาก marketplace (lazada/shopee) → เพิ่มเข้าคลัง
+  // - ถ้าชื่อซ้ำกับสินค้าที่มาจาก platform อื่นอยู่แล้ว → ผนวก platform เข้า source เดิม (ไม่เพิ่มซ้ำ)
+  // - ถ้าชื่อซ้ำกับสินค้าที่เพิ่มเอง (ไม่มี source) → ข้าม ไม่แตะ (กันโดนลบตอน disconnect)
   async function handleImportMarketplace(platform: string): Promise<number> {
     const res = await fetch(`/api/connect/${platform}/import`, { method: "POST" });
     if (!res.ok) throw new Error("import failed");
     const data = (await res.json()) as { products: Product[] };
-    const existing = new Set(
-      products.filter((p) => p.externalId).map((p) => p.externalId),
+
+    let added = 0;
+    setProducts((prev) => {
+      const next = [...prev];
+      const norm = (s: string) => s.trim().toLowerCase();
+      for (const inc of data.products) {
+        const idx = next.findIndex((p) => norm(p.name) === norm(inc.name));
+        if (idx === -1) {
+          // ยังไม่มี → เพิ่มใหม่
+          next.push({
+            ...newProduct(),
+            name: inc.name,
+            price: inc.price,
+            description: inc.description,
+            source: platform,
+            externalId: inc.externalId,
+          });
+          added++;
+        } else {
+          const cur = next[idx];
+          const srcs = sourceList(cur.source);
+          if (srcs.length === 0) continue; // เพิ่มเอง → ไม่แตะ
+          if (!srcs.includes(platform)) {
+            next[idx] = { ...cur, source: [...srcs, platform].join(",") };
+            added++; // นับว่าเชื่อมเพิ่มอีกเจ้า
+          }
+        }
+      }
+      return next;
+    });
+    if (added) markDirty();
+    return added;
+  }
+
+  // ยกเลิกเชื่อม platform → ถอด platform นั้นออกจาก source ของสินค้า
+  // สินค้าที่เหลือ source ว่าง (มาจากเจ้านี้เจ้าเดียว) จะถูกลบ; ถ้ายังมีเจ้าอื่นอยู่ → คงไว้
+  async function handleDisconnectMarketplace(platform: string): Promise<void> {
+    await fetch(`/api/connect/${platform}/disconnect`, { method: "POST" }).catch(() => {});
+    setProducts((prev) =>
+      prev
+        .map((p) => {
+          const srcs = sourceList(p.source);
+          if (!srcs.includes(platform)) return p; // ไม่เกี่ยวกับเจ้านี้
+          const left = srcs.filter((s) => s !== platform);
+          return { ...p, source: left.join(",") };
+        })
+        // ลบเฉพาะตัวที่ "เคยมี source แต่ตอนนี้ว่าง" (มาจาก platform ล้วนๆ)
+        .filter((p) => {
+          const had = sourceList(p.source);
+          // ถ้า source ว่าง แปลว่าอาจเป็นเพิ่มเอง หรือเพิ่งถูกถอดจนหมด — เก็บเฉพาะเพิ่มเอง
+          // ใช้ externalId เป็นตัวชี้ว่ามาจาก marketplace
+          if (had.length === 0 && p.externalId) return false;
+          return true;
+        }),
     );
-    const toAdd = data.products.filter(
-      (p) => !(p.externalId && existing.has(p.externalId)),
-    );
-    const newProducts: Product[] = toAdd.map((p) => ({
-      ...newProduct(),
-      name: p.name,
-      price: p.price,
-      description: p.description,
-      source: p.source,
-      externalId: p.externalId,
-    }));
-    if (newProducts.length) {
-      setProducts((prev) => [...prev, ...newProducts]);
-      markDirty();
-    }
-    return newProducts.length;
+    markDirty();
   }
 
   async function handleLogout() {
@@ -260,6 +307,7 @@ export default function Dashboard({
               removeProduct={removeProduct}
               onImport={handleImport}
               onImportMarketplace={handleImportMarketplace}
+              onDisconnectMarketplace={handleDisconnectMarketplace}
               save={save}
               onSave={handleSave}
             />
@@ -440,6 +488,7 @@ function CatalogView({
   removeProduct,
   onImport,
   onImportMarketplace,
+  onDisconnectMarketplace,
   save,
   onSave,
 }: {
@@ -453,6 +502,7 @@ function CatalogView({
   removeProduct: (id: string) => void;
   onImport: (text: string) => Promise<{ rules: number; products: number }>;
   onImportMarketplace: (platform: string) => Promise<number>;
+  onDisconnectMarketplace: (platform: string) => Promise<void>;
   save: SaveState;
   onSave: () => void;
 }) {
@@ -472,6 +522,7 @@ function CatalogView({
             key={cfg.platform}
             cfg={cfg}
             onImport={() => onImportMarketplace(cfg.platform)}
+            onDisconnect={() => onDisconnectMarketplace(cfg.platform)}
           />
         ))}
       </div>
@@ -543,6 +594,36 @@ function CatalogView({
   );
 }
 
+/** สวิตช์ เปิด/ปิด ใช้ร่วมกันทั้งสินค้าและคู่พ่วง */
+function EnableToggle({
+  enabled,
+  onToggle,
+  label,
+}: {
+  enabled: boolean;
+  onToggle: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={enabled}
+      aria-label={label}
+      onClick={onToggle}
+      className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition ${
+        enabled ? "bg-emerald-500" : "bg-gray-300 dark:bg-gray-600"
+      }`}
+    >
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${
+          enabled ? "translate-x-4" : "translate-x-0.5"
+        }`}
+      />
+    </button>
+  );
+}
+
 function ProductRow({
   index,
   product,
@@ -554,25 +635,48 @@ function ProductRow({
   onChange: (patch: Partial<Product>) => void;
   onRemove: () => void;
 }) {
+  const enabled = product.enabled !== false;
+  const sources = sourceList(product.source);
   return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
-      <div className="mb-2 flex items-center justify-between">
-        <span className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+    <div
+      className={`rounded-lg border p-3 transition ${
+        enabled
+          ? "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50"
+          : "border-gray-200 bg-gray-100 opacity-60 dark:border-gray-800 dark:bg-gray-900/40"
+      }`}
+    >
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="flex flex-wrap items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
           สินค้า #{index + 1}
-          {product.source && PLATFORM_BADGE[product.source] && (
-            <span className={PLATFORM_BADGE[product.source].cls}>
-              {PLATFORM_BADGE[product.source].label}
+          {sources.map(
+            (s) =>
+              PLATFORM_BADGE[s] && (
+                <span key={s} className={PLATFORM_BADGE[s].cls}>
+                  {PLATFORM_BADGE[s].label}
+                </span>
+              ),
+          )}
+          {!enabled && (
+            <span className="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+              หมดสต็อก
             </span>
           )}
         </span>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
-          aria-label={`ลบสินค้าที่ ${index + 1}`}
-        >
-          ลบ
-        </button>
+        <div className="flex items-center gap-2">
+          <EnableToggle
+            enabled={enabled}
+            onToggle={() => onChange({ enabled: !enabled })}
+            label={`เปิด/ปิดสินค้าที่ ${index + 1}`}
+          />
+          <button
+            type="button"
+            onClick={onRemove}
+            className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
+            aria-label={`ลบสินค้าที่ ${index + 1}`}
+          >
+            ลบ
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -683,9 +787,11 @@ const PLATFORM_BADGE: Record<string, { label: string; cls: string }> = {
 function MarketplaceBox({
   cfg,
   onImport,
+  onDisconnect,
 }: {
   cfg: MktConfig;
   onImport: () => Promise<number>;
+  onDisconnect: () => Promise<void>;
 }) {
   const [status, setStatus] = useState<
     (ConnectionStatus & { configured?: boolean }) | null
@@ -720,10 +826,13 @@ function MarketplaceBox({
 
   async function disconnect() {
     if (busy) return;
-    setBusy(true);
-    await fetch(`/api/connect/${cfg.platform}/disconnect`, { method: "POST" }).catch(
-      () => {},
+    const ok = window.confirm(
+      `ยกเลิกการเชื่อมต่อ ${cfg.label}?\nสินค้าที่ดึงมาจาก ${cfg.label} จะถูกลบออกจากคลัง (ยกเว้นตัวที่ยังมีอีกแพลตฟอร์มเชื่อมอยู่)`,
     );
+    if (!ok) return;
+    setBusy(true);
+    // ลบ connection + ถอดสินค้าที่มาจากเจ้านี้ออก (จัดการใน onDisconnect)
+    await onDisconnect().catch(() => {});
     setStatus({ connected: false, platform: cfg.platform });
     setMsg("");
     setBusy(false);
@@ -882,18 +991,39 @@ function RuleRow({
   onChange: (patch: Partial<Rule>) => void;
   onRemove: () => void;
 }) {
+  const enabled = rule.enabled !== false;
   return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">คู่พ่วง #{index + 1}</span>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
-          aria-label={`ลบคู่พ่วงที่ ${index + 1}`}
-        >
-          ลบ
-        </button>
+    <div
+      className={`rounded-lg border p-3 transition ${
+        enabled
+          ? "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50"
+          : "border-gray-200 bg-gray-100 opacity-60 dark:border-gray-800 dark:bg-gray-900/40"
+      }`}
+    >
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="flex flex-wrap items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+          คู่พ่วง #{index + 1}
+          {!enabled && (
+            <span className="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+              ปิดอยู่
+            </span>
+          )}
+        </span>
+        <div className="flex items-center gap-2">
+          <EnableToggle
+            enabled={enabled}
+            onToggle={() => onChange({ enabled: !enabled })}
+            label={`เปิด/ปิดคู่พ่วงที่ ${index + 1}`}
+          />
+          <button
+            type="button"
+            onClick={onRemove}
+            className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
+            aria-label={`ลบคู่พ่วงที่ ${index + 1}`}
+          >
+            ลบ
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

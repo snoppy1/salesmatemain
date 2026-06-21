@@ -10,6 +10,7 @@ type RuleRow = {
   price: string;
   reason: string;
   promo: string;
+  enabled: boolean;
 };
 
 type ProductRow = {
@@ -19,6 +20,7 @@ type ProductRow = {
   price: string;
   source: string | null;
   external_id: string | null;
+  enabled: boolean;
 };
 
 /** รายชื่อร้านทั้งหมด (สำหรับ superadmin เลือกดู) */
@@ -63,20 +65,28 @@ export async function getShopData(shopId: string): Promise<ShopData> {
   );
 
   const ruleRows = await query<RuleRow>(
-    `SELECT id, "trigger", partner, price, reason, promo
+    `SELECT id, "trigger", partner, price, reason, promo, enabled
      FROM rules WHERE shop_id = $1 ORDER BY sort_order ASC`,
     [shopId],
   );
 
   const productRows = await query<ProductRow>(
-    `SELECT id, name, description, price, source, external_id
+    `SELECT id, name, description, price, source, external_id, enabled
      FROM products WHERE shop_id = $1 ORDER BY sort_order ASC`,
     [shopId],
   );
 
   return {
     shop: { name: shop?.name ?? "", voice: shop?.voice ?? "" },
-    rules: ruleRows,
+    rules: ruleRows.map((r) => ({
+      id: r.id,
+      trigger: r.trigger,
+      partner: r.partner,
+      price: r.price,
+      reason: r.reason,
+      promo: r.promo,
+      enabled: r.enabled,
+    })),
     products: productRows.map((p) => ({
       id: p.id,
       name: p.name,
@@ -84,6 +94,7 @@ export async function getShopData(shopId: string): Promise<ShopData> {
       price: p.price,
       source: p.source ?? undefined,
       externalId: p.external_id ?? undefined,
+      enabled: p.enabled,
     })),
   };
 }
@@ -97,6 +108,7 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
     price: (r.price ?? "").toString(),
     reason: (r.reason ?? "").toString(),
     promo: (r.promo ?? "").toString(),
+    enabled: r.enabled !== false, // default true
   });
 
   const cleanProduct = (p: Partial<Product>): ProductRow => ({
@@ -106,6 +118,7 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
     price: (p.price ?? "").toString(),
     source: p.source ? p.source.toString() : null,
     external_id: p.externalId ? p.externalId.toString() : null,
+    enabled: p.enabled !== false, // default true
   });
 
   const rules = Array.isArray(data.rules) ? data.rules.map(clean) : [];
@@ -123,18 +136,18 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
     for (let i = 0; i < rules.length; i++) {
       const r = rules[i];
       await client.query(
-        `INSERT INTO rules (id, shop_id, "trigger", partner, price, reason, promo, sort_order)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [r.id, shopId, r.trigger, r.partner, r.price, r.reason, r.promo, i],
+        `INSERT INTO rules (id, shop_id, "trigger", partner, price, reason, promo, enabled, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [r.id, shopId, r.trigger, r.partner, r.price, r.reason, r.promo, r.enabled, i],
       );
     }
     await client.query("DELETE FROM products WHERE shop_id = $1", [shopId]);
     for (let i = 0; i < products.length; i++) {
       const p = products[i];
       await client.query(
-        `INSERT INTO products (id, shop_id, name, description, price, source, external_id, sort_order)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [p.id, shopId, p.name, p.description, p.price, p.source, p.external_id, i],
+        `INSERT INTO products (id, shop_id, name, description, price, source, external_id, enabled, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [p.id, shopId, p.name, p.description, p.price, p.source, p.external_id, p.enabled, i],
       );
     }
   });

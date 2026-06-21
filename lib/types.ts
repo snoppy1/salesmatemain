@@ -14,8 +14,9 @@ export type Product = {
   name: string; // ชื่อสินค้า
   description: string; // คำอธิบายสินค้า
   price: string; // ราคา (ว่างได้)
-  source?: string; // ที่มา เช่น "lazada" (ว่าง = เพิ่มเอง)
+  source?: string; // ที่มา — รายชื่อ platform คั่นด้วย , เช่น "lazada" หรือ "lazada,shopee" (ว่าง = เพิ่มเอง)
   externalId?: string; // รหัสสินค้าฝั่ง marketplace
+  enabled?: boolean; // เปิดขายอยู่ไหม (false = หมดสต็อก, AI จะไม่เอาไปคิด)
 };
 
 /** สถานะการเชื่อมต่อ marketplace ของร้าน */
@@ -50,6 +51,7 @@ export type Rule = {
   price: string; // ราคาตัวที่เสนอพ่วง
   reason: string; // ทำไมขายคู่กัน (ดีกับลูกค้ายังไง)
   promo: string; // โปร (ว่างได้)
+  enabled?: boolean; // เปิดใช้อยู่ไหม (false = AI จะไม่เอาไปคิด)
 };
 
 export type GenerateRequest = {

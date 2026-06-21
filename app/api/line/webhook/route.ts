@@ -1,21 +1,9 @@
 import { NextResponse, after } from "next/server";
 import { queryOne } from "@/lib/db";
-import {
-  verifySignature,
-  fetchDisplayName,
-  replyMessage,
-} from "@/lib/lineClient";
-import {
-  ingestCustomerMessage,
-  getConversationMode,
-  getConversation,
-  setPendingHuman,
-  addAdminMessage,
-} from "@/lib/inboxRepo";
+import { verifySignature, fetchDisplayName } from "@/lib/lineClient";
+import { ingestCustomerMessage, getConversationMode } from "@/lib/inboxRepo";
 import { getChannelByBotUserId } from "@/lib/lineChannelRepo";
-import { getShopData } from "@/lib/shopRepo";
-import { generateReply } from "@/lib/claude";
-import { buildConversationContext } from "@/lib/prompt";
+import { processAutoReply } from "@/lib/autoReply";
 
 export const runtime = "nodejs";
 
@@ -33,41 +21,6 @@ async function resolveEnvShopId(): Promise<string | null> {
     "SELECT id FROM shops ORDER BY created_at ASC LIMIT 1",
   );
   return first?.id ?? null;
-}
-
-/** โหมด auto: AI ร่าง+ประเมิน → มั่นใจ ส่งเอง (Reply API) / ไม่มั่นใจ ตั้ง "รอตอบ" */
-async function processAutoReply(
-  shopId: string,
-  conversationId: string,
-  replyToken: string,
-  accessToken: string,
-): Promise<void> {
-  try {
-    const convo = await getConversation(shopId, conversationId);
-    if (!convo) return;
-    const shopData = await getShopData(shopId);
-    const customerMsg = buildConversationContext(
-      convo.customerName,
-      convo.channel,
-      convo.messages,
-    );
-    const result = await generateReply({
-      shopName: shopData.shop.name,
-      shopVoice: shopData.shop.voice,
-      rules: shopData.rules,
-      products: shopData.products,
-      customerMsg,
-    });
-    if (result.needsHuman || !result.message.trim()) {
-      await setPendingHuman(conversationId, true); // ให้คนตอบ
-      return;
-    }
-    await replyMessage(accessToken, replyToken, result.message);
-    await addAdminMessage(shopId, conversationId, result.message); // เคลียร์ pending ด้วย
-  } catch {
-    // ถ้า AI ล้ม ให้ตกไปเป็น "รอตอบ" จะได้ไม่หาย
-    await setPendingHuman(conversationId, true).catch(() => {});
-  }
 }
 
 type LineEvent = {

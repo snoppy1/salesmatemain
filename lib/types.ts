@@ -14,6 +14,17 @@ export type Product = {
   name: string; // ชื่อสินค้า
   description: string; // คำอธิบายสินค้า
   price: string; // ราคา (ว่างได้)
+  source?: string; // ที่มา เช่น "lazada" (ว่าง = เพิ่มเอง)
+  externalId?: string; // รหัสสินค้าฝั่ง marketplace
+};
+
+/** สถานะการเชื่อมต่อ marketplace ของร้าน */
+export type ConnectionStatus = {
+  connected: boolean;
+  platform: string;
+  sellerId?: string;
+  expiresAt?: number;
+  mock?: boolean;
 };
 
 /** ข้อมูลร้าน + คู่พ่วง + คลังสินค้า ที่โหลด/บันทึกพร้อมกัน */

@@ -81,9 +81,28 @@ async function ensureSchema(): Promise<void> {
       expires_at BIGINT NOT NULL
     );
 
+    -- การเชื่อมต่อ marketplace (Lazada/Shopee) ต่อร้าน
+    CREATE TABLE IF NOT EXISTS connections (
+      id            TEXT PRIMARY KEY,
+      shop_id       TEXT NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+      platform      TEXT NOT NULL,
+      seller_id     TEXT NOT NULL DEFAULT '',
+      access_token  TEXT NOT NULL,
+      refresh_token TEXT NOT NULL DEFAULT '',
+      expires_at    BIGINT NOT NULL,
+      is_mock       BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at    BIGINT NOT NULL,
+      UNIQUE (shop_id, platform)
+    );
+
+    -- ที่มาของสินค้า (เช่น 'lazada') + รหัสสินค้าฝั่ง marketplace
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS source TEXT;
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS external_id TEXT;
+
     CREATE INDEX IF NOT EXISTS idx_rules_shop ON rules(shop_id);
     CREATE INDEX IF NOT EXISTS idx_products_shop ON products(shop_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_admin ON sessions(admin_id);
+    CREATE INDEX IF NOT EXISTS idx_connections_shop ON connections(shop_id);
   `);
 }
 

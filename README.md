@@ -71,3 +71,4 @@ npm run dev
 
 ทำเฉพาะ: ตั้งค่าร้าน + จัดการคู่พ่วง + เจนประโยค + คัดลอก + บันทึก localStorage + สถานะผลลัพธ์ 4 แบบ
 ยังไม่ทำ: browser extension, auto-mining, multi-user/login/billing, เชื่อม LINE/Meta API, proactive gen
+s

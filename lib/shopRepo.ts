@@ -17,6 +17,8 @@ type ProductRow = {
   name: string;
   description: string;
   price: string;
+  source: string | null;
+  external_id: string | null;
 };
 
 /** รายชื่อร้านทั้งหมด (สำหรับ superadmin เลือกดู) */
@@ -67,7 +69,7 @@ export async function getShopData(shopId: string): Promise<ShopData> {
   );
 
   const productRows = await query<ProductRow>(
-    `SELECT id, name, description, price
+    `SELECT id, name, description, price, source, external_id
      FROM products WHERE shop_id = $1 ORDER BY sort_order ASC`,
     [shopId],
   );
@@ -75,7 +77,14 @@ export async function getShopData(shopId: string): Promise<ShopData> {
   return {
     shop: { name: shop?.name ?? "", voice: shop?.voice ?? "" },
     rules: ruleRows,
-    products: productRows,
+    products: productRows.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      price: p.price,
+      source: p.source ?? undefined,
+      externalId: p.external_id ?? undefined,
+    })),
   };
 }
 
@@ -95,6 +104,8 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
     name: (p.name ?? "").toString(),
     description: (p.description ?? "").toString(),
     price: (p.price ?? "").toString(),
+    source: p.source ? p.source.toString() : null,
+    external_id: p.externalId ? p.externalId.toString() : null,
   });
 
   const rules = Array.isArray(data.rules) ? data.rules.map(clean) : [];
@@ -121,9 +132,9 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
     for (let i = 0; i < products.length; i++) {
       const p = products[i];
       await client.query(
-        `INSERT INTO products (id, shop_id, name, description, price, sort_order)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [p.id, shopId, p.name, p.description, p.price, i],
+        `INSERT INTO products (id, shop_id, name, description, price, source, external_id, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [p.id, shopId, p.name, p.description, p.price, p.source, p.external_id, i],
       );
     }
   });

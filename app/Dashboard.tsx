@@ -9,6 +9,7 @@ import type {
   ShopData,
   GenerateResult,
   ImportResult,
+  ConnectionStatus,
 } from "@/lib/types";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -184,6 +185,32 @@ export default function Dashboard({
     return { rules: newRules.length, products: newProducts.length };
   }
 
+  // ดึงสินค้าจาก Lazada → เพิ่มเข้าคลัง (กันซ้ำด้วย externalId)
+  async function handleImportMarketplace(): Promise<number> {
+    const res = await fetch("/api/connect/lazada/import", { method: "POST" });
+    if (!res.ok) throw new Error("import failed");
+    const data = (await res.json()) as { products: Product[] };
+    const existing = new Set(
+      products.filter((p) => p.externalId).map((p) => p.externalId),
+    );
+    const toAdd = data.products.filter(
+      (p) => !(p.externalId && existing.has(p.externalId)),
+    );
+    const newProducts: Product[] = toAdd.map((p) => ({
+      ...newProduct(),
+      name: p.name,
+      price: p.price,
+      description: p.description,
+      source: p.source,
+      externalId: p.externalId,
+    }));
+    if (newProducts.length) {
+      setProducts((prev) => [...prev, ...newProducts]);
+      markDirty();
+    }
+    return newProducts.length;
+  }
+
   async function handleLogout() {
     if (dirty) await handleSave(); // เซฟก่อนออก กันข้อมูลหาย
     await fetch("/api/auth/logout", { method: "POST" });
@@ -232,6 +259,7 @@ export default function Dashboard({
               addProduct={addProduct}
               removeProduct={removeProduct}
               onImport={handleImport}
+              onImportMarketplace={handleImportMarketplace}
               save={save}
               onSave={handleSave}
             />
@@ -411,6 +439,7 @@ function CatalogView({
   addProduct,
   removeProduct,
   onImport,
+  onImportMarketplace,
   save,
   onSave,
 }: {
@@ -423,6 +452,7 @@ function CatalogView({
   addProduct: () => void;
   removeProduct: (id: string) => void;
   onImport: (text: string) => Promise<{ rules: number; products: number }>;
+  onImportMarketplace: () => Promise<number>;
   save: SaveState;
   onSave: () => void;
 }) {
@@ -434,6 +464,9 @@ function CatalogView({
         </h2>
         <SaveButton save={save} onSave={onSave} />
       </div>
+
+      {/* เชื่อมต่อ marketplace (Lazada) */}
+      <MarketplaceBox onImport={onImportMarketplace} />
 
       {/* นำเข้าอัตโนมัติ อยู่บนกลาง เต็มความกว้าง */}
       <ImportBox onImport={onImport} />
@@ -516,8 +549,13 @@ function ProductRow({
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+        <span className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
           สินค้า #{index + 1}
+          {product.source === "lazada" && (
+            <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700 dark:bg-orange-950/50 dark:text-orange-300">
+              Lazada
+            </span>
+          )}
         </span>
         <button
           type="button"
@@ -587,6 +625,106 @@ function SaveButton({ save, onSave }: { save: SaveState; onSave: () => void }) {
     >
       {label}
     </button>
+  );
+}
+
+function MarketplaceBox({ onImport }: { onImport: () => Promise<number> }) {
+  const [status, setStatus] = useState<
+    (ConnectionStatus & { configured?: boolean }) | null
+  >(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    fetch("/api/connect/lazada/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setStatus)
+      .catch(() => {});
+  }, []);
+
+  async function doImport() {
+    if (busy) return;
+    setBusy(true);
+    setMsg("");
+    try {
+      const n = await onImport();
+      setMsg(
+        n > 0
+          ? `ดึงสินค้าจาก Lazada ${n} รายการ (บันทึกอัตโนมัติ)`
+          : "ไม่มีสินค้าใหม่ (ดึงครบแล้ว)",
+      );
+    } catch {
+      setMsg("ดึงสินค้าไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function disconnect() {
+    if (busy) return;
+    setBusy(true);
+    await fetch("/api/connect/lazada/disconnect", { method: "POST" }).catch(() => {});
+    setStatus({ connected: false, platform: "lazada" });
+    setMsg("");
+    setBusy(false);
+  }
+
+  const connected = status?.connected;
+  const mock = status?.mock || status?.configured === false;
+
+  return (
+    <div className="mt-4 rounded-xl border border-orange-200 bg-orange-50/50 p-3 dark:border-orange-900/60 dark:bg-orange-950/20">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-orange-800 dark:text-orange-300">
+          🛒 เชื่อมต่อร้านค้า Lazada {mock && <span className="text-xs font-normal text-orange-600 dark:text-orange-400">(โหมดทดลอง)</span>}
+        </span>
+        {connected ? (
+          <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
+            เชื่อมต่อแล้ว
+          </span>
+        ) : (
+          <span className="rounded-full bg-gray-400 px-2 py-0.5 text-xs font-semibold text-white dark:bg-gray-600">
+            ยังไม่เชื่อมต่อ
+          </span>
+        )}
+      </div>
+
+      {!connected ? (
+        <div className="mt-2">
+          <a
+            href="/api/connect/lazada"
+            className="inline-block rounded-lg bg-orange-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-orange-700"
+          >
+            เชื่อมต่อ Lazada
+          </a>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            เชื่อมแล้วดึงสินค้าจากร้าน Lazada เข้าคลังได้อัตโนมัติ
+          </p>
+        </div>
+      ) : (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={doImport}
+            disabled={busy}
+            className="rounded-lg bg-orange-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:opacity-50"
+          >
+            {busy ? "กำลังดึง…" : "ดึงสินค้าจาก Lazada"}
+          </button>
+          <button
+            type="button"
+            onClick={disconnect}
+            disabled={busy}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+          >
+            ยกเลิกการเชื่อมต่อ
+          </button>
+          {msg && (
+            <span className="text-xs text-emerald-700 dark:text-emerald-400">{msg}</span>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

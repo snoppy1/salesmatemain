@@ -6,6 +6,10 @@
 .claude
 .devlog.txt
 .DS_Store
+
+# Serena MCP (config เฉพาะเครื่อง + cache)
+.mcp.json
+.serena
 *.pem
 npm-debug.log*
 .vercel

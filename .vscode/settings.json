@@ -1,0 +1,29 @@
+{
+  // ── ซ่อนของที่ไม่ได้แก้เอง (build / cache / auto-gen) ──
+  "files.exclude": {
+    "**/.git": true,
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/.serena": true,
+    "**/.claude": true,
+    "**/.devlog.txt": true,
+    "**/next-env.d.ts": true,
+    "**/tsconfig.tsbuildinfo": true
+  },
+
+  // ── จัดกลุ่มไฟล์ config ให้ซ้อนใต้ไฟล์หลัก (ดูโล่งขึ้น) ──
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "package.json": "package-lock.json, .npmrc, .nvmrc",
+    "tsconfig.json": "tsconfig.*.json",
+    "next.config.mjs": "postcss.config.mjs, tailwind.config.ts, .mcp.json",
+    ".env.local": ".env, .env.*, .env.local.example",
+    ".gitignore": ".gitattributes, .editorconfig, .prettier*, .eslint*",
+    "README.md": "LICENSE*, CHANGELOG*"
+  },
+
+  // ── จิปาถะให้ดูดีขึ้น ──
+  "explorer.compactFolders": false,
+  "workbench.tree.indent": 14
+}

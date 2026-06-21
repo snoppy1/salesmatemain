@@ -92,6 +92,7 @@ export type ConversationSummary = {
   lastText: string;
   lastMessageAt: number;
   lastSender: "customer" | "admin" | null;
+  pendingHuman: boolean;
 };
 
 /** บทสนทนาเต็ม (เลือกดูฝั่งขวา) */

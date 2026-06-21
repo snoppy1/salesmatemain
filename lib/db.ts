@@ -101,6 +101,10 @@ async function ensureSchema(): Promise<void> {
     -- เปิด/ปิดรายการ (false = หมดสต็อก/ปิดใช้ AI ไม่เอาไปคิด)
     ALTER TABLE products ADD COLUMN IF NOT EXISTS enabled BOOLEAN NOT NULL DEFAULT true;
     ALTER TABLE rules ADD COLUMN IF NOT EXISTS enabled BOOLEAN NOT NULL DEFAULT true;
+    -- LINE AI ตอบ (เฟส 2): ค่าเริ่มต้น auto ของร้าน, สถานะรอคนตอบ, กันตอบซ้ำ
+    ALTER TABLE shops ADD COLUMN IF NOT EXISTS auto_reply BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE conversations ADD COLUMN IF NOT EXISTS pending_human BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE messages ADD COLUMN IF NOT EXISTS ext_id TEXT;
 
     -- ลูกค้าที่ทักเข้ามา (เช่นทาง LINE) ต่อร้าน
     CREATE TABLE IF NOT EXISTS customers (

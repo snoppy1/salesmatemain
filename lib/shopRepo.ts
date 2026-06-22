@@ -22,6 +22,8 @@ type ProductRow = {
   source: string | null;
   external_id: string | null;
   enabled: boolean;
+  stock: number | null;
+  stock_by_platform: Record<string, number> | null;
 };
 
 /** รายชื่อร้านทั้งหมด (สำหรับ superadmin เลือกดู) */
@@ -85,7 +87,8 @@ export async function getShopData(shopId: string): Promise<ShopData> {
   );
 
   const productRows = await query<ProductRow>(
-    `SELECT id, name, description, price, image_url, source, external_id, enabled
+    `SELECT id, name, description, price, image_url, source, external_id, enabled,
+            stock, stock_by_platform
      FROM products WHERE shop_id = $1 ORDER BY sort_order ASC`,
     [shopId],
   );
@@ -110,6 +113,8 @@ export async function getShopData(shopId: string): Promise<ShopData> {
       source: p.source ?? undefined,
       externalId: p.external_id ?? undefined,
       enabled: p.enabled,
+      stock: p.stock ?? undefined,
+      stockByPlatform: p.stock_by_platform ?? undefined,
     })),
   };
 }
@@ -126,6 +131,15 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
     enabled: r.enabled !== false, // default true
   });
 
+  const cleanStockMap = (m?: Record<string, number>): Record<string, number> | null => {
+    if (!m || typeof m !== "object") return null;
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(m)) {
+      if (Number.isFinite(Number(v))) out[k] = Number(v);
+    }
+    return Object.keys(out).length ? out : null;
+  };
+
   const cleanProduct = (p: Partial<Product>): ProductRow => ({
     id: typeof p.id === "string" && p.id ? p.id : newId(),
     name: (p.name ?? "").toString(),
@@ -135,6 +149,8 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
     source: p.source ? p.source.toString() : null,
     external_id: p.externalId ? p.externalId.toString() : null,
     enabled: p.enabled !== false, // default true
+    stock: p.stock != null && Number.isFinite(Number(p.stock)) ? Number(p.stock) : null,
+    stock_by_platform: cleanStockMap(p.stockByPlatform),
   });
 
   const rules = Array.isArray(data.rules) ? data.rules.map(clean) : [];
@@ -161,9 +177,14 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
     for (let i = 0; i < products.length; i++) {
       const p = products[i];
       await client.query(
-        `INSERT INTO products (id, shop_id, name, description, price, image_url, source, external_id, enabled, sort_order)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [p.id, shopId, p.name, p.description, p.price, p.image_url, p.source, p.external_id, p.enabled, i],
+        `INSERT INTO products (id, shop_id, name, description, price, image_url, source, external_id, enabled, stock, stock_by_platform, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        [
+          p.id, shopId, p.name, p.description, p.price, p.image_url, p.source,
+          p.external_id, p.enabled, p.stock,
+          p.stock_by_platform ? JSON.stringify(p.stock_by_platform) : null,
+          i,
+        ],
       );
     }
   });

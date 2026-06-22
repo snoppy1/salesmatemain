@@ -34,6 +34,7 @@ export async function POST() {
       image: it.image,
       source: "tiktok",
       externalId: it.externalId,
+      stock: it.stock,
     }));
 
   return NextResponse.json({ products });

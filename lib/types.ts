@@ -18,6 +18,8 @@ export type Product = {
   source?: string; // ที่มา — รายชื่อ platform คั่นด้วย , เช่น "lazada" หรือ "lazada,shopee" (ว่าง = เพิ่มเอง)
   externalId?: string; // รหัสสินค้าฝั่ง marketplace
   enabled?: boolean; // เปิดขายอยู่ไหม (false = หมดสต็อก, AI จะไม่เอาไปคิด)
+  stock?: number; // จำนวนคงเหลือ (รวม/ที่ใช้ตอบลูกค้า) — ว่าง = ไม่ระบุ
+  stockByPlatform?: Record<string, number>; // จำนวนคงเหลือแยกรายแพลตฟอร์ม เช่น { lazada: 12, shopee: 8 }
 };
 
 /** สถานะการเชื่อมต่อ marketplace ของร้าน */

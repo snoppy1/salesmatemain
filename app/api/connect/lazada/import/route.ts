@@ -33,6 +33,7 @@ export async function POST() {
       image: it.image,
       source: "lazada",
       externalId: it.externalId,
+      stock: it.stock,
     }));
 
   return NextResponse.json({ products });

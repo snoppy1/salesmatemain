@@ -100,6 +100,9 @@ async function ensureSchema(): Promise<void> {
     ALTER TABLE products ADD COLUMN IF NOT EXISTS external_id TEXT;
     -- รูปสินค้า (data URL ที่อัปโหลด หรือ URL จาก marketplace)
     ALTER TABLE products ADD COLUMN IF NOT EXISTS image_url TEXT;
+    -- จำนวนสต็อกคงเหลือ (รวม/ที่ใช้ตอบลูกค้า) + แยกรายแพลตฟอร์ม (เช่น {"lazada":12,"shopee":8})
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS stock INTEGER;
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_by_platform JSONB;
     -- เปิด/ปิดรายการ (false = หมดสต็อก/ปิดใช้ AI ไม่เอาไปคิด)
     ALTER TABLE products ADD COLUMN IF NOT EXISTS enabled BOOLEAN NOT NULL DEFAULT true;
     ALTER TABLE rules ADD COLUMN IF NOT EXISTS enabled BOOLEAN NOT NULL DEFAULT true;

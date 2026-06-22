@@ -61,6 +61,18 @@ function sourceList(source?: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * รวมสต็อกแยกรายแพลตฟอร์มเป็นเลขเดียว (ที่ใช้ตอบลูกค้า/AI)
+ * - ทุกเจ้าเท่ากัน → ใช้เลขนั้น
+ * - ไม่เท่ากัน → ใช้ค่ามากสุด (ของยังมี) ส่วนรายละเอียดโชว์ติดข้างไอคอนแต่ละเจ้า
+ */
+function unifyStock(map?: Record<string, number>): number | undefined {
+  if (!map) return undefined;
+  const vals = Object.values(map).filter((v) => typeof v === "number");
+  if (!vals.length) return undefined;
+  return vals.every((v) => v === vals[0]) ? vals[0] : Math.max(...vals);
+}
+
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 type View = "inbox" | "settings" | "catalog";
@@ -192,6 +204,8 @@ export default function Dashboard({
         const idx = next.findIndex((p) => norm(p.name) === norm(inc.name));
         if (idx === -1) {
           // ยังไม่มี → เพิ่มใหม่
+          const sbp =
+            inc.stock != null ? { [platform]: Number(inc.stock) } : undefined;
           next.push({
             ...newProduct(),
             name: inc.name,
@@ -200,16 +214,27 @@ export default function Dashboard({
             image: inc.image,
             source: platform,
             externalId: inc.externalId,
+            stock: unifyStock(sbp),
+            stockByPlatform: sbp,
           });
           added++;
         } else {
           const cur = next[idx];
           const srcs = sourceList(cur.source);
           if (srcs.length === 0) continue; // เพิ่มเอง → ไม่แตะ
-          if (!srcs.includes(platform)) {
-            next[idx] = { ...cur, source: [...srcs, platform].join(",") };
-            added++; // นับว่าเชื่อมเพิ่มอีกเจ้า
-          }
+          // อัปเดตสต็อกของแพลตฟอร์มนี้เสมอ (เลขอาจเปลี่ยนแม้เคยเชื่อมแล้ว)
+          const sbp = { ...(cur.stockByPlatform ?? {}) };
+          if (inc.stock != null) sbp[platform] = Number(inc.stock);
+          const source = srcs.includes(platform)
+            ? cur.source
+            : [...srcs, platform].join(",");
+          next[idx] = {
+            ...cur,
+            source,
+            stockByPlatform: Object.keys(sbp).length ? sbp : undefined,
+            stock: unifyStock(sbp) ?? cur.stock,
+          };
+          if (!srcs.includes(platform)) added++; // นับว่าเชื่อมเพิ่มอีกเจ้า
         }
       }
       return next;
@@ -228,7 +253,15 @@ export default function Dashboard({
           const srcs = sourceList(p.source);
           if (!srcs.includes(platform)) return p; // ไม่เกี่ยวกับเจ้านี้
           const left = srcs.filter((s) => s !== platform);
-          return { ...p, source: left.join(",") };
+          const sbp = { ...(p.stockByPlatform ?? {}) };
+          delete sbp[platform];
+          const nextSbp = Object.keys(sbp).length ? sbp : undefined;
+          return {
+            ...p,
+            source: left.join(","),
+            stockByPlatform: nextSbp,
+            stock: unifyStock(nextSbp) ?? p.stock,
+          };
         })
         // ลบเฉพาะตัวที่ "เคยมี source แต่ตอนนี้ว่าง" (มาจาก platform ล้วนๆ)
         .filter((p) => {
@@ -1491,6 +1524,13 @@ function ProductRow({
 }) {
   const enabled = product.enabled !== false;
   const sources = sourceList(product.source);
+  const sbp = product.stockByPlatform;
+  const perPlatform = sources
+    .map((s) => ({ s, n: sbp?.[s] }))
+    .filter((x): x is { s: string; n: number } => typeof x.n === "number");
+  // สต็อกแต่ละเจ้าไม่เท่ากันไหม → ถ้าไม่เท่า โชว์ตัวเลขติดข้างไอคอนแต่ละเจ้า
+  const stocksDiffer =
+    perPlatform.length >= 2 && !perPlatform.every((x) => x.n === perPlatform[0].n);
   const fileRef = useRef<HTMLInputElement>(null);
   const [imgBusy, setImgBusy] = useState(false);
 
@@ -1518,17 +1558,9 @@ function ProductRow({
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="flex flex-wrap items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
           สินค้า #{index + 1}
-          {sources.map(
-            (s) =>
-              PLATFORM_BADGE[s] && (
-                <span key={s} className={PLATFORM_BADGE[s].cls}>
-                  {PLATFORM_BADGE[s].label}
-                </span>
-              ),
-          )}
           {!enabled && (
             <span className="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-              หมดสต็อก
+              ปิดอยู่
             </span>
           )}
         </span>
@@ -1616,6 +1648,21 @@ function ProductRow({
             className={inputClass}
           />
         </Field>
+        <Field label="คงเหลือ (ชิ้น, ว่างได้)" compact>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={product.stock != null ? String(product.stock) : ""}
+            onChange={(e) => {
+              const v = e.target.value.trim();
+              onChange({
+                stock: v === "" ? undefined : Math.max(0, parseInt(v, 10) || 0),
+              });
+            }}
+            placeholder="เช่น 12"
+            className={inputClass}
+          />
+        </Field>
         <div className="sm:col-span-2">
           <Field label="คำอธิบายสินค้า" compact>
             <input
@@ -1628,6 +1675,27 @@ function ProductRow({
           </Field>
         </div>
       </div>
+
+      {/* ที่มาแพลตฟอร์ม + สต็อก (โชว์ใต้สินค้า) */}
+      {sources.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
+          <span>ดึงจาก:</span>
+          {sources.map((s) =>
+            PLATFORM_BADGE[s] ? (
+              <span key={s} className={PLATFORM_BADGE[s].cls}>
+                {PLATFORM_BADGE[s].label}
+                {stocksDiffer && sbp?.[s] != null ? ` · ${sbp[s]} ชิ้น` : ""}
+              </span>
+            ) : null,
+          )}
+          {!stocksDiffer && product.stock != null && (
+            <span>· คงเหลือ {product.stock} ชิ้น</span>
+          )}
+          {stocksDiffer && (
+            <span className="text-amber-600 dark:text-amber-400">(สต็อกแต่ละเจ้าไม่ตรงกัน)</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

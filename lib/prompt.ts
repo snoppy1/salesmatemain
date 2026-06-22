@@ -38,7 +38,13 @@ export function buildUserContent(req: GenerateRequest): string {
     .map((p) => {
       const price = p.price.trim() ? ` (ราคา ${p.price.trim()} บาท)` : "";
       const desc = p.description.trim() ? ` — ${p.description.trim()}` : "";
-      return `- ${p.name.trim()}${price}${desc}`;
+      const stock =
+        typeof p.stock === "number"
+          ? p.stock <= 0
+            ? " [สินค้าหมด]"
+            : ` [คงเหลือ ${p.stock} ชิ้น]`
+          : "";
+      return `- ${p.name.trim()}${price}${stock}${desc}`;
     })
     .join("\n");
 

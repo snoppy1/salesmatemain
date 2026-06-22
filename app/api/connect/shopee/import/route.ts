@@ -34,6 +34,7 @@ export async function POST() {
       image: it.image,
       source: "shopee",
       externalId: it.externalId,
+      stock: it.stock,
     }));
 
   return NextResponse.json({ products });

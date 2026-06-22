@@ -268,3 +268,14 @@ export async function setMode(
     [mode, conversationId, shopId],
   );
 }
+
+/** ตั้งโหมดให้ทุกบทสนทนาของร้าน (ใช้ตอนสลับสวิตช์รวมระดับร้าน) */
+export async function setAllConversationsMode(
+  shopId: string,
+  mode: "manual" | "auto",
+): Promise<void> {
+  await query("UPDATE conversations SET mode = $1 WHERE shop_id = $2", [
+    mode,
+    shopId,
+  ]);
+}

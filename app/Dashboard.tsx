@@ -495,7 +495,6 @@ function LineConnectBox() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [copied, setCopied] = useState(false);
-  const [autoReply, setAutoReply] = useState(false);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -508,21 +507,7 @@ function LineConnectBox() {
 
   useEffect(() => {
     void loadStatus();
-    fetch("/api/line/automode")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d && setAutoReply(Boolean(d.autoReply)))
-      .catch(() => {});
   }, [loadStatus]);
-
-  async function toggleAuto() {
-    const next = !autoReply;
-    setAutoReply(next);
-    await fetch("/api/line/automode", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ autoReply: next }),
-    }).catch(() => setAutoReply(!next));
-  }
 
   async function connect() {
     if (busy) return;
@@ -606,21 +591,9 @@ function LineConnectBox() {
               ยกเลิกการเชื่อมต่อ
             </button>
           </div>
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800/50">
-            <div>
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-100">
-                ให้ AI ตอบเองอัตโนมัติ (auto)
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                แชตใหม่จะให้ AI ตอบเอง ถ้าไม่มั่นใจจะเด้ง “รอตอบ” ให้คน — สลับรายแชตได้ในกล่องแชต
-              </p>
-            </div>
-            <EnableToggle
-              enabled={autoReply}
-              onToggle={toggleAuto}
-              label="ให้ AI ตอบเองอัตโนมัติ"
-            />
-          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            ตั้งค่า “ให้ AI ตอบเองอัตโนมัติ” ได้ที่หน้า <b>กล่องแชต</b> (สวิตช์ข้างไอคอน LINE)
+          </p>
         </div>
       ) : (
         <div className="mt-3 space-y-3">

@@ -22,6 +22,7 @@ function timeAgo(ts: number): string {
 let convCache: ConversationSummary[] = [];
 let activeIdCache: string | null = null;
 let selectedPlatformCache: string | null = null;
+let autoReplyCache = false;
 const detailCache = new Map<string, ConversationDetail>();
 
 /** ไอคอน LINE (ฟองแชตสีเขียวแบรนด์) */
@@ -46,6 +47,37 @@ const PLATFORMS: {
   available: boolean;
 }[] = [{ id: "line", channel: "line", name: "LINE", available: true }];
 
+/** สวิตช์เปิด/ปิด */
+function Toggle({
+  enabled,
+  onToggle,
+  label,
+}: {
+  enabled: boolean;
+  onToggle: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={enabled}
+      aria-label={label}
+      title={label}
+      onClick={onToggle}
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition ${
+        enabled ? "bg-emerald-500" : "bg-gray-300 dark:bg-gray-600"
+      }`}
+    >
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${
+          enabled ? "translate-x-4" : "translate-x-0.5"
+        }`}
+      />
+    </button>
+  );
+}
+
 export default function InboxView() {
   // เริ่มจาก cache ที่เคยโหลดไว้ (สลับหน้ากลับมาไม่ต้องเริ่มศูนย์)
   const [conversations, setConversations] =
@@ -65,7 +97,7 @@ export default function InboxView() {
   const [choicesMap, setChoicesMap] = useState<Record<string, string[]>>({});
   const [drafting, setDrafting] = useState(false);
   const [choosing, setChoosing] = useState(false);
-  const [togglingMode, setTogglingMode] = useState(false);
+  const [autoReply, setAutoReply] = useState<boolean>(() => autoReplyCache);
   const [sending, setSending] = useState(false);
   const [simText, setSimText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -149,6 +181,40 @@ export default function InboxView() {
     selectedPlatformCache = selectedPlatform;
   }, [selectedPlatform]);
 
+  // โหลดสถานะสวิตช์รวม "ให้ AI ตอบเองอัตโนมัติ"
+  useEffect(() => {
+    fetch("/api/line/automode")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d) {
+          autoReplyCache = Boolean(d.autoReply);
+          setAutoReply(autoReplyCache);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // สลับสวิตช์รวม: ให้ AI ตอบเองทุกแชต (เปิดแล้ว AI ตอบข้อความที่ค้างให้ด้วย)
+  async function toggleAuto() {
+    const next = !autoReply;
+    setAutoReply(next);
+    autoReplyCache = next;
+    try {
+      await fetch("/api/line/automode", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ autoReply: next }),
+      });
+    } catch {
+      setAutoReply(!next);
+      autoReplyCache = !next;
+      return;
+    }
+    // โหมดทุกแชตเปลี่ยน + อาจมีการตอบอัตโนมัติ → รีเฟรช
+    void loadConversations();
+    if (activeIdRef.current) void loadDetail(activeIdRef.current);
+  }
+
   // เลือกแพลตฟอร์มจากหน้ารวม → เข้าหน้าแชต แล้วเด้งไปบทสนทนาแรกของเจ้านั้น
   function pickPlatform(channel: string) {
     setSelectedPlatform(channel);
@@ -221,21 +287,6 @@ export default function InboxView() {
     }
   }
 
-  // สลับโหมด auto/manual ของบทสนทนานี้
-  async function handleToggleMode() {
-    if (!activeId || !detail || togglingMode) return;
-    const id = activeId;
-    const next = detail.mode === "auto" ? "manual" : "auto";
-    setTogglingMode(true);
-    await fetch("/api/line/mode", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ conversationId: id, mode: next }),
-    }).catch(() => {});
-    await loadDetail(id);
-    setTogglingMode(false);
-  }
-
   async function handleSend() {
     if (!activeId || sending) return;
     const id = activeId;
@@ -305,17 +356,29 @@ export default function InboxView() {
           >
             ‹ กล่องแชต
           </button>
-          <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#06C755] text-white">
-              <LineGlyph small />
-            </span>
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
-                {platform?.name ?? "แชต"}
-              </h2>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                {visibleConvos.length} บทสนทนา
-              </p>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#06C755] text-white">
+                <LineGlyph small />
+              </span>
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+                  {platform?.name ?? "แชต"}
+                </h2>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                  {visibleConvos.length} บทสนทนา
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">
+                {autoReply ? "🤖 AI ตอบเอง" : "✋ กดส่งเอง"}
+              </span>
+              <Toggle
+                enabled={autoReply}
+                onToggle={toggleAuto}
+                label="ให้ AI ตอบเองอัตโนมัติทุกแชต"
+              />
             </div>
           </div>
         </div>
@@ -372,7 +435,7 @@ export default function InboxView() {
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
+            <div className="flex items-center border-b border-gray-200 px-4 py-3 dark:border-gray-800">
               <div>
                 <span className="text-sm font-semibold text-gray-900 dark:text-white">
                   {detail.customerName}
@@ -381,19 +444,6 @@ export default function InboxView() {
                   {detail.channel.toUpperCase()}
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={handleToggleMode}
-                disabled={togglingMode}
-                title="สลับโหมด: AI ตอบเอง / กดส่งเอง"
-                className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition disabled:opacity-50 ${
-                  detail.mode === "auto"
-                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                    : "bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300"
-                }`}
-              >
-                {detail.mode === "auto" ? "🤖 AI ตอบเอง" : "✋ กดส่งเอง"}
-              </button>
             </div>
 
             {/* ข้อความ */}

@@ -2,7 +2,6 @@ import { NextResponse, after } from "next/server";
 import { getCurrentAdmin } from "@/lib/auth";
 import { getAutoReply, setAutoReply } from "@/lib/shopRepo";
 import { setAllConversationsMode, listConversations } from "@/lib/inboxRepo";
-import { getChannelByShop } from "@/lib/lineChannelRepo";
 import { processAutoReply } from "@/lib/autoReply";
 
 export const runtime = "nodejs";
@@ -39,11 +38,9 @@ export async function POST(request: Request) {
     const convos = await listConversations(shopId);
     const pending = convos.filter((c) => c.lastSender === "customer");
     if (pending.length) {
-      const channel = await getChannelByShop(shopId);
-      const accessToken = channel?.access_token ?? "";
       after(async () => {
         for (const c of pending) {
-          await processAutoReply(shopId, c.id, "", accessToken);
+          await processAutoReply(shopId, c.id, "");
         }
       });
     }

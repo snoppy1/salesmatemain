@@ -6,7 +6,6 @@ import {
   getSendTarget,
   getConversationMode,
 } from "@/lib/inboxRepo";
-import { getChannelByShop } from "@/lib/lineChannelRepo";
 import { processAutoReply } from "@/lib/autoReply";
 
 export const runtime = "nodejs";
@@ -23,7 +22,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
   }
 
-  let body: { text?: string; conversationId?: string; customerName?: string };
+  let body: {
+    text?: string;
+    conversationId?: string;
+    customerName?: string;
+    channel?: string;
+  };
   try {
     body = await request.json();
   } catch {
@@ -34,6 +38,7 @@ export async function POST(request: Request) {
   if (!text) {
     return NextResponse.json({ error: "ใส่ข้อความลูกค้าก่อน" }, { status: 400 });
   }
+  const channel = body.channel === "facebook" ? "facebook" : "line";
 
   let conversationId: string;
 
@@ -49,7 +54,7 @@ export async function POST(request: Request) {
     // เริ่มลูกค้าจำลองใหม่
     const name = (body.customerName ?? "").trim() || "ลูกค้าทดลอง";
     const cid = await ingestCustomerMessage(admin.shopId, {
-      channel: "line",
+      channel,
       lineUserId: "mock-" + newId(),
       displayName: name,
       text,
@@ -63,10 +68,8 @@ export async function POST(request: Request) {
   // โหมด auto → ให้ AI ตอบเอง (หลังตอบ response เพื่อให้ข้อความลูกค้าขึ้นทันที)
   const mode = await getConversationMode(conversationId);
   if (mode === "auto") {
-    const channel = await getChannelByShop(admin.shopId);
-    const accessToken = channel?.access_token ?? "";
     const cid = conversationId;
-    after(() => processAutoReply(admin.shopId, cid, "", accessToken));
+    after(() => processAutoReply(admin.shopId, cid, ""));
   }
 
   return NextResponse.json({ conversationId });

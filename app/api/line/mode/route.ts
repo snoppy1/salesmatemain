@@ -1,7 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { getCurrentAdmin } from "@/lib/auth";
 import { setMode, getConversation } from "@/lib/inboxRepo";
-import { getChannelByShop } from "@/lib/lineChannelRepo";
 import { processAutoReply } from "@/lib/autoReply";
 
 export const runtime = "nodejs";
@@ -30,10 +29,8 @@ export async function POST(request: Request) {
     const convo = await getConversation(admin.shopId, conversationId);
     const last = convo?.messages[convo.messages.length - 1];
     if (last && last.sender === "customer") {
-      const channel = await getChannelByShop(admin.shopId);
-      const accessToken = channel?.access_token ?? "";
       const shopId = admin.shopId;
-      after(() => processAutoReply(shopId, conversationId, "", accessToken));
+      after(() => processAutoReply(shopId, conversationId, ""));
     }
   }
 

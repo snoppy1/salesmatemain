@@ -39,13 +39,47 @@ function LineGlyph({ small }: { small?: boolean }) {
   );
 }
 
+/** ไอคอน Facebook (ตัว f) */
+function FacebookGlyph({ small }: { small?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={small ? "h-4 w-4" : "h-7 w-7"}
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.9h2.54V9.85c0-2.51 1.49-3.9 3.78-3.9 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.44 2.9h-2.34V22c4.78-.76 8.44-4.92 8.44-9.94z" />
+    </svg>
+  );
+}
+
 /** แพลตฟอร์มที่โชว์ในหน้ารวมกล่องแชต (เพิ่มเจ้าอื่นภายหลังได้) */
-const PLATFORMS: {
+type PlatformDef = {
   id: string;
   channel: string;
   name: string;
   available: boolean;
-}[] = [{ id: "line", channel: "line", name: "LINE", available: true }];
+  iconBg: string; // สีพื้นไอคอน
+  Glyph: (props: { small?: boolean }) => React.ReactElement;
+};
+const PLATFORMS: PlatformDef[] = [
+  {
+    id: "line",
+    channel: "line",
+    name: "LINE",
+    available: true,
+    iconBg: "bg-[#06C755]",
+    Glyph: LineGlyph,
+  },
+  {
+    id: "facebook",
+    channel: "facebook",
+    name: "Facebook",
+    available: true,
+    iconBg: "bg-[#0866FF]",
+    Glyph: FacebookGlyph,
+  },
+];
 
 /** สวิตช์เปิด/ปิด */
 function Toggle({
@@ -292,9 +326,11 @@ export default function InboxView() {
     const id = activeId;
     const text = (drafts[id] ?? "").trim();
     if (!text) return;
+    // ส่งตามช่องทางของบทสนทนา (LINE / Facebook)
+    const sendBase = detail?.channel === "facebook" ? "/api/facebook" : "/api/line";
     setSending(true);
     try {
-      const r = await fetch("/api/line/send", {
+      const r = await fetch(`${sendBase}/send`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ conversationId: id, text }),
@@ -310,11 +346,11 @@ export default function InboxView() {
     }
   }
 
-  // จำลองลูกค้าทัก (เริ่มใหม่ หรือต่อบทเดิม)
+  // จำลองลูกค้าทัก (เริ่มใหม่ หรือต่อบทเดิม) — ตามแพลตฟอร์มที่เปิดอยู่
   async function handleSimulate(continueChat: boolean) {
     const text = simText.trim();
     if (!text) return;
-    const body: Record<string, string> = { text };
+    const body: Record<string, string> = { text, channel: selectedPlatform ?? "line" };
     if (continueChat && activeId) body.conversationId = activeId;
     const r = await fetch("/api/line/simulate", {
       method: "POST",
@@ -358,8 +394,10 @@ export default function InboxView() {
           </button>
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#06C755] text-white">
-                <LineGlyph small />
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white ${platform?.iconBg ?? "bg-gray-400"}`}
+              >
+                {platform ? <platform.Glyph small /> : null}
               </span>
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -619,8 +657,10 @@ function PlatformHub({
                   : "cursor-not-allowed border-dashed border-gray-200 bg-gray-50 opacity-60 dark:border-gray-800 dark:bg-gray-900/40"
               }`}
             >
-              <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#06C755] text-white">
-                <LineGlyph />
+              <span
+                className={`flex h-12 w-12 items-center justify-center rounded-xl text-white ${p.iconBg}`}
+              >
+                <p.Glyph />
               </span>
               <div className="w-full">
                 <div className="flex items-center gap-2">

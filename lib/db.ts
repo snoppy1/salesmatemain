@@ -153,6 +153,19 @@ async function ensureSchema(): Promise<void> {
       UNIQUE (bot_user_id)
     );
 
+    -- credential ของเพจ Facebook แยกต่อร้าน (1 ร้าน 1 เพจ)
+    CREATE TABLE IF NOT EXISTS facebook_channels (
+      id           TEXT PRIMARY KEY,
+      shop_id      TEXT NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+      page_id      TEXT NOT NULL,
+      access_token TEXT NOT NULL,
+      page_name    TEXT NOT NULL DEFAULT '',
+      created_at   BIGINT NOT NULL,
+      updated_at   BIGINT NOT NULL,
+      UNIQUE (shop_id),
+      UNIQUE (page_id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_rules_shop ON rules(shop_id);
     CREATE INDEX IF NOT EXISTS idx_products_shop ON products(shop_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_admin ON sessions(admin_id);
@@ -161,6 +174,7 @@ async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_conversations_shop ON conversations(shop_id);
     CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id);
     CREATE INDEX IF NOT EXISTS idx_line_channels_bot ON line_channels(bot_user_id);
+    CREATE INDEX IF NOT EXISTS idx_facebook_channels_page ON facebook_channels(page_id);
   `);
 }
 

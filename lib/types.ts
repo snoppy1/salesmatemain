@@ -112,3 +112,14 @@ export type LineChannelStatus = {
   webhookUrl?: string;
   mock?: boolean;
 };
+
+/** สถานะการเชื่อมเพจ Facebook ของร้าน */
+export type FacebookChannelStatus = {
+  connected: boolean;
+  pageName?: string;
+  pageId?: string;
+  webhookUrl?: string;
+  verifyToken?: string; // สำหรับตั้งค่า webhook ใน Meta (ระดับแอป)
+  configured?: boolean; // ตั้ง env App Secret + Verify Token แล้วหรือยัง
+  mock?: boolean;
+};

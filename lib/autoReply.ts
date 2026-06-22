@@ -9,20 +9,20 @@ import { getShopData } from "./shopRepo";
 import { generateReply } from "./claude";
 import { buildConversationContext } from "./prompt";
 import { replyMessage, pushMessage } from "./lineClient";
+import { sendMessage as fbSendMessage } from "./facebookClient";
+import { getChannelByShop as getLineChannel } from "./lineChannelRepo";
+import { getChannelByShop as getFbChannel } from "./facebookChannelRepo";
 
 /**
- * โหมด auto: AI ร่าง + ประเมินความมั่นใจ
- * - มั่นใจ → ตอบเอง แล้วบันทึก
- *   - มี replyToken (webhook) → Reply API (ฟรี)
- *   - ไม่มี replyToken (กดสลับเป็น auto / แชทจำลอง) → Push API
+ * โหมด auto: AI ร่าง + ประเมินความมั่นใจ แล้วส่งเองตามช่องทางของบทสนทนา
+ * - มั่นใจ → ตอบเอง (LINE: Reply ถ้ามี replyToken ไม่งั้น Push / Facebook: Send API)
  * - ไม่มั่นใจ → ตั้ง "รอตอบ" ให้คนจัดการ
- * ใช้ร่วมกันทั้ง webhook จริง, กดสลับโหมด, และแชทจำลอง
+ * resolve access token ตามช่องทางเอง (รองรับ webhook จริง, กดสลับ, แชทจำลอง หลายแพลตฟอร์ม)
  */
 export async function processAutoReply(
   shopId: string,
   conversationId: string,
   replyToken: string,
-  accessToken: string,
 ): Promise<void> {
   try {
     const convo = await getConversation(shopId, conversationId);
@@ -44,12 +44,24 @@ export async function processAutoReply(
       await setPendingHuman(conversationId, true);
       return;
     }
-    if (replyToken) {
-      await replyMessage(accessToken, replyToken, result.message);
+
+    const target = await getSendTarget(shopId, conversationId);
+    const extUserId = target?.lineUserId ?? "";
+
+    if (convo.channel === "facebook") {
+      const fb = await getFbChannel(shopId);
+      await fbSendMessage(fb?.access_token ?? "", extUserId, result.message);
     } else {
-      const target = await getSendTarget(shopId, conversationId);
-      await pushMessage(accessToken, target?.lineUserId ?? "", result.message);
+      const line = await getLineChannel(shopId);
+      const accessToken =
+        line?.access_token ?? process.env.LINE_CHANNEL_ACCESS_TOKEN ?? "";
+      if (replyToken) {
+        await replyMessage(accessToken, replyToken, result.message);
+      } else {
+        await pushMessage(accessToken, extUserId, result.message);
+      }
     }
+
     await addAdminMessage(shopId, conversationId, result.message); // เคลียร์ pending ด้วย
   } catch {
     await setPendingHuman(conversationId, true).catch(() => {});

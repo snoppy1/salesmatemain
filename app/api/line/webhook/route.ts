@@ -91,10 +91,9 @@ export async function POST(request: Request) {
   // ตอบ 200 เร็ว แล้วค่อยให้ AI ทำงานหลังตอบ (กัน LINE timeout/retry)
   if (autoJobs.length) {
     const sid = shopId;
-    const token = accessToken;
     after(async () => {
       for (const j of autoJobs) {
-        await processAutoReply(sid, j.conversationId, j.replyToken, token);
+        await processAutoReply(sid, j.conversationId, j.replyToken);
       }
     });
   }

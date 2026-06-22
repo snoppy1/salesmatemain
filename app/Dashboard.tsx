@@ -11,6 +11,7 @@ import type {
   ImportResult,
   ConnectionStatus,
   LineChannelStatus,
+  FacebookChannelStatus,
 } from "@/lib/types";
 import ThemeToggle from "@/components/ThemeToggle";
 import InboxView from "./InboxView";
@@ -484,6 +485,7 @@ function SettingsView({
       </div>
 
       <LineConnectBox />
+      <FacebookConnectBox />
     </section>
   );
 }
@@ -640,6 +642,186 @@ function LineConnectBox() {
             className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
           >
             {busy ? "กำลังเชื่อม…" : "เชื่อม LINE"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FacebookConnectBox() {
+  const [status, setStatus] = useState<FacebookChannelStatus | null>(null);
+  const [token, setToken] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [copied, setCopied] = useState("");
+
+  const loadStatus = useCallback(async () => {
+    try {
+      const r = await fetch("/api/facebook/connect/status");
+      if (r.ok) setStatus((await r.json()) as FacebookChannelStatus);
+    } catch {
+      /* เงียบไว้ */
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadStatus();
+  }, [loadStatus]);
+
+  async function connect() {
+    if (busy) return;
+    setBusy(true);
+    setErr("");
+    try {
+      const r = await fetch("/api/facebook/connect", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ accessToken: token.trim() }),
+      });
+      const d = (await r.json()) as { error?: string };
+      if (!r.ok) {
+        setErr(d.error || "เชื่อมไม่สำเร็จ");
+        return;
+      }
+      setToken("");
+      await loadStatus();
+    } catch {
+      setErr("เชื่อมไม่สำเร็จ ลองใหม่");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function disconnect() {
+    if (busy) return;
+    if (!window.confirm("ยกเลิกการเชื่อมต่อเพจ Facebook นี้?")) return;
+    setBusy(true);
+    await fetch("/api/facebook/connect/disconnect", { method: "POST" }).catch(() => {});
+    await loadStatus();
+    setBusy(false);
+  }
+
+  function copy(text: string, key: string) {
+    if (!text) return;
+    void navigator.clipboard.writeText(text).then(() => {
+      setCopied(key);
+      setTimeout(() => setCopied(""), 1500);
+    });
+  }
+
+  const connected = status?.connected;
+
+  return (
+    <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-900/60 dark:bg-blue-950/20">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-blue-800 dark:text-blue-300">
+          📘 เชื่อม Facebook (Messenger){" "}
+          {status?.mock && (
+            <span className="text-xs font-normal text-blue-600 dark:text-blue-400">
+              (โหมดทดลอง)
+            </span>
+          )}
+        </span>
+        {connected ? (
+          <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
+            เชื่อมแล้ว
+          </span>
+        ) : (
+          <span className="rounded-full bg-gray-400 px-2 py-0.5 text-xs font-semibold text-white dark:bg-gray-600">
+            ยังไม่เชื่อม
+          </span>
+        )}
+      </div>
+
+      {connected ? (
+        <div className="mt-3 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-gray-700 dark:text-gray-200">
+              เพจ: <b>{status?.pageName || "—"}</b>
+            </span>
+            <button
+              type="button"
+              onClick={disconnect}
+              disabled={busy}
+              className="ml-auto rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              ยกเลิกการเชื่อมต่อ
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            ตั้งค่า “ให้ AI ตอบเองอัตโนมัติ” ได้ที่หน้า <b>กล่องแชต</b> (สวิตช์ข้างไอคอน Facebook)
+          </p>
+        </div>
+      ) : (
+        <div className="mt-3 space-y-3">
+          {status && !status.configured && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+              ⚠️ ยังไม่ได้ตั้งค่าระดับแอป (FB_APP_SECRET, FB_VERIFY_TOKEN) — ตอนนี้ลองใส่ token
+              ขึ้นต้น <code>mock-</code> เพื่อทดลองก่อนได้ พอมีแอป Meta จริงค่อยตั้ง env แล้วใช้ token จริง
+            </p>
+          )}
+
+          <details className="rounded-lg border border-blue-200 bg-white/60 p-2 text-xs dark:border-blue-900/60 dark:bg-gray-800/40">
+            <summary className="cursor-pointer font-medium text-blue-800 dark:text-blue-300">
+              ตั้งค่าระดับแอป Meta (ทำครั้งเดียว)
+            </summary>
+            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-gray-600 dark:text-gray-400">
+              <li>
+                สร้าง Meta App + เพิ่ม Messenger → ตั้ง env <code>FB_APP_SECRET</code>,{" "}
+                <code>FB_VERIFY_TOKEN</code>
+              </li>
+              <li>
+                ใส่ Callback URL นี้ในหน้า Webhooks ของ Meta:
+                <div className="mt-1 flex items-center gap-2">
+                  <code className="flex-1 truncate rounded bg-white px-2 py-1 text-[11px] text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                    {status?.webhookUrl ?? "…"}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => copy(status?.webhookUrl ?? "", "wh")}
+                    className="shrink-0 rounded border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                  >
+                    {copied === "wh" ? "คัดลอกแล้ว ✓" : "คัดลอก"}
+                  </button>
+                </div>
+              </li>
+              <li>
+                Verify Token (ใส่ให้ตรงกับ env):
+                <div className="mt-1 flex items-center gap-2">
+                  <code className="flex-1 truncate rounded bg-white px-2 py-1 text-[11px] text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                    {status?.verifyToken || "(ยังไม่ได้ตั้ง FB_VERIFY_TOKEN)"}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => copy(status?.verifyToken ?? "", "vt")}
+                    className="shrink-0 rounded border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                  >
+                    {copied === "vt" ? "คัดลอกแล้ว ✓" : "คัดลอก"}
+                  </button>
+                </div>
+              </li>
+              <li>
+                Subscribe เพจกับ webhook field <code>messages</code>
+              </li>
+            </ol>
+          </details>
+
+          <input
+            type="text"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="Page Access Token (หรือ mock-… เพื่อทดลอง)"
+            className={inputClass}
+          />
+          {err && <p className="text-xs text-red-600 dark:text-red-400">{err}</p>}
+          <button
+            type="button"
+            onClick={connect}
+            disabled={busy || !token.trim()}
+            className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+          >
+            {busy ? "กำลังเชื่อม…" : "เชื่อม Facebook"}
           </button>
         </div>
       )}

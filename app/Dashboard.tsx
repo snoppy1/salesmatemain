@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import type {
   Product,
@@ -13,6 +13,7 @@ import type {
   TiktokChannelStatus,
   LazadaChannelStatus,
   ShopeeChannelStatus,
+  MockSettings,
 } from "@/lib/types";
 import ThemeToggle from "@/components/ThemeToggle";
 import InboxView from "./InboxView";
@@ -93,6 +94,35 @@ export default function Dashboard({
   const savingRef = useRef(false);
   const editSeqRef = useRef(0);
   const [view, setView] = useState<View>("inbox");
+  const [mockSettings, setMockSettings] = useState<MockSettings>({});
+  const [mockModalOpen, setMockModalOpen] = useState(false);
+
+  // โหลดตั้งค่า "ข้อมูลทดลอง (mock)" ต่อร้าน
+  useEffect(() => {
+    fetch("/api/mock-settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.settings) setMockSettings(d.settings as MockSettings);
+      })
+      .catch(() => {});
+  }, []);
+
+  // สลับสวิตช์ข้อมูลทดลองของแพลตฟอร์ม (หมวด chat / catalog) + เซฟทันที
+  function toggleMock(platform: string, kind: "chat" | "catalog") {
+    setMockSettings((prev) => {
+      const base = prev[platform] ?? { chat: true, catalog: true };
+      const next: MockSettings = {
+        ...prev,
+        [platform]: { ...base, [kind]: base[kind] === false },
+      };
+      void fetch("/api/mock-settings", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ settings: next }),
+      }).catch(() => {});
+      return next;
+    });
+  }
 
   function markDirty() {
     editSeqRef.current += 1;
@@ -289,6 +319,13 @@ export default function Dashboard({
         setView={setView}
         username={username}
         onLogout={handleLogout}
+        onOpenSettings={() => setMockModalOpen(true)}
+      />
+      <MockSettingsModal
+        open={mockModalOpen}
+        onClose={() => setMockModalOpen(false)}
+        settings={mockSettings}
+        onToggle={toggleMock}
       />
       <main className="pl-16">
         <div
@@ -296,7 +333,7 @@ export default function Dashboard({
             view === "catalog" || view === "inbox" ? "max-w-6xl" : "max-w-3xl"
           }`}
         >
-          {view === "inbox" && <InboxView />}
+          {view === "inbox" && <InboxView mockSettings={mockSettings} />}
           {view === "settings" && (
             <SettingsView
               shop={shop}
@@ -331,11 +368,13 @@ function Sidebar({
   setView,
   username,
   onLogout,
+  onOpenSettings,
 }: {
   view: View;
   setView: (v: View) => void;
   username: string;
   onLogout: () => void;
+  onOpenSettings: () => void;
 }) {
   const items: { key: View; label: string; icon: React.ReactNode }[] = [
     { key: "inbox", label: "กล่องแชต", icon: <IconChat /> },
@@ -380,11 +419,21 @@ function Sidebar({
         })}
       </nav>
 
-      {/* ฟันเฟืองซ้ายล่าง: บัญชี + ออกจากระบบ + ธีม */}
+      {/* ซ้ายล่าง: ปุ่ม Setting (ฟันเฟือง) + บัญชี + ออกจากระบบ + ธีม */}
       <div className="border-t border-gray-200 p-2 dark:border-gray-800">
-        <div className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 dark:text-gray-400">
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          title="Setting"
+          className="mb-1 flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left text-gray-600 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+        >
           <IconGear />
-          <span className="truncate whitespace-nowrap text-sm opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+          <span className="whitespace-nowrap text-sm font-semibold opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+            Setting
+          </span>
+        </button>
+        <div className="flex items-center gap-3 rounded-lg px-3 py-1 text-gray-500 dark:text-gray-400">
+          <span className="truncate whitespace-nowrap text-xs opacity-0 transition-opacity duration-200 group-hover:opacity-100">
             @{username}
           </span>
         </div>
@@ -400,6 +449,100 @@ function Sidebar({
         </div>
       </div>
     </aside>
+  );
+}
+
+/* ---------------- โมดัล: ตั้งค่าข้อมูลทดลอง (mock) ---------------- */
+
+const MOCK_PLATFORMS: {
+  id: string;
+  name: string;
+  color: string;
+  catalog: boolean;
+}[] = [
+  { id: "line", name: "LINE", color: "bg-[#06C755]", catalog: false },
+  { id: "facebook", name: "Facebook", color: "bg-[#0866FF]", catalog: false },
+  { id: "tiktok", name: "TikTok", color: "bg-black", catalog: true },
+  { id: "lazada", name: "Lazada", color: "bg-[#0F146E]", catalog: true },
+  { id: "shopee", name: "Shopee", color: "bg-[#EE4D2D]", catalog: true },
+];
+
+function MockSettingsModal({
+  open,
+  onClose,
+  settings,
+  onToggle,
+}: {
+  open: boolean;
+  onClose: () => void;
+  settings: MockSettings;
+  onToggle: (platform: string, kind: "chat" | "catalog") => void;
+}) {
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-gray-900"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <h3 className="text-base font-bold text-gray-900 dark:text-white">
+            ตั้งค่าข้อมูลทดลอง (mock)
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="ปิด"
+            className="rounded-md p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+          >
+            ✕
+          </button>
+        </div>
+        <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
+          เปิด = โชว์ข้อมูลตัวอย่างให้ลองเล่น · ปิด = ใช้ของจริงล้วน (แยกแชต / สินค้า)
+        </p>
+        <div className="grid grid-cols-[1fr_auto_auto] items-center gap-x-5 gap-y-3">
+          <span className="text-[11px] font-medium text-gray-400">แพลตฟอร์ม</span>
+          <span className="w-12 text-center text-[11px] font-medium text-gray-400">
+            แชต
+          </span>
+          <span className="w-12 text-center text-[11px] font-medium text-gray-400">
+            สินค้า
+          </span>
+          {MOCK_PLATFORMS.map((p) => (
+            <Fragment key={p.id}>
+              <span className="flex items-center gap-2">
+                <span className={`h-6 w-6 shrink-0 rounded-md ${p.color}`} />
+                <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                  {p.name}
+                </span>
+              </span>
+              <span className="flex w-12 justify-center">
+                <EnableToggle
+                  enabled={settings[p.id]?.chat !== false}
+                  onToggle={() => onToggle(p.id, "chat")}
+                  label={`ข้อมูลทดลองแชต ${p.name}`}
+                />
+              </span>
+              <span className="flex w-12 justify-center">
+                {p.catalog ? (
+                  <EnableToggle
+                    enabled={settings[p.id]?.catalog !== false}
+                    onToggle={() => onToggle(p.id, "catalog")}
+                    label={`ข้อมูลทดลองสินค้า ${p.name}`}
+                  />
+                ) : (
+                  <span className="text-xs text-gray-300 dark:text-gray-600">—</span>
+                )}
+              </span>
+            </Fragment>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -428,7 +571,7 @@ function IconList() {
 }
 function IconGear() {
   return (
-    <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg className="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" />
     </svg>

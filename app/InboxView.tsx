@@ -166,6 +166,8 @@ export default function InboxView() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const activeIdRef = useRef<string | null>(activeId);
   activeIdRef.current = activeId;
+  const selectedPlatformRef = useRef<string | null>(selectedPlatform);
+  selectedPlatformRef.current = selectedPlatform;
 
   // ร่าง/เหตุผล/ตัวเลือก เก็บแยกต่อบทสนทนา — สลับแชตแล้วไม่ปนกัน
   const draft = activeId ? (drafts[activeId] ?? "") : "";
@@ -185,7 +187,16 @@ export default function InboxView() {
       const d = (await r.json()) as { conversations: ConversationSummary[] };
       convCache = d.conversations;
       setConversations(d.conversations);
-      setActiveId((cur) => cur ?? d.conversations[0]?.id ?? null);
+      // เลือกแชตเริ่มต้น "เฉพาะในแพลตฟอร์มที่เปิดอยู่" เท่านั้น
+      // (กันบั๊ก: หน้า FB ไม่มีแชต แล้วเผลอไปดึงแชต LINE มาโชว์)
+      setActiveId((cur) => {
+        const ch = selectedPlatformRef.current;
+        if (!ch) return cur; // อยู่หน้ารวม ยังไม่เลือกแพลตฟอร์ม
+        if (cur && d.conversations.some((c) => c.id === cur && c.channel === ch)) {
+          return cur;
+        }
+        return d.conversations.find((c) => c.channel === ch)?.id ?? null;
+      });
     } catch {
       /* เงียบไว้ */
     }
@@ -243,6 +254,13 @@ export default function InboxView() {
   useEffect(() => {
     selectedPlatformCache = selectedPlatform;
   }, [selectedPlatform]);
+
+  // กันแชตข้ามแพลตฟอร์มค้างในกล่องคุย (เช่น เปิดหน้า FB แต่ detail ยังเป็นแชต LINE)
+  useEffect(() => {
+    if (selectedPlatform && detail && detail.channel !== selectedPlatform) {
+      setDetail(null);
+    }
+  }, [selectedPlatform, detail]);
 
   // โหลดสถานะสวิตช์รวม "ให้ AI ตอบเองอัตโนมัติ"
   useEffect(() => {

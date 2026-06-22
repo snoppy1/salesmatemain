@@ -36,10 +36,11 @@ export function callbackUrl(origin: string): string {
   return process.env.LAZADA_CALLBACK_URL || `${origin}/api/connect/lazada/callback`;
 }
 
-/** URL ให้ผู้ใช้ไป authorize (จริง) หรือ callback จำลอง (mock) */
-export function buildAuthUrl(origin: string): string {
+/** URL ให้ผู้ใช้ไป authorize (จริง) หรือ callback จำลอง (mock)
+ * forceMock = true → บังคับโหมด mock แม้ตั้ง env จริงไว้ (ตามสวิตช์ "ข้อมูลทดลอง") */
+export function buildAuthUrl(origin: string, forceMock = false): string {
   const redirect = callbackUrl(origin);
-  if (!isLazadaConfigured()) {
+  if (forceMock || !isLazadaConfigured()) {
     // โหมด mock: เด้งกลับ callback ของเราเองพร้อม code ปลอม
     return `${redirect}?code=MOCK-${randomBytes(8).toString("hex")}&mock=1`;
   }

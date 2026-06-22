@@ -35,10 +35,11 @@ function sign(path: string, params: Record<string, string>, body = ""): string {
   return createHmac("sha256", secret).update(secret + base + secret).digest("hex");
 }
 
-/** URL ให้ผู้ใช้ไป authorize (จริง) หรือ callback จำลอง (mock) */
-export function buildAuthUrl(origin: string): string {
+/** URL ให้ผู้ใช้ไป authorize (จริง) หรือ callback จำลอง (mock)
+ * forceMock = true → บังคับโหมด mock แม้ตั้ง env จริงไว้ (ตามสวิตช์ "ข้อมูลทดลอง") */
+export function buildAuthUrl(origin: string, forceMock = false): string {
   const redirect = callbackUrl(origin);
-  if (!isTiktokConfigured()) {
+  if (forceMock || !isTiktokConfigured()) {
     // โหมด mock: เด้งกลับ callback ของเราเองพร้อม code ปลอม
     return `${redirect}?code=MOCK-${randomBytes(8).toString("hex")}&mock=1`;
   }

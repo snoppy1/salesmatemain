@@ -196,9 +196,15 @@ export default function Dashboard({
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [dirty]);
 
-  // กลับจากเชื่อม Facebook (?fb=...) → เด้งไปหน้าตั้งค่าให้เห็นผล/เลือกเพจ
+  // กลับจากเชื่อม: Facebook (?fb=) → หน้าตั้งค่า · marketplace (?connected=/?connect=) → อยู่หน้าคลังสินค้า
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("fb")) setView("settings");
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get("fb")) {
+      setView("settings");
+    } else if (sp.get("connected") || sp.get("connect")) {
+      setView("catalog");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, []);
 
   // นำเข้าอัตโนมัติ: AI แยกข้อความดิบเป็นรายการสินค้า แล้วเพิ่มต่อท้าย

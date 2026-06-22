@@ -35,10 +35,11 @@ function signed(path: string, extra = ""): { ts: number; sign: string } {
   return { ts, sign };
 }
 
-/** URL ให้ผู้ใช้ไป authorize (จริง) หรือ callback จำลอง (mock) */
-export function buildAuthUrl(origin: string): string {
+/** URL ให้ผู้ใช้ไป authorize (จริง) หรือ callback จำลอง (mock)
+ * forceMock = true → บังคับโหมด mock แม้ตั้ง env จริงไว้ (ตามสวิตช์ "ข้อมูลทดลอง") */
+export function buildAuthUrl(origin: string, forceMock = false): string {
   const redirect = callbackUrl(origin);
-  if (!isShopeeConfigured()) {
+  if (forceMock || !isShopeeConfigured()) {
     // โหมด mock: เด้งกลับ callback ของเราเองพร้อม code + shop_id ปลอม
     return `${redirect}?code=MOCK-${randomBytes(8).toString("hex")}&shop_id=0&mock=1`;
   }

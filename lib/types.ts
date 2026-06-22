@@ -22,6 +22,14 @@ export type Product = {
   stockByPlatform?: Record<string, number>; // จำนวนคงเหลือแยกรายแพลตฟอร์ม เช่น { lazada: 12, shopee: 8 }
 };
 
+/**
+ * ตั้งค่า "ข้อมูลทดลอง (mock)" แยกต่อแพลตฟอร์ม — 2 หมวด: แชต / สินค้า
+ * คีย์ = channel/platform (line/facebook/tiktok/lazada/shopee)
+ * ไม่มีคีย์ = ค่าเริ่มต้นเปิดทั้งคู่ (ช่วงทดลอง)
+ */
+export type MockToggle = { chat: boolean; catalog: boolean };
+export type MockSettings = Record<string, MockToggle>;
+
 /** สถานะการเชื่อมต่อ marketplace ของร้าน */
 export type ConnectionStatus = {
   connected: boolean;

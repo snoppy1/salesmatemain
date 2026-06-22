@@ -1,7 +1,7 @@
 import "server-only";
 import { query, queryOne, withTx } from "./db";
 import { newId } from "./auth";
-import type { Product, Rule, ShopData, ShopSummary } from "./types";
+import type { Product, Rule, ShopData, ShopSummary, MockSettings } from "./types";
 
 type RuleRow = {
   id: string;
@@ -72,6 +72,34 @@ export async function getAutoReply(shopId: string): Promise<boolean> {
 
 export async function setAutoReply(shopId: string, value: boolean): Promise<void> {
   await query("UPDATE shops SET auto_reply = $1 WHERE id = $2", [value, shopId]);
+}
+
+/** ตั้งค่า "ข้อมูลทดลอง (mock)" แยกต่อแพลตฟอร์ม — {} = ค่าเริ่มต้นเปิดทั้งหมด */
+export async function getMockSettings(shopId: string): Promise<MockSettings> {
+  const row = await queryOne<{ mock_settings: MockSettings | null }>(
+    "SELECT mock_settings FROM shops WHERE id = $1",
+    [shopId],
+  );
+  return row?.mock_settings ?? {};
+}
+
+export async function setMockSettings(
+  shopId: string,
+  settings: MockSettings,
+): Promise<void> {
+  await query("UPDATE shops SET mock_settings = $1 WHERE id = $2", [
+    JSON.stringify(settings ?? {}),
+    shopId,
+  ]);
+}
+
+/** เปิด mock ของหมวดนี้อยู่ไหม (ไม่มีค่า = เปิด โดยปริยาย) */
+export function isMockEnabled(
+  settings: MockSettings,
+  platform: string,
+  kind: "chat" | "catalog",
+): boolean {
+  return settings[platform]?.[kind] !== false;
 }
 
 export async function getShopData(shopId: string): Promise<ShopData> {

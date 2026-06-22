@@ -108,6 +108,8 @@ async function ensureSchema(): Promise<void> {
     ALTER TABLE rules ADD COLUMN IF NOT EXISTS enabled BOOLEAN NOT NULL DEFAULT true;
     -- LINE AI ตอบ (เฟส 2): ค่าเริ่มต้น auto ของร้าน, สถานะรอคนตอบ, กันตอบซ้ำ
     ALTER TABLE shops ADD COLUMN IF NOT EXISTS auto_reply BOOLEAN NOT NULL DEFAULT false;
+    -- ตั้งค่า "ข้อมูลทดลอง (mock)" แยกต่อแพลตฟอร์ม เช่น {"lazada":{"chat":true,"catalog":false}}
+    ALTER TABLE shops ADD COLUMN IF NOT EXISTS mock_settings JSONB;
     ALTER TABLE conversations ADD COLUMN IF NOT EXISTS pending_human BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE messages ADD COLUMN IF NOT EXISTS ext_id TEXT;
 

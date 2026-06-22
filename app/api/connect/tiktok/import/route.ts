@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentAdmin } from "@/lib/auth";
 import { getValidAccessToken, getStatus } from "@/lib/connectionRepo";
 import { fetchCatalog } from "@/lib/tiktok";
+import { getMockSettings, isMockEnabled } from "@/lib/shopRepo";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,13 @@ export async function POST() {
   if (!token) {
     return NextResponse.json({ error: "ยังไม่ได้เชื่อมต่อ TikTok Shop" }, { status: 400 });
   }
+
+  // ปิดข้อมูลทดลองสินค้าของเจ้านี้ + ยังเป็นการเชื่อมแบบ mock → ไม่ดึงสินค้าตัวอย่าง
+  const mock = await getMockSettings(admin.shopId);
+  if (token.startsWith("mock-") && !isMockEnabled(mock, "tiktok", "catalog")) {
+    return NextResponse.json({ products: [] });
+  }
+
   const status = await getStatus(admin.shopId, "tiktok");
 
   let items;

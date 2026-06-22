@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import type { ConversationSummary, ConversationDetail } from "@/lib/types";
+import { useState, useEffect, useRef, useCallback, Fragment } from "react";
+import type {
+  ConversationSummary,
+  ConversationDetail,
+  MockSettings,
+} from "@/lib/types";
 
 const btnPrimary =
   "rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50";
@@ -23,7 +27,11 @@ let convCache: ConversationSummary[] = [];
 let activeIdCache: string | null = null;
 let selectedPlatformCache: string | null = null;
 let autoReplyCache = false;
+let mockSettingsCache: MockSettings = {};
 const detailCache = new Map<string, ConversationDetail>();
+
+/** แพลตฟอร์มที่มีระบบดึงสินค้า (โชว์สวิตช์ mock หมวด "สินค้า") */
+const CATALOG_PLATFORMS = new Set(["lazada", "shopee", "tiktok"]);
 
 /** ไอคอน LINE (ฟองแชตสีเขียวแบรนด์) */
 function LineGlyph({ small }: { small?: boolean }) {
@@ -207,6 +215,9 @@ export default function InboxView() {
   const [drafting, setDrafting] = useState(false);
   const [choosing, setChoosing] = useState(false);
   const [autoReply, setAutoReply] = useState<boolean>(() => autoReplyCache);
+  const [mockSettings, setMockSettings] = useState<MockSettings>(
+    () => mockSettingsCache,
+  );
   const [sending, setSending] = useState(false);
   const [simText, setSimText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -320,6 +331,37 @@ export default function InboxView() {
       })
       .catch(() => {});
   }, []);
+
+  // โหลดตั้งค่า "ข้อมูลทดลอง (mock)" แยกต่อแพลตฟอร์ม
+  useEffect(() => {
+    fetch("/api/mock-settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.settings) {
+          mockSettingsCache = d.settings as MockSettings;
+          setMockSettings(mockSettingsCache);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // สลับสวิตช์ข้อมูลทดลองของแพลตฟอร์ม (หมวด chat / catalog)
+  function toggleMock(platform: string, kind: "chat" | "catalog") {
+    setMockSettings((prev) => {
+      const base = prev[platform] ?? { chat: true, catalog: true };
+      const next: MockSettings = {
+        ...prev,
+        [platform]: { ...base, [kind]: base[kind] === false },
+      };
+      mockSettingsCache = next;
+      void fetch("/api/mock-settings", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ settings: next }),
+      }).catch(() => {});
+      return next;
+    });
+  }
 
   // สลับสวิตช์รวม: ให้ AI ตอบเองทุกแชต (เปิดแล้ว AI ตอบข้อความที่ค้างให้ด้วย)
   async function toggleAuto() {
@@ -463,12 +505,21 @@ export default function InboxView() {
   const visibleConvos = selectedPlatform
     ? conversations.filter((c) => c.channel === selectedPlatform)
     : [];
+  // เปิดข้อมูลทดลองแชตของเจ้านี้อยู่ไหม (ปิด = ซ่อนกล่องแชทจำลอง โชว์เฉพาะแชตจริง)
+  const chatMockOn = selectedPlatform
+    ? mockSettings[selectedPlatform]?.chat !== false
+    : true;
 
   // หน้ารวมแพลตฟอร์ม (ยังไม่ได้เลือกแพลตฟอร์ม)
   if (!selectedPlatform) {
     return (
       <div className="h-[calc(100vh-8rem)]">
-        <PlatformHub conversations={conversations} onPick={pickPlatform} />
+        <PlatformHub
+          conversations={conversations}
+          onPick={pickPlatform}
+          mockSettings={mockSettings}
+          onToggleMock={toggleMock}
+        />
       </div>
     );
   }
@@ -660,36 +711,38 @@ export default function InboxView() {
                 </button>
               </div>
 
-              {/* แถวจำลองลูกค้า (สำหรับทดสอบ) */}
-              <div className="mt-3 flex items-center gap-2 rounded-lg bg-gray-50 p-2 dark:bg-gray-800/50">
-                <span className="shrink-0 text-[11px] font-medium text-gray-400">
-                  จำลองลูกค้า:
-                </span>
-                <input
-                  type="text"
-                  value={simText}
-                  onChange={(e) => setSimText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") void handleSimulate(true);
-                  }}
-                  placeholder="พิมพ์แทนลูกค้าเพื่อทดสอบ แล้ว Enter"
-                  className={inputCls}
-                />
-                <button
-                  type="button"
-                  onClick={() => void handleSimulate(true)}
-                  disabled={!simText.trim()}
-                  className={btnGhost}
-                >
-                  ทักต่อ
-                </button>
-              </div>
+              {/* แถวจำลองลูกค้า (สำหรับทดสอบ) — ซ่อนเมื่อปิดข้อมูลทดลองแชต */}
+              {chatMockOn && (
+                <div className="mt-3 flex items-center gap-2 rounded-lg bg-gray-50 p-2 dark:bg-gray-800/50">
+                  <span className="shrink-0 text-[11px] font-medium text-gray-400">
+                    จำลองลูกค้า:
+                  </span>
+                  <input
+                    type="text"
+                    value={simText}
+                    onChange={(e) => setSimText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void handleSimulate(true);
+                    }}
+                    placeholder="พิมพ์แทนลูกค้าเพื่อทดสอบ แล้ว Enter"
+                    className={inputCls}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleSimulate(true)}
+                    disabled={!simText.trim()}
+                    className={btnGhost}
+                  >
+                    ทักต่อ
+                  </button>
+                </div>
+              )}
             </div>
           </>
         )}
 
-        {/* เริ่มแชทจำลองใหม่ (เมื่อยังไม่เลือก/ไม่มีบทสนทนา) */}
-        {!detail && (
+        {/* เริ่มแชทจำลองใหม่ (เมื่อยังไม่เลือก/ไม่มีบทสนทนา) — ซ่อนเมื่อปิดข้อมูลทดลองแชต */}
+        {!detail && chatMockOn && (
           <div className="border-t border-gray-200 p-3 dark:border-gray-800">
             <div className="flex items-center gap-2">
               <input
@@ -718,22 +771,125 @@ export default function InboxView() {
   );
 }
 
+/** ไอคอนเฟือง (ตั้งค่า) */
+function IconGear() {
+  return (
+    <svg
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+/** แผงตั้งค่า "ข้อมูลทดลอง (mock)" แยกแชต/สินค้า ต่อแพลตฟอร์ม */
+function MockSettingsPanel({
+  mockSettings,
+  onToggleMock,
+}: {
+  mockSettings: MockSettings;
+  onToggleMock: (platform: string, kind: "chat" | "catalog") => void;
+}) {
+  return (
+    <div className="mb-5 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-1">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+          ข้อมูลทดลอง (mock)
+        </h3>
+        <span className="text-[11px] text-gray-500 dark:text-gray-400">
+          เปิด = โชว์ข้อมูลตัวอย่างให้ลองเล่น · ปิด = ใช้ของจริงล้วน
+        </span>
+      </div>
+      <div className="grid grid-cols-[1fr_auto_auto] items-center gap-x-5 gap-y-2.5">
+        <span className="text-[11px] font-medium text-gray-400">แพลตฟอร์ม</span>
+        <span className="w-12 text-center text-[11px] font-medium text-gray-400">แชต</span>
+        <span className="w-12 text-center text-[11px] font-medium text-gray-400">สินค้า</span>
+        {PLATFORMS.map((p) => (
+          <Fragment key={p.id}>
+            <span className="flex items-center gap-2">
+              <span
+                className={`flex h-6 w-6 items-center justify-center rounded-md text-white ${p.iconBg}`}
+              >
+                <p.Glyph small />
+              </span>
+              <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                {p.name}
+              </span>
+            </span>
+            <span className="flex w-12 justify-center">
+              <Toggle
+                enabled={mockSettings[p.channel]?.chat !== false}
+                onToggle={() => onToggleMock(p.channel, "chat")}
+                label={`ข้อมูลทดลองแชต ${p.name}`}
+              />
+            </span>
+            <span className="flex w-12 justify-center">
+              {CATALOG_PLATFORMS.has(p.channel) ? (
+                <Toggle
+                  enabled={mockSettings[p.channel]?.catalog !== false}
+                  onToggle={() => onToggleMock(p.channel, "catalog")}
+                  label={`ข้อมูลทดลองสินค้า ${p.name}`}
+                />
+              ) : (
+                <span className="text-xs text-gray-300 dark:text-gray-600">—</span>
+              )}
+            </span>
+          </Fragment>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** หน้ารวมแพลตฟอร์ม — การ์ดไอคอน + ชื่อ กดเข้าหน้าแชตของเจ้านั้น */
 function PlatformHub({
   conversations,
   onPick,
+  mockSettings,
+  onToggleMock,
 }: {
   conversations: ConversationSummary[];
   onPick: (channel: string) => void;
+  mockSettings: MockSettings;
+  onToggleMock: (platform: string, kind: "chat" | "catalog") => void;
 }) {
+  const [showSettings, setShowSettings] = useState(false);
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-5">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white">กล่องแชต</h2>
-        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-          รวมแชตจากทุกแพลตฟอร์มไว้ที่เดียว — กดแพลตฟอร์มเพื่อเปิดแชต
-        </p>
+      <div className="mb-5 flex items-start justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">กล่องแชต</h2>
+          <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+            รวมแชตจากทุกแพลตฟอร์มไว้ที่เดียว — กดแพลตฟอร์มเพื่อเปิดแชต
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowSettings((v) => !v)}
+          aria-label="ตั้งค่าข้อมูลทดลอง"
+          aria-expanded={showSettings}
+          className={`shrink-0 rounded-lg border p-2 transition ${
+            showSettings
+              ? "border-emerald-400 bg-emerald-50 text-emerald-600 dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
+              : "border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800"
+          }`}
+        >
+          <IconGear />
+        </button>
       </div>
+
+      {showSettings && (
+        <MockSettingsPanel mockSettings={mockSettings} onToggleMock={onToggleMock} />
+      )}
+
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {PLATFORMS.map((p) => {
           const convos = conversations.filter((c) => c.channel === p.channel);

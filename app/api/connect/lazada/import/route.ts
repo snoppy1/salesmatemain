@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentAdmin } from "@/lib/auth";
 import { getValidAccessToken } from "@/lib/connectionRepo";
 import { fetchCatalog } from "@/lib/marketplace";
+import { getMockSettings, isMockEnabled } from "@/lib/shopRepo";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,12 @@ export async function POST() {
   const token = await getValidAccessToken(admin.shopId, "lazada");
   if (!token) {
     return NextResponse.json({ error: "ยังไม่ได้เชื่อมต่อ Lazada" }, { status: 400 });
+  }
+
+  // ปิดข้อมูลทดลองสินค้าของเจ้านี้ + ยังเป็นการเชื่อมแบบ mock → ไม่ดึงสินค้าตัวอย่าง
+  const mock = await getMockSettings(admin.shopId);
+  if (token.startsWith("mock-") && !isMockEnabled(mock, "lazada", "catalog")) {
+    return NextResponse.json({ products: [] });
   }
 
   let items;

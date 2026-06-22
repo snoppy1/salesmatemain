@@ -69,6 +69,39 @@ export async function fetchPageInfo(pageToken: string): Promise<PageInfo | null>
     const h = createHash("sha256").update(pageToken).digest("hex").slice(0, 16);
     return { pageId: `mock-page-${h}`, name: "เพจทดลอง (mock)" };
   }
+
+  const appId = process.env.FB_APP_ID ?? "";
+  const appSecret = process.env.FB_APP_SECRET ?? "";
+
+  // วิธีหลัก: debug_token (ใช้ app token = app_id|app_secret) — ได้ page id โดยไม่ต้องมี pages_read_engagement
+  if (appId && appSecret) {
+    const dbg = await fetch(
+      `${GRAPH}/debug_token?input_token=${encodeURIComponent(pageToken)}&access_token=${encodeURIComponent(`${appId}|${appSecret}`)}`,
+    );
+    const dj = (await dbg.json().catch(() => ({}))) as {
+      data?: { is_valid?: boolean; profile_id?: string; type?: string };
+      error?: { message?: string };
+    };
+    if (dj.error) throw new Error(dj.error.message || "ตรวจ token ไม่สำเร็จ");
+    const data = dj.data;
+    if (!data?.is_valid) throw new Error("token หมดอายุหรือไม่ถูกต้อง — กด Generate ใหม่");
+    if (!data.profile_id) {
+      throw new Error("token นี้ไม่ใช่ Page token (ไม่มี page id) — เลือกเพจตอน Generate");
+    }
+    // ชื่อเพจ (ถ้าอ่านได้) — อ่านไม่ได้ก็ปล่อยว่าง ไม่กระทบการทำงาน
+    let name = "";
+    try {
+      const nr = await fetch(
+        `${GRAPH}/${data.profile_id}?fields=name&access_token=${encodeURIComponent(pageToken)}`,
+      );
+      if (nr.ok) name = String(((await nr.json()) as { name?: string }).name ?? "");
+    } catch {
+      /* ไม่เป็นไร */
+    }
+    return { pageId: String(data.profile_id), name };
+  }
+
+  // สำรอง: /me (ต้องมี pages_read_engagement)
   const res = await fetch(
     `${GRAPH}/me?fields=id,name&access_token=${encodeURIComponent(pageToken)}`,
   );
@@ -77,7 +110,6 @@ export async function fetchPageInfo(pageToken: string): Promise<PageInfo | null>
     name?: string;
     error?: { message?: string; type?: string };
   };
-  // โยน error พร้อมข้อความจริงจาก Facebook เพื่อให้ผู้ใช้รู้สาเหตุ
   if (!res.ok || d.error) {
     throw new Error(d.error?.message || `เรียก Facebook ไม่สำเร็จ (HTTP ${res.status})`);
   }

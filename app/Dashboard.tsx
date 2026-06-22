@@ -1797,21 +1797,36 @@ function ProductRow({
             className={inputClass}
           />
         </Field>
-        <Field label="คงเหลือ (ชิ้น, ว่างได้)" compact>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={product.stock != null ? String(product.stock) : ""}
-            onChange={(e) => {
-              const v = e.target.value.trim();
-              onChange({
-                stock: v === "" ? undefined : Math.max(0, parseInt(v, 10) || 0),
-              });
-            }}
-            placeholder="เช่น 12"
-            className={inputClass}
-          />
-        </Field>
+        {stocksDiffer ? (
+          // สต็อกแต่ละเจ้าไม่ตรงกัน → แทนกล่องคงเหลือ ด้วยรายการ ชื่อเจ้า · จำนวนชิ้น
+          <Field label="คงเหลือ (แต่ละเจ้าไม่ตรงกัน)" compact>
+            <div className="flex min-h-[38px] flex-wrap items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800/60">
+              {perPlatform.map(({ s, n }) =>
+                PLATFORM_BADGE[s] ? (
+                  <span key={s} className={PLATFORM_BADGE[s].cls}>
+                    {PLATFORM_BADGE[s].label} · {n} ชิ้น
+                  </span>
+                ) : null,
+              )}
+            </div>
+          </Field>
+        ) : (
+          <Field label="คงเหลือ (ชิ้น, ว่างได้)" compact>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={product.stock != null ? String(product.stock) : ""}
+              onChange={(e) => {
+                const v = e.target.value.trim();
+                onChange({
+                  stock: v === "" ? undefined : Math.max(0, parseInt(v, 10) || 0),
+                });
+              }}
+              placeholder="เช่น 12"
+              className={inputClass}
+            />
+          </Field>
+        )}
         <div className="sm:col-span-2">
           <Field label="คำอธิบายสินค้า" compact>
             <input
@@ -1825,7 +1840,7 @@ function ProductRow({
         </div>
       </div>
 
-      {/* ที่มาแพลตฟอร์ม + สต็อก (โชว์ใต้สินค้า) */}
+      {/* ที่มาแพลตฟอร์ม (โชว์ใต้สินค้า) — จำนวนสต็อกย้ายไปอยู่ช่อง "คงเหลือ" แล้ว */}
       {sources.length > 0 && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
           <span>ดึงจาก:</span>
@@ -1833,15 +1848,8 @@ function ProductRow({
             PLATFORM_BADGE[s] ? (
               <span key={s} className={PLATFORM_BADGE[s].cls}>
                 {PLATFORM_BADGE[s].label}
-                {stocksDiffer && sbp?.[s] != null ? ` · ${sbp[s]} ชิ้น` : ""}
               </span>
             ) : null,
-          )}
-          {!stocksDiffer && product.stock != null && (
-            <span>· คงเหลือ {product.stock} ชิ้น</span>
-          )}
-          {stocksDiffer && (
-            <span className="text-amber-600 dark:text-amber-400">(สต็อกแต่ละเจ้าไม่ตรงกัน)</span>
           )}
         </div>
       )}

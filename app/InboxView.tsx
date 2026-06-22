@@ -81,6 +81,20 @@ function LazadaGlyph({ small }: { small?: boolean }) {
   );
 }
 
+/** ไอคอน Shopee (ถุงช้อปปิ้ง) */
+function ShopeeGlyph({ small }: { small?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={small ? "h-4 w-4" : "h-7 w-7"}
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M6 7h12l-.9 12.1A2 2 0 0 1 15.1 21H8.9a2 2 0 0 1-2-1.9L6 7zm3 0a3 3 0 0 1 6 0h-2a1 1 0 0 0-2 0H9zm3 5c-1.3 0-2.3.8-2.3 2 0 1.1.8 1.6 2 2 .9.3 1.2.5 1.2.9 0 .4-.4.6-.9.6-.6 0-1.1-.2-1.6-.5l-.5 1.2c.5.4 1.3.6 2 .6 1.5 0 2.4-.8 2.4-2 0-1-.6-1.6-1.9-2-.9-.3-1.2-.5-1.2-.8 0-.3.3-.5.8-.5.5 0 1 .2 1.4.4l.5-1.2c-.5-.3-1.1-.4-1.6-.4z" />
+    </svg>
+  );
+}
+
 /** แพลตฟอร์มที่โชว์ในหน้ารวมกล่องแชต (เพิ่มเจ้าอื่นภายหลังได้) */
 type PlatformDef = {
   id: string;
@@ -123,6 +137,14 @@ const PLATFORMS: PlatformDef[] = [
     iconBg: "bg-[#0F146E]",
     Glyph: LazadaGlyph,
   },
+  {
+    id: "shopee",
+    channel: "shopee",
+    name: "Shopee",
+    available: true,
+    iconBg: "bg-[#EE4D2D]",
+    Glyph: ShopeeGlyph,
+  },
 ];
 
 /** ปลายทาง API ส่งข้อความตามช่องทาง (draft/choices ใช้ /api/line ร่วมกันได้) */
@@ -130,6 +152,7 @@ function sendBaseFor(channel: string | undefined): string {
   if (channel === "facebook") return "/api/facebook";
   if (channel === "tiktok") return "/api/tiktok";
   if (channel === "lazada") return "/api/lazada";
+  if (channel === "shopee") return "/api/shopee";
   return "/api/line";
 }
 

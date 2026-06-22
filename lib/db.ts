@@ -194,6 +194,19 @@ async function ensureSchema(): Promise<void> {
       UNIQUE (account_id)
     );
 
+    -- credential ของบัญชีแชต Shopee แยกต่อร้าน (1 ร้าน 1 บัญชี)
+    CREATE TABLE IF NOT EXISTS shopee_channels (
+      id           TEXT PRIMARY KEY,
+      shop_id      TEXT NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+      account_id   TEXT NOT NULL,
+      access_token TEXT NOT NULL,
+      account_name TEXT NOT NULL DEFAULT '',
+      created_at   BIGINT NOT NULL,
+      updated_at   BIGINT NOT NULL,
+      UNIQUE (shop_id),
+      UNIQUE (account_id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_rules_shop ON rules(shop_id);
     CREATE INDEX IF NOT EXISTS idx_products_shop ON products(shop_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_admin ON sessions(admin_id);
@@ -205,6 +218,7 @@ async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_facebook_channels_page ON facebook_channels(page_id);
     CREATE INDEX IF NOT EXISTS idx_tiktok_channels_account ON tiktok_channels(account_id);
     CREATE INDEX IF NOT EXISTS idx_lazada_channels_account ON lazada_channels(account_id);
+    CREATE INDEX IF NOT EXISTS idx_shopee_channels_account ON shopee_channels(account_id);
   `);
 }
 

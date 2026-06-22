@@ -142,3 +142,13 @@ export type LazadaChannelStatus = {
   configured?: boolean; // ตั้ง env LAZADA_CHAT_SECRET แล้วหรือยัง
   mock?: boolean;
 };
+
+/** สถานะการเชื่อมบัญชีแชต Shopee ของร้าน */
+export type ShopeeChannelStatus = {
+  connected: boolean;
+  accountName?: string;
+  accountId?: string;
+  webhookUrl?: string;
+  configured?: boolean; // ตั้ง env SHOPEE_PARTNER_ID/KEY แล้วหรือยัง
+  mock?: boolean;
+};

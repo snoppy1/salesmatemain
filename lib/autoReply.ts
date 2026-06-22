@@ -12,10 +12,12 @@ import { replyMessage, pushMessage } from "./lineClient";
 import { sendMessage as fbSendMessage } from "./facebookClient";
 import { sendMessage as ttSendMessage } from "./tiktokClient";
 import { sendMessage as lzSendMessage } from "./lazadaChatClient";
+import { sendMessage as spSendMessage } from "./shopeeChatClient";
 import { getChannelByShop as getLineChannel } from "./lineChannelRepo";
 import { getChannelByShop as getFbChannel } from "./facebookChannelRepo";
 import { getChannelByShop as getTtChannel } from "./tiktokChannelRepo";
 import { getChannelByShop as getLzChannel } from "./lazadaChannelRepo";
+import { getChannelByShop as getSpChannel } from "./shopeeChannelRepo";
 
 /**
  * โหมด auto: AI ร่าง + ประเมินความมั่นใจ แล้วส่งเองตามช่องทางของบทสนทนา
@@ -60,6 +62,14 @@ export async function processAutoReply(
     } else if (convo.channel === "lazada") {
       const lz = await getLzChannel(shopId);
       await lzSendMessage(lz?.access_token ?? "", extUserId, result.message);
+    } else if (convo.channel === "shopee") {
+      const sp = await getSpChannel(shopId);
+      await spSendMessage(
+        sp?.access_token ?? "",
+        sp?.account_id ?? "",
+        extUserId,
+        result.message,
+      );
     } else {
       const line = await getLineChannel(shopId);
       const accessToken =

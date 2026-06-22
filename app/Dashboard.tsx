@@ -12,6 +12,7 @@ import type {
   FacebookChannelStatus,
   TiktokChannelStatus,
   LazadaChannelStatus,
+  ShopeeChannelStatus,
 } from "@/lib/types";
 import ThemeToggle from "@/components/ThemeToggle";
 import InboxView from "./InboxView";
@@ -447,6 +448,7 @@ function SettingsView({
       <FacebookConnectBox />
       <TiktokConnectBox />
       <LazadaConnectBox />
+      <ShopeeConnectBox />
     </section>
   );
 }
@@ -1191,6 +1193,174 @@ function LazadaConnectBox() {
             className="rounded-lg bg-[#0F146E] px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-[#0a0e52] disabled:opacity-50"
           >
             {busy ? "กำลังเชื่อม…" : "เชื่อม Lazada"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ShopeeConnectBox() {
+  const [status, setStatus] = useState<ShopeeChannelStatus | null>(null);
+  const [token, setToken] = useState("");
+  const [shopId, setShopId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const loadStatus = useCallback(async () => {
+    try {
+      const r = await fetch("/api/shopee/connect/status");
+      if (r.ok) setStatus((await r.json()) as ShopeeChannelStatus);
+    } catch {
+      /* เงียบไว้ */
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadStatus();
+  }, [loadStatus]);
+
+  async function connect() {
+    if (busy) return;
+    setBusy(true);
+    setErr("");
+    try {
+      const r = await fetch("/api/shopee/connect", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ accessToken: token.trim(), shopId: shopId.trim() }),
+      });
+      const d = (await r.json()) as { error?: string };
+      if (!r.ok) {
+        setErr(d.error || "เชื่อมไม่สำเร็จ");
+        return;
+      }
+      setToken("");
+      setShopId("");
+      await loadStatus();
+    } catch {
+      setErr("เชื่อมไม่สำเร็จ ลองใหม่");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function disconnect() {
+    if (busy) return;
+    if (!window.confirm("ยกเลิกการเชื่อมต่อแชต Shopee นี้?")) return;
+    setBusy(true);
+    await fetch("/api/shopee/connect/disconnect", { method: "POST" }).catch(() => {});
+    await loadStatus();
+    setBusy(false);
+  }
+
+  function copyWebhook() {
+    if (!status?.webhookUrl) return;
+    void navigator.clipboard.writeText(status.webhookUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+
+  const connected = status?.connected;
+
+  return (
+    <div className="mt-6 rounded-xl border border-gray-300 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/40">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          🛒 เชื่อมแชต Shopee{" "}
+          {status?.mock && (
+            <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
+              (โหมดทดลอง)
+            </span>
+          )}
+        </span>
+        {connected ? (
+          <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
+            เชื่อมแล้ว
+          </span>
+        ) : (
+          <span className="rounded-full bg-gray-400 px-2 py-0.5 text-xs font-semibold text-white dark:bg-gray-600">
+            ยังไม่เชื่อม
+          </span>
+        )}
+      </div>
+
+      {connected ? (
+        <div className="mt-3 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-gray-700 dark:text-gray-200">
+              ร้าน: <b>{status?.accountName || "—"}</b>
+            </span>
+            <button
+              type="button"
+              onClick={disconnect}
+              disabled={busy}
+              className="ml-auto rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              ยกเลิกการเชื่อมต่อ
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            ตั้งค่า “ให้ AI ตอบเองอัตโนมัติ” ได้ที่หน้า <b>กล่องแชต</b> (สวิตช์ข้างไอคอน Shopee)
+          </p>
+        </div>
+      ) : (
+        <div className="mt-3 space-y-3">
+          <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+            ✅ Shopee เปิด Chat API กว้างที่สุดในสาม marketplace — ใช้ Access Token + Shop ID จากการเชื่อม Shopee
+            (โหมดทดลองใส่ token ขึ้นต้น <code>mock-</code> ได้เลย ไม่ต้องใส่ Shop ID)
+          </p>
+
+          <details className="rounded-lg border border-gray-300 bg-white/60 p-2 text-xs dark:border-gray-700 dark:bg-gray-800/40">
+            <summary className="cursor-pointer font-medium text-gray-800 dark:text-gray-200">
+              ตั้งค่าระดับแอป (ทำครั้งเดียว)
+            </summary>
+            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-gray-600 dark:text-gray-400">
+              <li>
+                ตั้ง env <code>SHOPEE_PARTNER_ID</code> + <code>SHOPEE_PARTNER_KEY</code> (ใช้เซ็น + verify webhook)
+              </li>
+              <li>
+                ใส่ Push URL นี้ในตั้งค่า Shopee Open Platform (Push Mechanism):
+                <div className="mt-1 flex items-center gap-2">
+                  <code className="flex-1 truncate rounded bg-white px-2 py-1 text-[11px] text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                    {status?.webhookUrl ?? "…"}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={copyWebhook}
+                    className="shrink-0 rounded border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                  >
+                    {copied ? "คัดลอกแล้ว ✓" : "คัดลอก"}
+                  </button>
+                </div>
+              </li>
+            </ol>
+          </details>
+
+          <input
+            type="text"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="Access Token (หรือ mock-… เพื่อทดลอง)"
+            className={inputClass}
+          />
+          <input
+            type="text"
+            value={shopId}
+            onChange={(e) => setShopId(e.target.value)}
+            placeholder="Shop ID (เว้นว่างได้ในโหมดทดลอง)"
+            className={inputClass}
+          />
+          {err && <p className="text-xs text-red-600 dark:text-red-400">{err}</p>}
+          <button
+            type="button"
+            onClick={connect}
+            disabled={busy || !token.trim()}
+            className="rounded-lg bg-[#EE4D2D] px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-[#d8431f] disabled:opacity-50"
+          >
+            {busy ? "กำลังเชื่อม…" : "เชื่อม Shopee"}
           </button>
         </div>
       )}

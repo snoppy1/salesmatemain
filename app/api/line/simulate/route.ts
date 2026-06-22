@@ -41,7 +41,8 @@ export async function POST(request: Request) {
   const channel =
     body.channel === "facebook" ||
     body.channel === "tiktok" ||
-    body.channel === "lazada"
+    body.channel === "lazada" ||
+    body.channel === "shopee"
       ? body.channel
       : "line";
 

@@ -69,17 +69,20 @@ export async function fetchPageInfo(pageToken: string): Promise<PageInfo | null>
     const h = createHash("sha256").update(pageToken).digest("hex").slice(0, 16);
     return { pageId: `mock-page-${h}`, name: "เพจทดลอง (mock)" };
   }
-  try {
-    const res = await fetch(
-      `${GRAPH}/me?fields=id,name&access_token=${encodeURIComponent(pageToken)}`,
-    );
-    if (!res.ok) return null;
-    const d = (await res.json()) as { id?: string; name?: string };
-    if (!d.id) return null;
-    return { pageId: String(d.id), name: String(d.name ?? "") };
-  } catch {
-    return null;
+  const res = await fetch(
+    `${GRAPH}/me?fields=id,name&access_token=${encodeURIComponent(pageToken)}`,
+  );
+  const d = (await res.json().catch(() => ({}))) as {
+    id?: string;
+    name?: string;
+    error?: { message?: string; type?: string };
+  };
+  // โยน error พร้อมข้อความจริงจาก Facebook เพื่อให้ผู้ใช้รู้สาเหตุ
+  if (!res.ok || d.error) {
+    throw new Error(d.error?.message || `เรียก Facebook ไม่สำเร็จ (HTTP ${res.status})`);
   }
+  if (!d.id) throw new Error("token นี้ไม่ได้ผูกกับเพจ (อาจเป็น User token ไม่ใช่ Page token)");
+  return { pageId: String(d.id), name: String(d.name ?? "") };
 }
 
 /** ดึงชื่อลูกค้าจาก PSID — "" ถ้าไม่ได้/โหมดทดลอง */

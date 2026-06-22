@@ -27,7 +27,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const info = await fetchPageInfo(accessToken);
+  let info;
+  try {
+    info = await fetchPageInfo(accessToken);
+  } catch (e) {
+    return NextResponse.json(
+      { error: "Facebook: " + ((e as Error).message || "token ใช้ไม่ได้") },
+      { status: 400 },
+    );
+  }
   if (!info) {
     return NextResponse.json(
       { error: "Token ใช้ไม่ได้ — ตรวจ Page Access Token อีกครั้ง" },

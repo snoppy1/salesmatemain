@@ -1,7 +1,6 @@
 import "server-only";
-import type { GenerateRequest, GenerateResult } from "./types";
+import type { GenerateRequest } from "./types";
 import {
-  SYSTEM_PROMPT,
   REPLY_SYSTEM_PROMPT,
   CHOICES_SYSTEM_PROMPT,
   buildUserContent,
@@ -74,20 +73,7 @@ async function callClaudeRaw(
   }
 }
 
-/** หน้า "เจนประโยค": ถ้าไม่มีพ่วงที่เหมาะ message อาจว่างได้ */
-export async function generateUpsell(req: GenerateRequest): Promise<GenerateResult> {
-  const obj = await callClaudeRaw(SYSTEM_PROMPT, req);
-  return {
-    should_upsell: Boolean(obj.should_upsell),
-    message: typeof obj.message === "string" ? obj.message : "",
-    reason_for_admin:
-      typeof obj.reason_for_admin === "string" ? obj.reason_for_admin : "",
-    est_added_value:
-      typeof obj.est_added_value === "number" ? obj.est_added_value : null,
-  };
-}
-
-/** กล่องแชต LINE: ตอบลูกค้าเสมอ + ประเมิน needs_human (ใช้ทั้ง draft และ auto) */
+/** กล่องแชต: ตอบลูกค้าเสมอ + ประเมิน needs_human (ใช้ทั้ง draft และ auto) */
 export async function generateReply(req: GenerateRequest): Promise<ReplyResult> {
   const obj = await callClaudeRaw(REPLY_SYSTEM_PROMPT, req);
   return {

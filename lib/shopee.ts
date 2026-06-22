@@ -176,20 +176,23 @@ export async function fetchCatalog(
 
   return list.map((p) => {
     const priceInfo = (p.price_info as Record<string, unknown>[]) ?? [];
+    const image = (p.image as Record<string, unknown>) ?? {};
+    const imgList = (image.image_url_list as string[]) ?? [];
     return {
       name: String(p.item_name ?? ""),
       description: String(p.description ?? ""),
       price: String(priceInfo[0]?.current_price ?? ""),
       externalId: String(p.item_id ?? ""),
+      image: String(imgList[0] ?? ""),
     };
   });
 }
 
 const MOCK_CATALOG: CatalogItem[] = [
-  { externalId: "SHP-2001", name: "เคสกันกระแทกใส iPhone 15", price: "159", description: "ขอบยกสูงกันกล้อง วัสดุ TPU นิ่มไม่เหลือง" },
-  { externalId: "SHP-2002", name: "ฟิล์มกระจกกันรอยเต็มจอ", price: "89", description: "ความแข็ง 9H ติดง่ายไร้ฟองอากาศ แพ็ก 2 ชิ้น" },
-  { externalId: "SHP-2003", name: "สายชาร์จเร็ว Type-C 65W 1.5m", price: "129", description: "ถักไนลอนทนทาน รองรับชาร์จไว PD/QC" },
-  { externalId: "SHP-2004", name: "หูฟังบลูทูธ TWS เสียงดี", price: "390", description: "ตัดเสียงรบกวน แบตอึด 24 ชม. กันน้ำ IPX5" },
-  { externalId: "SHP-2005", name: "พาวเวอร์แบงค์ 20000mAh", price: "459", description: "ชาร์จเร็ว 22.5W 2 พอร์ต จอแสดงเปอร์เซ็นต์" },
-  { externalId: "SHP-2006", name: "ขาตั้งมือถือปรับระดับ", price: "75", description: "อะลูมิเนียมพับเก็บได้ ตั้งดูคลิป/วิดีโอคอลสะดวก" },
+  { externalId: "SHP-2001", name: "เคสกันกระแทกใส iPhone 15", price: "159", description: "ขอบยกสูงกันกล้อง วัสดุ TPU นิ่มไม่เหลือง", image: "https://picsum.photos/seed/SHP-2001/300" },
+  { externalId: "SHP-2002", name: "ฟิล์มกระจกกันรอยเต็มจอ", price: "89", description: "ความแข็ง 9H ติดง่ายไร้ฟองอากาศ แพ็ก 2 ชิ้น", image: "https://picsum.photos/seed/SHP-2002/300" },
+  { externalId: "SHP-2003", name: "สายชาร์จเร็ว Type-C 65W 1.5m", price: "129", description: "ถักไนลอนทนทาน รองรับชาร์จไว PD/QC", image: "https://picsum.photos/seed/SHP-2003/300" },
+  { externalId: "SHP-2004", name: "หูฟังบลูทูธ TWS เสียงดี", price: "390", description: "ตัดเสียงรบกวน แบตอึด 24 ชม. กันน้ำ IPX5", image: "https://picsum.photos/seed/SHP-2004/300" },
+  { externalId: "SHP-2005", name: "พาวเวอร์แบงค์ 20000mAh", price: "459", description: "ชาร์จเร็ว 22.5W 2 พอร์ต จอแสดงเปอร์เซ็นต์", image: "https://picsum.photos/seed/SHP-2005/300" },
+  { externalId: "SHP-2006", name: "ขาตั้งมือถือปรับระดับ", price: "75", description: "อะลูมิเนียมพับเก็บได้ ตั้งดูคลิป/วิดีโอคอลสะดวก", image: "https://picsum.photos/seed/SHP-2006/300" },
 ];

@@ -14,6 +14,7 @@ export type Product = {
   name: string; // ชื่อสินค้า
   description: string; // คำอธิบายสินค้า
   price: string; // ราคา (ว่างได้)
+  image?: string; // รูปสินค้า (data URL ที่อัปโหลด หรือ URL จาก marketplace) — ว่างได้
   source?: string; // ที่มา — รายชื่อ platform คั่นด้วย , เช่น "lazada" หรือ "lazada,shopee" (ว่าง = เพิ่มเอง)
   externalId?: string; // รหัสสินค้าฝั่ง marketplace
   enabled?: boolean; // เปิดขายอยู่ไหม (false = หมดสต็อก, AI จะไม่เอาไปคิด)
@@ -28,10 +29,10 @@ export type ConnectionStatus = {
   mock?: boolean;
 };
 
-/** ข้อมูลร้าน + คู่พ่วง + คลังสินค้า ที่โหลด/บันทึกพร้อมกัน */
+/** ข้อมูลร้าน + คลังสินค้า ที่โหลด/บันทึกพร้อมกัน (rules = ระบบพ่วงเดิม เลิกใช้แล้ว) */
 export type ShopData = {
   shop: Shop;
-  rules: Rule[];
+  rules?: Rule[];
   products: Product[];
 };
 
@@ -57,14 +58,12 @@ export type Rule = {
 export type GenerateRequest = {
   shopName: string;
   shopVoice: string;
-  rules: Rule[];
   products: Product[];
   customerMsg: string; // ข้อความ + บริบทจากลูกค้า รวมในช่องเดียว
 };
 
 /** ผลลัพธ์การแยกข้อมูลอัตโนมัติจากข้อความดิบ (ยังไม่มี id) */
 export type ImportResult = {
-  rules: Omit<Rule, "id">[];
   products: Omit<Product, "id">[];
 };
 

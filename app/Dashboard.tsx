@@ -4,10 +4,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type {
   Product,
-  Rule,
   Shop,
   ShopData,
-  GenerateResult,
   ImportResult,
   ConnectionStatus,
   LineChannelStatus,
@@ -23,12 +21,34 @@ function genId(): string {
     : Math.random().toString(36).slice(2);
 }
 
-function newRule(): Rule {
-  return { id: genId(), trigger: "", partner: "", price: "", reason: "", promo: "", enabled: true };
-}
-
 function newProduct(): Product {
   return { id: genId(), name: "", description: "", price: "", enabled: true };
+}
+
+/** อ่านไฟล์รูป → ย่อให้ด้านยาวสุดไม่เกิน max px → คืนเป็น data URL (JPEG) เก็บในระบบได้เลย */
+async function fileToResizedDataUrl(file: File, max = 512): Promise<string> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(new Error("read failed"));
+    r.readAsDataURL(file);
+  });
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => reject(new Error("decode failed"));
+    im.src = dataUrl;
+  });
+  const scale = Math.min(1, max / Math.max(img.width, img.height || 1));
+  const w = Math.max(1, Math.round(img.width * scale));
+  const h = Math.max(1, Math.round(img.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return dataUrl;
+  ctx.drawImage(img, 0, 0, w, h);
+  return canvas.toDataURL("image/jpeg", 0.8);
 }
 
 /** แยก source (CSV) เป็นรายชื่อ platform */
@@ -39,15 +59,9 @@ function sourceList(source?: string): string[] {
     .filter(Boolean);
 }
 
-type ResultState =
-  | { kind: "idle" }
-  | { kind: "loading" }
-  | { kind: "result"; data: GenerateResult }
-  | { kind: "error"; message: string };
-
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-type View = "generate" | "inbox" | "settings" | "catalog";
+type View = "inbox" | "settings" | "catalog";
 
 export default function Dashboard({
   username,
@@ -59,33 +73,17 @@ export default function Dashboard({
   const router = useRouter();
 
   const [shop, setShop] = useState<Shop>(initial.shop);
-  const [rules, setRules] = useState<Rule[]>(initial.rules);
   const [products, setProducts] = useState<Product[]>(initial.products ?? []);
   const [save, setSave] = useState<SaveState>("saved");
   const [dirty, setDirty] = useState(false);
   const savingRef = useRef(false);
   const editSeqRef = useRef(0);
-  const [view, setView] = useState<View>("generate");
-
-  const [customerMsg, setCustomerMsg] = useState("");
-  const [result, setResult] = useState<ResultState>({ kind: "idle" });
+  const [view, setView] = useState<View>("inbox");
 
   function markDirty() {
     editSeqRef.current += 1;
     setDirty(true);
     setSave((s) => (s === "saving" ? s : "idle"));
-  }
-  function updateRule(id: string, patch: Partial<Rule>) {
-    setRules((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-    markDirty();
-  }
-  function addRule() {
-    setRules((prev) => [...prev, newRule()]);
-    markDirty();
-  }
-  function removeRule(id: string) {
-    setRules((prev) => prev.filter((r) => r.id !== id));
-    markDirty();
   }
   function updateShop(patch: Partial<Shop>) {
     setShop((s) => ({ ...s, ...patch }));
@@ -113,7 +111,7 @@ export default function Dashboard({
       const res = await fetch("/api/shop", {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ shop, rules, products } satisfies ShopData),
+        body: JSON.stringify({ shop, products } satisfies ShopData),
       });
       if (!res.ok) {
         setSave("error");
@@ -131,7 +129,7 @@ export default function Dashboard({
     } finally {
       savingRef.current = false;
     }
-  }, [shop, rules, products]);
+  }, [shop, products]);
 
   // บันทึกอัตโนมัติ: หลังหยุดแก้ ~1.2 วิ (ไม่ยิงซ้อนระหว่างกำลังเซฟ)
   useEffect(() => {
@@ -154,34 +152,8 @@ export default function Dashboard({
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [dirty]);
 
-  async function handleGenerate() {
-    if (!customerMsg.trim() || result.kind === "loading") return;
-    setResult({ kind: "loading" });
-    try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          shopName: shop.name,
-          shopVoice: shop.voice,
-          rules,
-          products,
-          customerMsg,
-        }),
-      });
-      if (!res.ok) {
-        setResult({ kind: "error", message: "เจนไม่สำเร็จ ลองใหม่อีกครั้ง" });
-        return;
-      }
-      const data = (await res.json()) as GenerateResult;
-      setResult({ kind: "result", data });
-    } catch {
-      setResult({ kind: "error", message: "เจนไม่สำเร็จ ลองใหม่อีกครั้ง" });
-    }
-  }
-
-  // นำเข้าอัตโนมัติ: AI แยกข้อความดิบเป็นคู่พ่วง/คลังสินค้า แล้วเพิ่มต่อท้าย
-  async function handleImport(text: string): Promise<{ rules: number; products: number }> {
+  // นำเข้าอัตโนมัติ: AI แยกข้อความดิบเป็นรายการสินค้า แล้วเพิ่มต่อท้าย
+  async function handleImport(text: string): Promise<{ products: number }> {
     const res = await fetch("/api/import", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -189,12 +161,12 @@ export default function Dashboard({
     });
     if (!res.ok) throw new Error("import failed");
     const data = (await res.json()) as ImportResult;
-    const newRules: Rule[] = data.rules.map((r) => ({ ...newRule(), ...r }));
     const newProducts: Product[] = data.products.map((p) => ({ ...newProduct(), ...p }));
-    if (newRules.length) setRules((prev) => [...prev, ...newRules]);
-    if (newProducts.length) setProducts((prev) => [...prev, ...newProducts]);
-    if (newRules.length || newProducts.length) markDirty();
-    return { rules: newRules.length, products: newProducts.length };
+    if (newProducts.length) {
+      setProducts((prev) => [...prev, ...newProducts]);
+      markDirty();
+    }
+    return { products: newProducts.length };
   }
 
   // ดึงสินค้าจาก marketplace (lazada/shopee) → เพิ่มเข้าคลัง
@@ -218,6 +190,7 @@ export default function Dashboard({
             name: inc.name,
             price: inc.price,
             description: inc.description,
+            image: inc.image,
             source: platform,
             externalId: inc.externalId,
           });
@@ -283,14 +256,6 @@ export default function Dashboard({
             view === "catalog" || view === "inbox" ? "max-w-6xl" : "max-w-3xl"
           }`}
         >
-          {view === "generate" && (
-            <Console
-              customerMsg={customerMsg}
-              setCustomerMsg={setCustomerMsg}
-              onGenerate={handleGenerate}
-              result={result}
-            />
-          )}
           {view === "inbox" && <InboxView />}
           {view === "settings" && (
             <SettingsView
@@ -302,10 +267,6 @@ export default function Dashboard({
           )}
           {view === "catalog" && (
             <CatalogView
-              rules={rules}
-              updateRule={updateRule}
-              addRule={addRule}
-              removeRule={removeRule}
               products={products}
               updateProduct={updateProduct}
               addProduct={addProduct}
@@ -337,10 +298,9 @@ function Sidebar({
   onLogout: () => void;
 }) {
   const items: { key: View; label: string; icon: React.ReactNode }[] = [
-    { key: "generate", label: "เจนประโยคแนะนำการขาย", icon: <IconSpark /> },
     { key: "inbox", label: "กล่องแชต", icon: <IconChat /> },
+    { key: "catalog", label: "คลังสินค้า", icon: <IconList /> },
     { key: "settings", label: "ตั้งค่าร้าน", icon: <IconStore /> },
-    { key: "catalog", label: "รายการคู่พ่วงและคลังสินค้า", icon: <IconList /> },
   ];
 
   return (
@@ -403,14 +363,6 @@ function Sidebar({
   );
 }
 
-function IconSpark() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z" />
-      <path d="M19 14l.7 1.8 1.8.7-1.8.7L19 19l-.7-1.8-1.8-.7 1.8-.7z" />
-    </svg>
-  );
-}
 function IconChat() {
   return (
     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -993,10 +945,6 @@ function TiktokConnectBox() {
 /* ---------------- หมวด: รายการคู่พ่วงและคลังสินค้า ---------------- */
 
 function CatalogView({
-  rules,
-  updateRule,
-  addRule,
-  removeRule,
   products,
   updateProduct,
   addProduct,
@@ -1007,15 +955,11 @@ function CatalogView({
   save,
   onSave,
 }: {
-  rules: Rule[];
-  updateRule: (id: string, patch: Partial<Rule>) => void;
-  addRule: () => void;
-  removeRule: (id: string) => void;
   products: Product[];
   updateProduct: (id: string, patch: Partial<Product>) => void;
   addProduct: () => void;
   removeProduct: (id: string) => void;
-  onImport: (text: string) => Promise<{ rules: number; products: number }>;
+  onImport: (text: string) => Promise<{ products: number }>;
   onImportMarketplace: (platform: string) => Promise<number>;
   onDisconnectMarketplace: (platform: string) => Promise<void>;
   save: SaveState;
@@ -1025,12 +969,12 @@ function CatalogView({
     <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-          รายการคู่พ่วงและคลังสินค้า
+          คลังสินค้า
         </h2>
         <SaveButton save={save} onSave={onSave} />
       </div>
 
-      {/* เชื่อมต่อ marketplace (Lazada + Shopee) */}
+      {/* เชื่อมต่อ marketplace (Lazada / Shopee / TikTok) */}
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {MARKETPLACES.map((cfg) => (
           <MarketplaceBox
@@ -1045,65 +989,34 @@ function CatalogView({
       {/* นำเข้าอัตโนมัติ อยู่บนกลาง เต็มความกว้าง */}
       <ImportBox onImport={onImport} />
 
-      <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
-        {/* ซ้าย: รายการคู่พ่วง */}
-        <div className="rounded-xl border border-gray-200 p-3 dark:border-gray-800">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">รายการคู่พ่วง</h3>
-            <button type="button" onClick={addRule} className={secondaryBtnClass}>
-              + เพิ่มคู่พ่วง
-            </button>
-          </div>
-
-          {rules.length === 0 ? (
-            <p className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
-              ยังไม่มีคู่พ่วง — กด “+ เพิ่มคู่พ่วง”
-            </p>
-          ) : (
-            <div className="mt-3 max-h-[62vh] space-y-3 overflow-y-auto pr-1">
-              {rules.map((rule, i) => (
-                <RuleRow
-                  key={rule.id}
-                  index={i}
-                  rule={rule}
-                  onChange={(patch) => updateRule(rule.id, patch)}
-                  onRemove={() => removeRule(rule.id)}
-                />
-              ))}
-            </div>
-          )}
+      <div className="mt-6 rounded-xl border border-gray-200 p-3 dark:border-gray-800">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">รายการสินค้า</h3>
+          <button type="button" onClick={addProduct} className={secondaryBtnClass}>
+            + เพิ่มสินค้า
+          </button>
         </div>
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          AI ใช้สินค้าเหล่านี้ตอบลูกค้าและแนะนำสินค้าที่เข้ากัน
+        </p>
 
-        {/* ขวา: คลังสินค้า */}
-        <div className="rounded-xl border border-gray-200 p-3 dark:border-gray-800">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">คลังสินค้า</h3>
-            <button type="button" onClick={addProduct} className={secondaryBtnClass}>
-              + เพิ่มสินค้า
-            </button>
-          </div>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            AI ใช้แนะนำเมื่อไม่มีคู่พ่วงที่ตรง
+        {products.length === 0 ? (
+          <p className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
+            ยังไม่มีสินค้า — กด “+ เพิ่มสินค้า” หรือดึงจาก marketplace ด้านบน
           </p>
-
-          {products.length === 0 ? (
-            <p className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
-              ยังไม่มีสินค้า — กด “+ เพิ่มสินค้า”
-            </p>
-          ) : (
-            <div className="mt-3 max-h-[62vh] space-y-3 overflow-y-auto pr-1">
-              {products.map((product, i) => (
-                <ProductRow
-                  key={product.id}
-                  index={i}
-                  product={product}
-                  onChange={(patch) => updateProduct(product.id, patch)}
-                  onRemove={() => removeProduct(product.id)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        ) : (
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+            {products.map((product, i) => (
+              <ProductRow
+                key={product.id}
+                index={i}
+                product={product}
+                onChange={(patch) => updateProduct(product.id, patch)}
+                onRemove={() => removeProduct(product.id)}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -1152,6 +1065,22 @@ function ProductRow({
 }) {
   const enabled = product.enabled !== false;
   const sources = sourceList(product.source);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [imgBusy, setImgBusy] = useState(false);
+
+  async function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = ""; // ให้เลือกไฟล์เดิมซ้ำได้
+    if (!f) return;
+    setImgBusy(true);
+    try {
+      onChange({ image: await fileToResizedDataUrl(f) });
+    } catch {
+      /* ย่อรูปไม่สำเร็จ — เงียบไว้ */
+    }
+    setImgBusy(false);
+  }
+
   return (
     <div
       className={`rounded-lg border p-3 transition ${
@@ -1192,6 +1121,53 @@ function ProductRow({
             ลบ
           </button>
         </div>
+      </div>
+
+      {/* รูปสินค้า — อัปโหลดจากเครื่อง (ย่ออัตโนมัติ) */}
+      <div className="mb-2 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-800"
+          aria-label={`รูปสินค้าที่ ${index + 1}`}
+        >
+          {product.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={product.image}
+              alt={product.name || "รูปสินค้า"}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <span className="text-[10px] text-gray-400">＋ รูป</span>
+          )}
+        </button>
+        <div className="flex flex-col gap-1">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={imgBusy}
+            className="rounded border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            {imgBusy ? "กำลังย่อรูป…" : product.image ? "เปลี่ยนรูป" : "อัปโหลดรูป"}
+          </button>
+          {product.image && (
+            <button
+              type="button"
+              onClick={() => onChange({ image: "" })}
+              className="text-left text-[11px] text-red-500 hover:underline"
+            >
+              ลบรูป
+            </button>
+          )}
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={onPickImage}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -1431,7 +1407,7 @@ function MarketplaceBox({
 function ImportBox({
   onImport,
 }: {
-  onImport: (text: string) => Promise<{ rules: number; products: number }>;
+  onImport: (text: string) => Promise<{ products: number }>;
 }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
@@ -1443,14 +1419,14 @@ function ImportBox({
     setStatus("loading");
     setMsg("");
     try {
-      const { rules, products } = await onImport(text);
-      if (rules === 0 && products === 0) {
+      const { products } = await onImport(text);
+      if (products === 0) {
         setStatus("error");
         setMsg("ไม่พบข้อมูลที่แยกได้ ลองจัดข้อความให้ชัดขึ้น");
         return;
       }
       setStatus("idle");
-      setMsg(`เพิ่มแล้ว: คู่พ่วง ${rules} รายการ, สินค้า ${products} รายการ (ระบบบันทึกให้อัตโนมัติ)`);
+      setMsg(`เพิ่มแล้ว: สินค้า ${products} รายการ (ระบบบันทึกให้อัตโนมัติ)`);
       setText("");
     } catch {
       setStatus("error");
@@ -1466,7 +1442,7 @@ function ImportBox({
         className="flex w-full items-center justify-between text-left"
       >
         <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
-          ✨ นำเข้าอัตโนมัติ — วางข้อความ AI แยกคู่พ่วง/สินค้าให้เอง
+          ✨ นำเข้าอัตโนมัติ — วางข้อความ AI แยกเป็นรายการสินค้าให้เอง
         </span>
         <span className="text-emerald-700 dark:text-emerald-400">{open ? "▲" : "▼"}</span>
       </button>
@@ -1478,7 +1454,7 @@ function ImportBox({
             onChange={(e) => setText(e.target.value)}
             rows={5}
             placeholder={
-              "วางข้อมูลแบบไหนก็ได้ เช่น:\nแบตเตอรี่รถยนต์ ซื้อคู่กับสายพ่วง 450 บาท ลดเหลือ 290\nน้ำมันเครื่อง 1200 บาท สังเคราะห์แท้ 100%\nใบปัดน้ำฝน 250 บาท"
+              "วางข้อมูลแบบไหนก็ได้ เช่น:\nเซรั่มบำรุงผิว 690 บาท ลดเลือนริ้วรอย\nครีมกันแดด SPF50 350 บาท\nมาส์กหน้า แพ็ก 10 ชิ้น 199"
             }
             className={inputClass}
           />
@@ -1508,258 +1484,6 @@ function ImportBox({
   );
 }
 
-function RuleRow({
-  index,
-  rule,
-  onChange,
-  onRemove,
-}: {
-  index: number;
-  rule: Rule;
-  onChange: (patch: Partial<Rule>) => void;
-  onRemove: () => void;
-}) {
-  const enabled = rule.enabled !== false;
-  return (
-    <div
-      className={`rounded-lg border p-3 transition ${
-        enabled
-          ? "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50"
-          : "border-gray-200 bg-gray-100 opacity-60 dark:border-gray-800 dark:bg-gray-900/40"
-      }`}
-    >
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="flex flex-wrap items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-          คู่พ่วง #{index + 1}
-          {!enabled && (
-            <span className="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-              ปิดอยู่
-            </span>
-          )}
-        </span>
-        <div className="flex items-center gap-2">
-          <EnableToggle
-            enabled={enabled}
-            onToggle={() => onChange({ enabled: !enabled })}
-            label={`เปิด/ปิดคู่พ่วงที่ ${index + 1}`}
-          />
-          <button
-            type="button"
-            onClick={onRemove}
-            className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
-            aria-label={`ลบคู่พ่วงที่ ${index + 1}`}
-          >
-            ลบ
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <Field label="ลูกค้าสนใจ (trigger)" compact>
-          <input
-            type="text"
-            value={rule.trigger}
-            onChange={(e) => onChange({ trigger: e.target.value })}
-            placeholder="เช่น ครีมทารอบดวงตา"
-            className={inputClass}
-          />
-        </Field>
-        <Field label="เสนอพ่วง (partner)" compact>
-          <input
-            type="text"
-            value={rule.partner}
-            onChange={(e) => onChange({ partner: e.target.value })}
-            placeholder="เช่น เซรั่มบำรุงผิว"
-            className={inputClass}
-          />
-        </Field>
-        <Field label="ราคาของพ่วง (บาท)" compact>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={rule.price}
-            onChange={(e) => onChange({ price: e.target.value })}
-            placeholder="เช่น 690"
-            className={inputClass}
-          />
-        </Field>
-        <Field label="โปร (ว่างได้)" compact>
-          <input
-            type="text"
-            value={rule.promo}
-            onChange={(e) => onChange({ promo: e.target.value })}
-            placeholder="เช่น ซื้อคู่ลด 10%"
-            className={inputClass}
-          />
-        </Field>
-        <div className="sm:col-span-2">
-          <Field label="เหตุผลที่ขายคู่กัน (ดีกับลูกค้ายังไง)" compact>
-            <input
-              type="text"
-              value={rule.reason}
-              onChange={(e) => onChange({ reason: e.target.value })}
-              placeholder="เช่น เซรั่มช่วยให้ครีมซึมดีขึ้น เห็นผลไวกว่า"
-              className={inputClass}
-            />
-          </Field>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ---------------- ฝั่งขวา: console ---------------- */
-
-function Console({
-  customerMsg,
-  setCustomerMsg,
-  onGenerate,
-  result,
-}: {
-  customerMsg: string;
-  setCustomerMsg: (v: string) => void;
-  onGenerate: () => void;
-  result: ResultState;
-}) {
-  const loading = result.kind === "loading";
-  const canGenerate = customerMsg.trim().length > 0 && !loading;
-
-  return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-      <h2 className="text-base font-semibold text-gray-900 dark:text-white">เจนประโยคขายพ่วง</h2>
-
-      <div className="mt-4 space-y-4">
-        <Field label="ข้อความ/บริบทจากลูกค้า">
-          <textarea
-            value={customerMsg}
-            onChange={(e) => setCustomerMsg(e.target.value)}
-            placeholder={
-              "วางข้อความที่ลูกค้าทักมา + บริบทถ้ามี รวมในช่องเดียว\nเช่น: สนใจครีมรอบดวงตาค่ะ งบไม่เกิน 500 ซื้อเป็นของขวัญ"
-            }
-            rows={6}
-            className={inputClass}
-          />
-        </Field>
-
-        <button
-          type="button"
-          onClick={onGenerate}
-          disabled={!canGenerate}
-          className={primaryBtnClass}
-        >
-          {loading ? (
-            <span className="inline-flex items-center gap-2">
-              <Spinner />
-              กำลังเจน…
-            </span>
-          ) : (
-            "เจนประโยคขายพ่วง"
-          )}
-        </button>
-      </div>
-
-      <div className="mt-5">
-        <ResultArea result={result} />
-      </div>
-
-      <p className="mt-5 border-t border-gray-100 pt-3 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-        ประโยคที่ได้เป็นคำแนะนำ แอดมินควรอ่านก่อนกดส่งทุกครั้ง
-      </p>
-    </section>
-  );
-}
-
-function ResultArea({ result }: { result: ResultState }) {
-  if (result.kind === "idle") {
-    return (
-      <p className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
-        ผลลัพธ์จะแสดงตรงนี้
-      </p>
-    );
-  }
-
-  if (result.kind === "loading") {
-    return (
-      <div className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-8 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
-        <Spinner />
-        กำลังวิเคราะห์บทสนทนา…
-      </div>
-    );
-  }
-
-  if (result.kind === "error") {
-    return (
-      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
-        {result.message}
-      </div>
-    );
-  }
-
-  const { data } = result;
-
-  if (!data.should_upsell) {
-    return (
-      <div className="rounded-lg border border-gray-300 bg-gray-100 px-4 py-4 dark:border-gray-700 dark:bg-gray-800">
-        <p className="font-semibold text-gray-700 dark:text-gray-200">ยังไม่ใช่จังหวะเสนอ</p>
-        {data.reason_for_admin && (
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{data.reason_for_admin}</p>
-        )}
-      </div>
-    );
-  }
-
-  return <UpsellCard data={data} />;
-}
-
-function UpsellCard({ data }: { data: GenerateResult }) {
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(data.message);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      setCopied(false);
-    }
-  }
-
-  const value =
-    typeof data.est_added_value === "number" && data.est_added_value > 0
-      ? `+฿${Math.round(data.est_added_value).toLocaleString("th-TH")}`
-      : null;
-
-  return (
-    <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-950/30">
-      <div className="flex items-start justify-between gap-3">
-        <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">ประโยคที่ส่งได้</span>
-        {value && (
-          <span className="shrink-0 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white">
-            {value}
-          </span>
-        )}
-      </div>
-
-      <p className="mt-2 whitespace-pre-wrap rounded-md border border-emerald-200 bg-white px-3 py-2.5 text-[15px] leading-relaxed text-gray-900 dark:border-emerald-900 dark:bg-gray-900 dark:text-gray-100">
-        {data.message}
-      </p>
-
-      <button type="button" onClick={copy} className={copyBtnClass}>
-        {copied ? "คัดลอกแล้ว ✓" : "คัดลอกประโยค"}
-      </button>
-
-      {data.reason_for_admin && (
-        <div className="mt-3 border-t border-emerald-200 pt-2.5 dark:border-emerald-900">
-          <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
-            เหตุผลสำหรับแอดมิน (ลูกค้าไม่เห็น)
-          </p>
-          <p className="mt-0.5 text-sm text-gray-700 dark:text-gray-300">{data.reason_for_admin}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ---------------- ชิ้นส่วนร่วม ---------------- */
 
 function Field({
@@ -1783,39 +1507,8 @@ function Field({
   );
 }
 
-function Spinner() {
-  return (
-    <svg
-      className="h-4 w-4 animate-spin text-current"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-      />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-      />
-    </svg>
-  );
-}
-
 const inputClass =
   "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500";
 
-const primaryBtnClass =
-  "w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50";
-
 const secondaryBtnClass =
   "rounded-md border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-700 dark:bg-transparent dark:text-emerald-400 dark:hover:bg-emerald-950/40";
-
-const copyBtnClass =
-  "mt-3 w-full rounded-lg border border-emerald-400 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-700 dark:bg-transparent dark:text-emerald-300 dark:hover:bg-emerald-900/40";

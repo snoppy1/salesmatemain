@@ -18,6 +18,7 @@ type ProductRow = {
   name: string;
   description: string;
   price: string;
+  image_url: string | null;
   source: string | null;
   external_id: string | null;
   enabled: boolean;
@@ -84,7 +85,7 @@ export async function getShopData(shopId: string): Promise<ShopData> {
   );
 
   const productRows = await query<ProductRow>(
-    `SELECT id, name, description, price, source, external_id, enabled
+    `SELECT id, name, description, price, image_url, source, external_id, enabled
      FROM products WHERE shop_id = $1 ORDER BY sort_order ASC`,
     [shopId],
   );
@@ -105,6 +106,7 @@ export async function getShopData(shopId: string): Promise<ShopData> {
       name: p.name,
       description: p.description,
       price: p.price,
+      image: p.image_url ?? undefined,
       source: p.source ?? undefined,
       externalId: p.external_id ?? undefined,
       enabled: p.enabled,
@@ -129,6 +131,7 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
     name: (p.name ?? "").toString(),
     description: (p.description ?? "").toString(),
     price: (p.price ?? "").toString(),
+    image_url: p.image ? p.image.toString() : null,
     source: p.source ? p.source.toString() : null,
     external_id: p.externalId ? p.externalId.toString() : null,
     enabled: p.enabled !== false, // default true
@@ -158,9 +161,9 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
     for (let i = 0; i < products.length; i++) {
       const p = products[i];
       await client.query(
-        `INSERT INTO products (id, shop_id, name, description, price, source, external_id, enabled, sort_order)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [p.id, shopId, p.name, p.description, p.price, p.source, p.external_id, p.enabled, i],
+        `INSERT INTO products (id, shop_id, name, description, price, image_url, source, external_id, enabled, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [p.id, shopId, p.name, p.description, p.price, p.image_url, p.source, p.external_id, p.enabled, i],
       );
     }
   });

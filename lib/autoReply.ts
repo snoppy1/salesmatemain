@@ -38,7 +38,6 @@ export async function processAutoReply(
     const result = await generateReply({
       shopName: shopData.shop.name,
       shopVoice: shopData.shop.voice,
-      rules: shopData.rules,
       products: shopData.products,
       customerMsg,
     });

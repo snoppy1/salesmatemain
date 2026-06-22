@@ -58,7 +58,7 @@ export default function AdminConsole({
       }
       const data = (await res.json()) as ShopData;
       setShop(data.shop);
-      setRules(data.rules);
+      setRules(data.rules ?? []);
       setProducts(data.products ?? []);
       setLoad({ kind: "ready" });
     } catch {
@@ -85,14 +85,14 @@ export default function AdminConsole({
       }
       const data = (await res.json()) as ShopData;
       setShop(data.shop);
-      setRules(data.rules);
+      setRules(data.rules ?? []);
       setProducts(data.products ?? []);
       setSave("saved");
       // อัปเดตชื่อ/จำนวนคู่พ่วงในลิสต์ซ้าย
       setList((prev) =>
         prev.map((s) =>
           s.id === selectedId
-            ? { ...s, name: data.shop.name, ruleCount: data.rules.length }
+            ? { ...s, name: data.shop.name, ruleCount: (data.rules ?? []).length }
             : s,
         ),
       );

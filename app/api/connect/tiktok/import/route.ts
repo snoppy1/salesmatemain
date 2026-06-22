@@ -31,6 +31,7 @@ export async function POST() {
       name: it.name,
       price: it.price,
       description: it.description,
+      image: it.image,
       source: "tiktok",
       externalId: it.externalId,
     }));

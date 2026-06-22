@@ -79,23 +79,7 @@ export async function POST(request: Request) {
 
   let result: ImportResult;
   try {
-    const obj = parseModelJson(rawText) as {
-      rules?: unknown[];
-      products?: unknown[];
-    };
-    const rules = (Array.isArray(obj.rules) ? obj.rules : [])
-      .map((r) => {
-        const x = (r ?? {}) as Record<string, unknown>;
-        return {
-          trigger: asStr(x.trigger),
-          partner: asStr(x.partner),
-          price: asStr(x.price),
-          reason: asStr(x.reason),
-          promo: asStr(x.promo),
-        };
-      })
-      .filter((r) => r.trigger || r.partner);
-
+    const obj = parseModelJson(rawText) as { products?: unknown[] };
     const products = (Array.isArray(obj.products) ? obj.products : [])
       .map((p) => {
         const x = (p ?? {}) as Record<string, unknown>;
@@ -107,7 +91,7 @@ export async function POST(request: Request) {
       })
       .filter((p) => p.name);
 
-    result = { rules, products };
+    result = { products };
   } catch {
     return NextResponse.json(
       { error: "แยกข้อมูลไม่สำเร็จ ลองจัดข้อความให้อ่านง่ายขึ้นแล้วลองใหม่" },

@@ -46,7 +46,6 @@ export async function POST(request: Request) {
     const choices = await generateChoices({
       shopName: shopData.shop.name,
       shopVoice: shopData.shop.voice,
-      rules: shopData.rules,
       products: shopData.products,
       customerMsg,
     });

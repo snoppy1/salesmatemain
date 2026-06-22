@@ -30,6 +30,7 @@ export async function POST() {
       name: it.name,
       price: it.price,
       description: it.description,
+      image: it.image,
       source: "lazada",
       externalId: it.externalId,
     }));

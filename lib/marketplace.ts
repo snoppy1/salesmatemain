@@ -24,6 +24,7 @@ export type CatalogItem = {
   price: string;
   description: string;
   externalId: string;
+  image?: string; // URL รูปสินค้าจาก marketplace (ว่างได้)
 };
 
 export function isLazadaConfigured(): boolean {
@@ -137,20 +138,22 @@ export async function fetchCatalog(accessToken: string): Promise<CatalogItem[]> 
     const x = p as Record<string, unknown>;
     const attrs = (x.attributes ?? {}) as Record<string, unknown>;
     const skus = (x.skus as Record<string, unknown>[]) ?? [];
+    const images = (x.images as string[]) ?? [];
     return {
       name: String(attrs.name ?? ""),
       description: String(attrs.short_description ?? attrs.description ?? ""),
       price: String(skus[0]?.price ?? ""),
       externalId: String(x.item_id ?? ""),
+      image: String(images[0] ?? skus[0]?.Images ?? ""),
     };
   });
 }
 
 const MOCK_CATALOG: CatalogItem[] = [
-  { externalId: "LZD-1001", name: "แบตเตอรี่รถยนต์ GS 12V 65Ah", price: "2390", description: "แบตแห้งกึ่ง MF พร้อมใช้ ประกัน 18 เดือน" },
-  { externalId: "LZD-1002", name: "น้ำมันเครื่องสังเคราะห์ 5W-30 4L", price: "1290", description: "สังเคราะห์แท้ 100% ยืดอายุเครื่องยนต์" },
-  { externalId: "LZD-1003", name: "ใบปัดน้ำฝนไร้โครง 24 นิ้ว", price: "350", description: "ยางซิลิโคนรีดน้ำเงียบ ทนแดด" },
-  { externalId: "LZD-1004", name: "สายพ่วงแบตเตอรี่ทองแดงแท้ 2000A", price: "590", description: "หนีบแน่น ทองแดงเต็ม ยาว 3 เมตร" },
-  { externalId: "LZD-1005", name: "เครื่องชาร์จแบตอัจฉริยะ 12V/24V", price: "1190", description: "ตัดไฟอัตโนมัติ ชาร์จได้ทุกชนิดแบต" },
-  { externalId: "LZD-1006", name: "น้ำยาเติมหม้อน้ำ Coolant 1L", price: "120", description: "ป้องกันสนิม ลดความร้อนสะสม" },
+  { externalId: "LZD-1001", name: "แบตเตอรี่รถยนต์ GS 12V 65Ah", price: "2390", description: "แบตแห้งกึ่ง MF พร้อมใช้ ประกัน 18 เดือน", image: "https://picsum.photos/seed/LZD-1001/300" },
+  { externalId: "LZD-1002", name: "น้ำมันเครื่องสังเคราะห์ 5W-30 4L", price: "1290", description: "สังเคราะห์แท้ 100% ยืดอายุเครื่องยนต์", image: "https://picsum.photos/seed/LZD-1002/300" },
+  { externalId: "LZD-1003", name: "ใบปัดน้ำฝนไร้โครง 24 นิ้ว", price: "350", description: "ยางซิลิโคนรีดน้ำเงียบ ทนแดด", image: "https://picsum.photos/seed/LZD-1003/300" },
+  { externalId: "LZD-1004", name: "สายพ่วงแบตเตอรี่ทองแดงแท้ 2000A", price: "590", description: "หนีบแน่น ทองแดงเต็ม ยาว 3 เมตร", image: "https://picsum.photos/seed/LZD-1004/300" },
+  { externalId: "LZD-1005", name: "เครื่องชาร์จแบตอัจฉริยะ 12V/24V", price: "1190", description: "ตัดไฟอัตโนมัติ ชาร์จได้ทุกชนิดแบต", image: "https://picsum.photos/seed/LZD-1005/300" },
+  { externalId: "LZD-1006", name: "น้ำยาเติมหม้อน้ำ Coolant 1L", price: "120", description: "ป้องกันสนิม ลดความร้อนสะสม", image: "https://picsum.photos/seed/LZD-1006/300" },
 ];

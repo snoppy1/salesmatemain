@@ -146,20 +146,23 @@ export async function fetchCatalog(
     const x = p as Record<string, unknown>;
     const skus = (x.skus as Record<string, unknown>[]) ?? [];
     const price = (skus[0]?.price as Record<string, unknown>) ?? {};
+    const mainImages = (x.main_images as Record<string, unknown>[]) ?? [];
+    const urlList = (mainImages[0]?.url_list as string[]) ?? [];
     return {
       name: String(x.title ?? ""),
       description: String(x.description ?? ""),
       price: String(price.tax_exclusive_price ?? price.sale_price ?? ""),
       externalId: String(x.id ?? ""),
+      image: String(urlList[0] ?? ""),
     };
   });
 }
 
 const MOCK_CATALOG: CatalogItem[] = [
-  { externalId: "TTS-3001", name: "เซรั่มวิตามินซีหน้าใส 30ml", price: "199", description: "เข้มข้น 20% ผิวกระจ่างใส ลดจุดด่างดำ" },
-  { externalId: "TTS-3002", name: "ลิปแมตต์ติดทน 12 ชม.", price: "129", description: "เนื้อแมตต์ละมุน ไม่เป็นคราบ ติดทนทั้งวัน" },
-  { externalId: "TTS-3003", name: "เครื่องนวดหน้าไฟฟ้า", price: "350", description: "สั่นกระชับผิว ชาร์จ USB พกพาง่าย" },
-  { externalId: "TTS-3004", name: "แปรงแต่งหน้าเซ็ต 12 ชิ้น", price: "159", description: "ขนนุ่มไม่ทิ่ม พร้อมกระเป๋าใส่ ครบชุด" },
-  { externalId: "TTS-3005", name: "มาส์กหน้าคอลลาเจน แพ็ก 10", price: "99", description: "เพิ่มความชุ่มชื้น ผิวฉ่ำวาว ใช้ได้ทุกวัน" },
-  { externalId: "TTS-3006", name: "ที่หนีบผมไร้สาย พกพา", price: "290", description: "ร้อนเร็วใน 30 วิ ชาร์จ USB-C จัดทรงนอกบ้านสะดวก" },
+  { externalId: "TTS-3001", name: "เซรั่มวิตามินซีหน้าใส 30ml", price: "199", description: "เข้มข้น 20% ผิวกระจ่างใส ลดจุดด่างดำ", image: "https://picsum.photos/seed/TTS-3001/300" },
+  { externalId: "TTS-3002", name: "ลิปแมตต์ติดทน 12 ชม.", price: "129", description: "เนื้อแมตต์ละมุน ไม่เป็นคราบ ติดทนทั้งวัน", image: "https://picsum.photos/seed/TTS-3002/300" },
+  { externalId: "TTS-3003", name: "เครื่องนวดหน้าไฟฟ้า", price: "350", description: "สั่นกระชับผิว ชาร์จ USB พกพาง่าย", image: "https://picsum.photos/seed/TTS-3003/300" },
+  { externalId: "TTS-3004", name: "แปรงแต่งหน้าเซ็ต 12 ชิ้น", price: "159", description: "ขนนุ่มไม่ทิ่ม พร้อมกระเป๋าใส่ ครบชุด", image: "https://picsum.photos/seed/TTS-3004/300" },
+  { externalId: "TTS-3005", name: "มาส์กหน้าคอลลาเจน แพ็ก 10", price: "99", description: "เพิ่มความชุ่มชื้น ผิวฉ่ำวาว ใช้ได้ทุกวัน", image: "https://picsum.photos/seed/TTS-3005/300" },
+  { externalId: "TTS-3006", name: "ที่หนีบผมไร้สาย พกพา", price: "290", description: "ร้อนเร็วใน 30 วิ ชาร์จ USB-C จัดทรงนอกบ้านสะดวก", image: "https://picsum.photos/seed/TTS-3006/300" },
 ];

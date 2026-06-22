@@ -152,6 +152,11 @@ export default function Dashboard({
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [dirty]);
 
+  // กลับจากเชื่อม Facebook (?fb=...) → เด้งไปหน้าตั้งค่าให้เห็นผล/เลือกเพจ
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("fb")) setView("settings");
+  }, []);
+
   // นำเข้าอัตโนมัติ: AI แยกข้อความดิบเป็นรายการสินค้า แล้วเพิ่มต่อท้าย
   async function handleImport(text: string): Promise<{ products: number }> {
     const res = await fetch("/api/import", {
@@ -605,9 +610,12 @@ function LineConnectBox() {
 
 function FacebookConnectBox() {
   const [status, setStatus] = useState<FacebookChannelStatus | null>(null);
+  const [pages, setPages] = useState<{ id: string; name: string }[]>([]);
+  const [pickId, setPickId] = useState("");
   const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [notice, setNotice] = useState("");
   const [copied, setCopied] = useState("");
 
   const loadStatus = useCallback(async () => {
@@ -619,11 +627,62 @@ function FacebookConnectBox() {
     }
   }, []);
 
+  const loadPages = useCallback(async () => {
+    try {
+      const r = await fetch("/api/facebook/oauth/pages");
+      if (!r.ok) return;
+      const d = (await r.json()) as { pages: { id: string; name: string }[] };
+      setPages(d.pages ?? []);
+      if (d.pages?.[0]) setPickId((cur) => cur || d.pages[0].id);
+    } catch {
+      /* เงียบไว้ */
+    }
+  }, []);
+
   useEffect(() => {
     void loadStatus();
-  }, [loadStatus]);
+    void loadPages();
+    // อ่านผลลัพธ์ที่เด้งกลับมาจาก Facebook (?fb=...)
+    const fb = new URLSearchParams(window.location.search).get("fb");
+    if (fb) {
+      const map: Record<string, string> = {
+        connected: "เชื่อม Facebook สำเร็จ 🎉",
+        choose: "คุณมีหลายเพจ — เลือกเพจที่จะใช้ด้านล่าง",
+        nopage: "ไม่พบเพจที่คุณเป็นแอดมิน — สร้างเพจก่อนแล้วลองใหม่",
+        error: "เชื่อมไม่สำเร็จ ลองใหม่อีกครั้ง",
+        noapp: "ระบบยังไม่ได้ตั้งค่า Facebook (ผู้ดูแลต้องตั้ง FB_APP_ID/SECRET)",
+      };
+      setNotice(map[fb] ?? "");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [loadStatus, loadPages]);
 
-  async function connect() {
+  async function selectPage() {
+    if (busy || !pickId) return;
+    setBusy(true);
+    setErr("");
+    try {
+      const r = await fetch("/api/facebook/oauth/select", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ pageId: pickId }),
+      });
+      const d = (await r.json()) as { error?: string };
+      if (!r.ok) {
+        setErr(d.error || "เลือกเพจไม่สำเร็จ");
+        return;
+      }
+      setPages([]);
+      setNotice("เชื่อม Facebook สำเร็จ 🎉");
+      await loadStatus();
+    } catch {
+      setErr("เลือกเพจไม่สำเร็จ ลองใหม่");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function connectManual() {
     if (busy) return;
     setBusy(true);
     setErr("");
@@ -709,22 +768,67 @@ function FacebookConnectBox() {
         </div>
       ) : (
         <div className="mt-3 space-y-3">
-          {status && !status.configured && (
-            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-              ⚠️ ยังไม่ได้ตั้งค่าระดับแอป (FB_APP_SECRET, FB_VERIFY_TOKEN) — ตอนนี้ลองใส่ token
-              ขึ้นต้น <code>mock-</code> เพื่อทดลองก่อนได้ พอมีแอป Meta จริงค่อยตั้ง env แล้วใช้ token จริง
+          {notice && (
+            <p className="rounded-lg bg-blue-100 px-3 py-2 text-xs text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+              {notice}
             </p>
           )}
+          {err && <p className="text-xs text-red-600 dark:text-red-400">{err}</p>}
 
+          {pages.length > 0 ? (
+            // มีหลายเพจ → ให้เลือก
+            <div className="space-y-2">
+              <p className="text-sm text-gray-700 dark:text-gray-200">เลือกเพจที่จะใช้:</p>
+              <select
+                value={pickId}
+                onChange={(e) => setPickId(e.target.value)}
+                className={inputClass}
+              >
+                {pages.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name || p.id}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={selectPage}
+                disabled={busy || !pickId}
+                className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+              >
+                {busy ? "กำลังเชื่อม…" : "ใช้เพจนี้"}
+              </button>
+            </div>
+          ) : (
+            // ยังไม่เชื่อม → ปุ่มคลิกเดียว
+            <div className="space-y-2">
+              <a
+                href="/api/facebook/oauth/start"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#0866FF] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0654cc]"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                  <path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.9h2.54V9.85c0-2.51 1.49-3.9 3.78-3.9 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.44 2.9h-2.34V22c4.78-.76 8.44-4.92 8.44-9.94z" />
+                </svg>
+                เชื่อม Facebook (เข้าสู่ระบบ)
+              </a>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                กดแล้วล็อกอิน Facebook → เลือกเพจร้าน → เสร็จเลย (ระบบตั้งค่าให้อัตโนมัติ)
+              </p>
+            </div>
+          )}
+
+          {/* ขั้นสูง / ผู้ดูแลระบบ — ตั้งค่าระดับแอป + วาง token เอง */}
           <details className="rounded-lg border border-blue-200 bg-white/60 p-2 text-xs dark:border-blue-900/60 dark:bg-gray-800/40">
             <summary className="cursor-pointer font-medium text-blue-800 dark:text-blue-300">
-              ตั้งค่าระดับแอป Meta (ทำครั้งเดียว)
+              ขั้นสูง (สำหรับผู้ดูแลระบบ)
             </summary>
+            {status && !status.configured && (
+              <p className="mt-2 rounded bg-amber-50 px-2 py-1.5 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                ⚠️ ยังไม่ได้ตั้ง env <code>FB_APP_ID</code>, <code>FB_APP_SECRET</code>,{" "}
+                <code>FB_VERIFY_TOKEN</code> — ปุ่มเชื่อมจะใช้ไม่ได้ (mock ใส่ token ขึ้นต้น mock- ได้)
+              </p>
+            )}
             <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-gray-600 dark:text-gray-400">
-              <li>
-                สร้าง Meta App + เพิ่ม Messenger → ตั้ง env <code>FB_APP_SECRET</code>,{" "}
-                <code>FB_VERIFY_TOKEN</code>
-              </li>
               <li>
                 ใส่ Callback URL นี้ในหน้า Webhooks ของ Meta:
                 <div className="mt-1 flex items-center gap-2">
@@ -741,42 +845,33 @@ function FacebookConnectBox() {
                 </div>
               </li>
               <li>
-                Verify Token (ใส่ให้ตรงกับ env):
-                <div className="mt-1 flex items-center gap-2">
-                  <code className="flex-1 truncate rounded bg-white px-2 py-1 text-[11px] text-gray-800 dark:bg-gray-800 dark:text-gray-200">
-                    {status?.verifyToken || "(ยังไม่ได้ตั้ง FB_VERIFY_TOKEN)"}
+                เพิ่ม Redirect URI นี้ใน Facebook Login → Valid OAuth Redirect URIs:
+                <div className="mt-1">
+                  <code className="block truncate rounded bg-white px-2 py-1 text-[11px] text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                    {(status?.webhookUrl ?? "").replace("/webhook", "/oauth/callback") || "…"}
                   </code>
-                  <button
-                    type="button"
-                    onClick={() => copy(status?.verifyToken ?? "", "vt")}
-                    className="shrink-0 rounded border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-                  >
-                    {copied === "vt" ? "คัดลอกแล้ว ✓" : "คัดลอก"}
-                  </button>
                 </div>
               </li>
-              <li>
-                Subscribe เพจกับ webhook field <code>messages</code>
-              </li>
             </ol>
+            <div className="mt-2 space-y-2 border-t border-gray-200 pt-2 dark:border-gray-700">
+              <p className="text-gray-600 dark:text-gray-400">วาง Page Access Token เอง (หรือ mock- เพื่อทดลอง):</p>
+              <input
+                type="text"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                placeholder="Page Access Token (หรือ mock-…)"
+                className={inputClass}
+              />
+              <button
+                type="button"
+                onClick={connectManual}
+                disabled={busy || !token.trim()}
+                className="rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-50 disabled:opacity-50 dark:border-blue-800 dark:bg-transparent dark:text-blue-300"
+              >
+                {busy ? "กำลังเชื่อม…" : "เชื่อมด้วย token"}
+              </button>
+            </div>
           </details>
-
-          <input
-            type="text"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="Page Access Token (หรือ mock-… เพื่อทดลอง)"
-            className={inputClass}
-          />
-          {err && <p className="text-xs text-red-600 dark:text-red-400">{err}</p>}
-          <button
-            type="button"
-            onClick={connect}
-            disabled={busy || !token.trim()}
-            className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
-          >
-            {busy ? "กำลังเชื่อม…" : "เชื่อม Facebook"}
-          </button>
         </div>
       )}
     </div>

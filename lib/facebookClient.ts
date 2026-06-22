@@ -134,3 +134,100 @@ export async function fetchUserName(
     return "";
   }
 }
+
+/* ---------- OAuth "เชื่อม Facebook คลิกเดียว" (Login with Facebook) ---------- */
+
+/** มี credential ระดับแอปพอจะทำ OAuth ไหม (App ID + Secret) */
+export function canOAuth(): boolean {
+  return Boolean(process.env.FB_APP_ID && process.env.FB_APP_SECRET);
+}
+
+/** สร้าง URL ให้ร้านไปล็อกอิน Facebook + เลือกเพจ + ให้สิทธิ์ */
+export function buildLoginUrl(redirectUri: string, state: string): string {
+  const params = new URLSearchParams({
+    client_id: process.env.FB_APP_ID ?? "",
+    redirect_uri: redirectUri,
+    response_type: "code",
+    state,
+  });
+  const configId = process.env.FB_LOGIN_CONFIG_ID;
+  if (configId) {
+    params.set("config_id", configId); // Facebook Login for Business
+  } else {
+    params.set(
+      "scope",
+      "pages_show_list,pages_messaging,pages_manage_metadata,pages_read_engagement",
+    );
+  }
+  return `https://www.facebook.com/v21.0/dialog/oauth?${params}`;
+}
+
+/** แลก code → user access token (แลกต่อเป็น long-lived ด้วย) */
+export async function exchangeCodeForUserToken(
+  code: string,
+  redirectUri: string,
+): Promise<string> {
+  const appId = process.env.FB_APP_ID ?? "";
+  const appSecret = process.env.FB_APP_SECRET ?? "";
+  const p1 = new URLSearchParams({
+    client_id: appId,
+    client_secret: appSecret,
+    redirect_uri: redirectUri,
+    code,
+  });
+  const r1 = await fetch(`${GRAPH}/oauth/access_token?${p1}`);
+  const d1 = (await r1.json().catch(() => ({}))) as {
+    access_token?: string;
+    error?: { message?: string };
+  };
+  if (!r1.ok || !d1.access_token) {
+    throw new Error(d1.error?.message || "แลก token จาก Facebook ไม่สำเร็จ");
+  }
+  // แลกเป็น long-lived (page token ที่ได้จากนี้จะอยู่ยาว)
+  const p2 = new URLSearchParams({
+    grant_type: "fb_exchange_token",
+    client_id: appId,
+    client_secret: appSecret,
+    fb_exchange_token: d1.access_token,
+  });
+  const r2 = await fetch(`${GRAPH}/oauth/access_token?${p2}`);
+  const d2 = (await r2.json().catch(() => ({}))) as { access_token?: string };
+  return d2.access_token || d1.access_token;
+}
+
+export type FbPage = { id: string; name: string; accessToken: string };
+
+/** ดึงเพจที่ร้านดูแล (พร้อม page access token) */
+export async function listPages(userToken: string): Promise<FbPage[]> {
+  const params = new URLSearchParams({
+    access_token: userToken,
+    fields: "id,name,access_token",
+    limit: "100",
+  });
+  const r = await fetch(`${GRAPH}/me/accounts?${params}`);
+  const d = (await r.json().catch(() => ({}))) as {
+    data?: { id?: string; name?: string; access_token?: string }[];
+  };
+  return (d.data ?? [])
+    .filter((p) => p.id && p.access_token)
+    .map((p) => ({
+      id: String(p.id),
+      name: String(p.name ?? ""),
+      accessToken: String(p.access_token),
+    }));
+}
+
+/** subscribe เพจกับแอป → เพจจะส่ง event ข้อความเข้ามาที่ webhook เรา */
+export async function subscribePageToApp(
+  pageId: string,
+  pageToken: string,
+): Promise<boolean> {
+  const params = new URLSearchParams({
+    subscribed_fields: "messages,messaging_postbacks,messaging_optins",
+    access_token: pageToken,
+  });
+  const r = await fetch(`${GRAPH}/${pageId}/subscribed_apps?${params}`, {
+    method: "POST",
+  });
+  return r.ok;
+}

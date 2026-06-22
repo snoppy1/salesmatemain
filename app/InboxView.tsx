@@ -21,7 +21,30 @@ function timeAgo(ts: number): string {
 // cache ระดับโมดูล — อยู่รอดข้ามการสลับหน้า/รีเมานต์ ทำให้สลับแชตขึ้นทันที
 let convCache: ConversationSummary[] = [];
 let activeIdCache: string | null = null;
+let selectedPlatformCache: string | null = null;
 const detailCache = new Map<string, ConversationDetail>();
+
+/** ไอคอน LINE (ฟองแชตสีเขียวแบรนด์) */
+function LineGlyph({ small }: { small?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={small ? "h-4 w-4" : "h-7 w-7"}
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M12 2C6.48 2 2 5.74 2 10.28c0 4.07 3.59 7.48 8.44 8.12.33.07.78.22.89.5.1.26.07.66.03.92 0 0-.12.71-.14.86-.04.26-.2 1.01.89.55 1.09-.46 5.86-3.45 8-5.91 1.48-1.62 2.19-3.27 2.19-5.04C22.3 5.74 17.52 2 12 2z" />
+    </svg>
+  );
+}
+
+/** แพลตฟอร์มที่โชว์ในหน้ารวมกล่องแชต (เพิ่มเจ้าอื่นภายหลังได้) */
+const PLATFORMS: {
+  id: string;
+  channel: string;
+  name: string;
+  available: boolean;
+}[] = [{ id: "line", channel: "line", name: "LINE", available: true }];
 
 export default function InboxView() {
   // เริ่มจาก cache ที่เคยโหลดไว้ (สลับหน้ากลับมาไม่ต้องเริ่มศูนย์)
@@ -34,6 +57,9 @@ export default function InboxView() {
     const id = activeIdCache ?? convCache[0]?.id ?? null;
     return id ? (detailCache.get(id) ?? null) : null;
   });
+  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(
+    () => selectedPlatformCache,
+  );
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [choicesMap, setChoicesMap] = useState<Record<string, string[]>>({});
@@ -117,6 +143,23 @@ export default function InboxView() {
     setSimText("");
     activeIdCache = activeId;
   }, [activeId]);
+
+  // จำแพลตฟอร์มที่เปิดอยู่ (คงไว้ตอนสลับหน้าอื่นแล้วกลับมา)
+  useEffect(() => {
+    selectedPlatformCache = selectedPlatform;
+  }, [selectedPlatform]);
+
+  // เลือกแพลตฟอร์มจากหน้ารวม → เข้าหน้าแชต แล้วเด้งไปบทสนทนาแรกของเจ้านั้น
+  function pickPlatform(channel: string) {
+    setSelectedPlatform(channel);
+    setActiveId((cur) => {
+      const stillValid =
+        cur && conversations.some((c) => c.id === cur && c.channel === channel);
+      return stillValid
+        ? cur
+        : (conversations.find((c) => c.channel === channel)?.id ?? null);
+    });
+  }
 
   async function handleDraft() {
     if (!activeId || drafting) return;
@@ -236,25 +279,53 @@ export default function InboxView() {
     }
   }
 
+  const platform = PLATFORMS.find((p) => p.channel === selectedPlatform) ?? null;
+  const visibleConvos = selectedPlatform
+    ? conversations.filter((c) => c.channel === selectedPlatform)
+    : [];
+
+  // หน้ารวมแพลตฟอร์ม (ยังไม่ได้เลือกแพลตฟอร์ม)
+  if (!selectedPlatform) {
+    return (
+      <div className="h-[calc(100vh-8rem)]">
+        <PlatformHub conversations={conversations} onPick={pickPlatform} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-[calc(100vh-8rem)] gap-4">
       {/* ซ้าย: รายการบทสนทนา */}
       <div className="flex w-72 shrink-0 flex-col rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
         <div className="border-b border-gray-200 p-3 dark:border-gray-800">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
-            กล่องแชต
-          </h2>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            ลูกค้าทักเข้ามา · AI ช่วยร่าง · กดส่งเอง
-          </p>
+          <button
+            type="button"
+            onClick={() => setSelectedPlatform(null)}
+            className="mb-2 flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+          >
+            ‹ กล่องแชต
+          </button>
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#06C755] text-white">
+              <LineGlyph small />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+                {platform?.name ?? "แชต"}
+              </h2>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                {visibleConvos.length} บทสนทนา
+              </p>
+            </div>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {conversations.length === 0 ? (
+          {visibleConvos.length === 0 ? (
             <p className="p-4 text-center text-xs text-gray-500 dark:text-gray-400">
               ยังไม่มีบทสนทนา — ลองจำลองลูกค้าทักด้านล่าง
             </p>
           ) : (
-            conversations.map((c) => {
+            visibleConvos.map((c) => {
               const active = c.id === activeId;
               return (
                 <button
@@ -461,6 +532,64 @@ export default function InboxView() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/** หน้ารวมแพลตฟอร์ม — การ์ดไอคอน + ชื่อ กดเข้าหน้าแชตของเจ้านั้น */
+function PlatformHub({
+  conversations,
+  onPick,
+}: {
+  conversations: ConversationSummary[];
+  onPick: (channel: string) => void;
+}) {
+  return (
+    <div className="flex h-full flex-col">
+      <div className="mb-5">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white">กล่องแชต</h2>
+        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+          รวมแชตจากทุกแพลตฟอร์มไว้ที่เดียว — กดแพลตฟอร์มเพื่อเปิดแชต
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        {PLATFORMS.map((p) => {
+          const convos = conversations.filter((c) => c.channel === p.channel);
+          const pending = convos.filter((c) => c.pendingHuman).length;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              disabled={!p.available}
+              onClick={() => p.available && onPick(p.channel)}
+              className={`flex flex-col items-start gap-3 rounded-2xl border p-4 text-left transition ${
+                p.available
+                  ? "border-gray-200 bg-white hover:border-emerald-400 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:border-emerald-600"
+                  : "cursor-not-allowed border-dashed border-gray-200 bg-gray-50 opacity-60 dark:border-gray-800 dark:bg-gray-900/40"
+              }`}
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#06C755] text-white">
+                <LineGlyph />
+              </span>
+              <div className="w-full">
+                <div className="flex items-center gap-2">
+                  <span className="text-base font-semibold text-gray-900 dark:text-white">
+                    {p.name}
+                  </span>
+                  {pending > 0 && (
+                    <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-950/50 dark:text-red-300">
+                      รอตอบ {pending}
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {p.available ? `${convos.length} บทสนทนา` : "เร็วๆ นี้"}
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

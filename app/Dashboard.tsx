@@ -336,7 +336,7 @@ function Sidebar({
 }) {
   const items: { key: View; label: string; icon: React.ReactNode }[] = [
     { key: "generate", label: "เจนประโยคแนะนำการขาย", icon: <IconSpark /> },
-    { key: "inbox", label: "กล่องแชต (LINE)", icon: <IconChat /> },
+    { key: "inbox", label: "กล่องแชต", icon: <IconChat /> },
     { key: "settings", label: "ตั้งค่าร้าน", icon: <IconStore /> },
     { key: "catalog", label: "รายการคู่พ่วงและคลังสินค้า", icon: <IconList /> },
   ];

@@ -11,9 +11,11 @@ import { buildConversationContext } from "./prompt";
 import { replyMessage, pushMessage } from "./lineClient";
 import { sendMessage as fbSendMessage } from "./facebookClient";
 import { sendMessage as ttSendMessage } from "./tiktokClient";
+import { sendMessage as lzSendMessage } from "./lazadaChatClient";
 import { getChannelByShop as getLineChannel } from "./lineChannelRepo";
 import { getChannelByShop as getFbChannel } from "./facebookChannelRepo";
 import { getChannelByShop as getTtChannel } from "./tiktokChannelRepo";
+import { getChannelByShop as getLzChannel } from "./lazadaChannelRepo";
 
 /**
  * โหมด auto: AI ร่าง + ประเมินความมั่นใจ แล้วส่งเองตามช่องทางของบทสนทนา
@@ -55,6 +57,9 @@ export async function processAutoReply(
     } else if (convo.channel === "tiktok") {
       const tt = await getTtChannel(shopId);
       await ttSendMessage(tt?.access_token ?? "", extUserId, result.message);
+    } else if (convo.channel === "lazada") {
+      const lz = await getLzChannel(shopId);
+      await lzSendMessage(lz?.access_token ?? "", extUserId, result.message);
     } else {
       const line = await getLineChannel(shopId);
       const accessToken =

@@ -39,7 +39,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "ใส่ข้อความลูกค้าก่อน" }, { status: 400 });
   }
   const channel =
-    body.channel === "facebook" || body.channel === "tiktok" ? body.channel : "line";
+    body.channel === "facebook" ||
+    body.channel === "tiktok" ||
+    body.channel === "lazada"
+      ? body.channel
+      : "line";
 
   let conversationId: string;
 

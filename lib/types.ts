@@ -132,3 +132,13 @@ export type TiktokChannelStatus = {
   configured?: boolean; // ตั้ง env TIKTOK_CHAT_SECRET แล้วหรือยัง
   mock?: boolean;
 };
+
+/** สถานะการเชื่อมบัญชีแชต Lazada ของร้าน */
+export type LazadaChannelStatus = {
+  connected: boolean;
+  accountName?: string;
+  accountId?: string;
+  webhookUrl?: string;
+  configured?: boolean; // ตั้ง env LAZADA_CHAT_SECRET แล้วหรือยัง
+  mock?: boolean;
+};

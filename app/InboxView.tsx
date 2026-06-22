@@ -67,6 +67,20 @@ function TiktokGlyph({ small }: { small?: boolean }) {
   );
 }
 
+/** ไอคอน Lazada (ถุงช้อปปิ้ง) */
+function LazadaGlyph({ small }: { small?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={small ? "h-4 w-4" : "h-7 w-7"}
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M6 7h12l-.9 12.1A2 2 0 0 1 15.1 21H8.9a2 2 0 0 1-2-1.9L6 7zm3 0a3 3 0 0 1 6 0h-2a1 1 0 0 0-2 0H9z" />
+    </svg>
+  );
+}
+
 /** แพลตฟอร์มที่โชว์ในหน้ารวมกล่องแชต (เพิ่มเจ้าอื่นภายหลังได้) */
 type PlatformDef = {
   id: string;
@@ -101,12 +115,21 @@ const PLATFORMS: PlatformDef[] = [
     iconBg: "bg-black",
     Glyph: TiktokGlyph,
   },
+  {
+    id: "lazada",
+    channel: "lazada",
+    name: "Lazada",
+    available: true,
+    iconBg: "bg-[#0F146E]",
+    Glyph: LazadaGlyph,
+  },
 ];
 
 /** ปลายทาง API ส่งข้อความตามช่องทาง (draft/choices ใช้ /api/line ร่วมกันได้) */
 function sendBaseFor(channel: string | undefined): string {
   if (channel === "facebook") return "/api/facebook";
   if (channel === "tiktok") return "/api/tiktok";
+  if (channel === "lazada") return "/api/lazada";
   return "/api/line";
 }
 

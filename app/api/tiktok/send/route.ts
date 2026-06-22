@@ -1,0 +1,48 @@
+import { NextResponse } from "next/server";
+import { getCurrentAdmin } from "@/lib/auth";
+import { getSendTarget, addAdminMessage } from "@/lib/inboxRepo";
+import { getChannelByShop } from "@/lib/tiktokChannelRepo";
+import { sendMessage } from "@/lib/tiktokClient";
+
+export const runtime = "nodejs";
+
+// แอดมินกดส่ง (manual) → ยิงเข้า TikTok จริงผ่าน IM API (หรือข้ามถ้าจำลอง) + บันทึกข้อความ
+export async function POST(request: Request) {
+  const admin = await getCurrentAdmin();
+  if (!admin) {
+    return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
+  }
+
+  let body: { conversationId?: string; text?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "รูปแบบคำขอไม่ถูกต้อง" }, { status: 400 });
+  }
+
+  const text = (body.text ?? "").trim();
+  if (!body.conversationId || !text) {
+    return NextResponse.json({ error: "ระบุบทสนทนาและข้อความ" }, { status: 400 });
+  }
+
+  const target = await getSendTarget(admin.shopId, body.conversationId);
+  if (!target) {
+    return NextResponse.json({ error: "ไม่พบบทสนทนา" }, { status: 404 });
+  }
+
+  const channel = await getChannelByShop(admin.shopId);
+  const ok = await sendMessage(
+    channel?.access_token ?? "",
+    target.lineUserId ?? "",
+    text,
+  );
+  if (!ok) {
+    return NextResponse.json(
+      { error: "ส่งเข้า TikTok ไม่สำเร็จ (ตรวจ token/สิทธิ์)" },
+      { status: 502 },
+    );
+  }
+
+  const message = await addAdminMessage(admin.shopId, body.conversationId, text);
+  return NextResponse.json({ ok: true, message });
+}

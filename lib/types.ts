@@ -123,3 +123,13 @@ export type FacebookChannelStatus = {
   configured?: boolean; // ตั้ง env App Secret + Verify Token แล้วหรือยัง
   mock?: boolean;
 };
+
+/** สถานะการเชื่อมบัญชีแชต TikTok ของร้าน */
+export type TiktokChannelStatus = {
+  connected: boolean;
+  accountName?: string;
+  accountId?: string;
+  webhookUrl?: string;
+  configured?: boolean; // ตั้ง env TIKTOK_CHAT_SECRET แล้วหรือยัง
+  mock?: boolean;
+};

@@ -3,11 +3,14 @@ import { query, queryOne } from "./db";
 import { newId } from "./auth";
 import { refreshTokens as refreshLazada, type TokenSet } from "./marketplace";
 import { refreshTokens as refreshShopee } from "./shopee";
+import { refreshTokens as refreshTiktok } from "./tiktok";
 import type { ConnectionStatus } from "./types";
 
 /** เลือกฟังก์ชัน refresh token ตาม marketplace */
 function refresherFor(platform: string) {
-  return platform === "shopee" ? refreshShopee : refreshLazada;
+  if (platform === "shopee") return refreshShopee;
+  if (platform === "tiktok") return refreshTiktok;
+  return refreshLazada;
 }
 
 type ConnRow = {

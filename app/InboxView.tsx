@@ -53,6 +53,20 @@ function FacebookGlyph({ small }: { small?: boolean }) {
   );
 }
 
+/** ไอคอน TikTok (โน้ตดนตรี) */
+function TiktokGlyph({ small }: { small?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={small ? "h-4 w-4" : "h-7 w-7"}
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M16.5 3c.3 2.06 1.5 3.69 3.5 4.05v2.66c-1.19.12-2.28-.18-3.5-.78v5.36c0 3.62-2.6 6.21-6 6.21A5.9 5.9 0 0 1 4 14.6c0-3.5 3.2-6.06 6.8-5.4v2.77c-.43-.13-.9-.2-1.4-.2-1.6 0-2.7 1.1-2.7 2.6 0 1.55 1.13 2.66 2.6 2.66 1.5 0 2.7-1.13 2.7-2.95V3z" />
+    </svg>
+  );
+}
+
 /** แพลตฟอร์มที่โชว์ในหน้ารวมกล่องแชต (เพิ่มเจ้าอื่นภายหลังได้) */
 type PlatformDef = {
   id: string;
@@ -79,7 +93,22 @@ const PLATFORMS: PlatformDef[] = [
     iconBg: "bg-[#0866FF]",
     Glyph: FacebookGlyph,
   },
+  {
+    id: "tiktok",
+    channel: "tiktok",
+    name: "TikTok",
+    available: true,
+    iconBg: "bg-black",
+    Glyph: TiktokGlyph,
+  },
 ];
+
+/** ปลายทาง API ส่งข้อความตามช่องทาง (draft/choices ใช้ /api/line ร่วมกันได้) */
+function sendBaseFor(channel: string | undefined): string {
+  if (channel === "facebook") return "/api/facebook";
+  if (channel === "tiktok") return "/api/tiktok";
+  return "/api/line";
+}
 
 /** สวิตช์เปิด/ปิด */
 function Toggle({
@@ -326,8 +355,8 @@ export default function InboxView() {
     const id = activeId;
     const text = (drafts[id] ?? "").trim();
     if (!text) return;
-    // ส่งตามช่องทางของบทสนทนา (LINE / Facebook)
-    const sendBase = detail?.channel === "facebook" ? "/api/facebook" : "/api/line";
+    // ส่งตามช่องทางของบทสนทนา (LINE / Facebook / TikTok)
+    const sendBase = sendBaseFor(detail?.channel);
     setSending(true);
     try {
       const r = await fetch(`${sendBase}/send`, {

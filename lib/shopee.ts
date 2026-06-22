@@ -194,6 +194,10 @@ export async function fetchCatalog(
 }
 
 const MOCK_CATALOG: CatalogItem[] = [
+  // สินค้าซ้ำข้ามเจ้า (ชื่อตรงกับฝั่ง Lazada) — หูฟัง/สายชาร์จ สต็อกเท่า, พาวเวอร์แบงก์สต็อกต่าง
+  { externalId: "SHP-SH-EARBUDS", name: "หูฟังบลูทูธ TWS รุ่นโปร", price: "590", description: "ตัดเสียงรบกวน แบตอึด 30 ชม. กันน้ำ IPX5", image: "https://picsum.photos/seed/SHARED-EARBUDS/300", stock: 40 },
+  { externalId: "SHP-SH-CABLE", name: "สายชาร์จเร็ว USB-C 100W", price: "190", description: "ถักไนลอนทนทาน รองรับ PD/QC ยาว 1.5 ม.", image: "https://picsum.photos/seed/SHARED-CABLE/300", stock: 25 },
+  { externalId: "SHP-SH-POWERBANK", name: "พาวเวอร์แบงก์ 20000mAh พกพา", price: "690", description: "ชาร์จเร็ว 22.5W 2 พอร์ต จอแสดงเปอร์เซ็นต์", image: "https://picsum.photos/seed/SHARED-POWERBANK/300", stock: 6 },
   { externalId: "SHP-2001", name: "เคสกันกระแทกใส iPhone 15", price: "159", description: "ขอบยกสูงกันกล้อง วัสดุ TPU นิ่มไม่เหลือง", image: "https://picsum.photos/seed/SHP-2001/300", stock: 45 },
   { externalId: "SHP-2002", name: "ฟิล์มกระจกกันรอยเต็มจอ", price: "89", description: "ความแข็ง 9H ติดง่ายไร้ฟองอากาศ แพ็ก 2 ชิ้น", image: "https://picsum.photos/seed/SHP-2002/300", stock: 200 },
   { externalId: "SHP-2003", name: "สายชาร์จเร็ว Type-C 65W 1.5m", price: "129", description: "ถักไนลอนทนทาน รองรับชาร์จไว PD/QC", image: "https://picsum.photos/seed/SHP-2003/300", stock: 30 },

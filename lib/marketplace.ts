@@ -154,6 +154,10 @@ export async function fetchCatalog(accessToken: string): Promise<CatalogItem[]> 
 }
 
 const MOCK_CATALOG: CatalogItem[] = [
+  // สินค้าซ้ำข้ามเจ้า (ชื่อตรงกับฝั่ง Shopee) — 2 ตัวสต็อกเท่า, 1 ตัวสต็อกต่าง
+  { externalId: "SHARED-EARBUDS", name: "หูฟังบลูทูธ TWS รุ่นโปร", price: "590", description: "ตัดเสียงรบกวน แบตอึด 30 ชม. กันน้ำ IPX5", image: "https://picsum.photos/seed/SHARED-EARBUDS/300", stock: 40 },
+  { externalId: "SHARED-CABLE", name: "สายชาร์จเร็ว USB-C 100W", price: "190", description: "ถักไนลอนทนทาน รองรับ PD/QC ยาว 1.5 ม.", image: "https://picsum.photos/seed/SHARED-CABLE/300", stock: 25 },
+  { externalId: "SHARED-POWERBANK", name: "พาวเวอร์แบงก์ 20000mAh พกพา", price: "690", description: "ชาร์จเร็ว 22.5W 2 พอร์ต จอแสดงเปอร์เซ็นต์", image: "https://picsum.photos/seed/SHARED-POWERBANK/300", stock: 18 },
   { externalId: "LZD-1001", name: "แบตเตอรี่รถยนต์ GS 12V 65Ah", price: "2390", description: "แบตแห้งกึ่ง MF พร้อมใช้ ประกัน 18 เดือน", image: "https://picsum.photos/seed/LZD-1001/300", stock: 24 },
   { externalId: "LZD-1002", name: "น้ำมันเครื่องสังเคราะห์ 5W-30 4L", price: "1290", description: "สังเคราะห์แท้ 100% ยืดอายุเครื่องยนต์", image: "https://picsum.photos/seed/LZD-1002/300", stock: 60 },
   { externalId: "LZD-1003", name: "ใบปัดน้ำฝนไร้โครง 24 นิ้ว", price: "350", description: "ยางซิลิโคนรีดน้ำเงียบ ทนแดด", image: "https://picsum.photos/seed/LZD-1003/300", stock: 0 },

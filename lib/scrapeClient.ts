@@ -22,8 +22,8 @@ function asStr(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
 
-/** เอาเฉพาะ URL รูปแบบ http(s) ที่ไม่ซ้ำ + จำกัดจำนวน */
-function dedupHttp(urls: string[], limit = 8): string[] {
+/** เอาเฉพาะ URL รูปแบบ http(s) ที่ไม่ซ้ำ + จำกัดจำนวน (รองรับหน้ารวมหลายสินค้า) */
+function dedupHttp(urls: string[], limit = 40): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const u of urls) {
@@ -69,7 +69,7 @@ function extractFromHtml(
   if (og) images.push(resolveUrl(og, baseUrl));
   const imgRe = /<img[^>]+src=["']([^"']+)["']/gi;
   let im: RegExpExecArray | null;
-  while ((im = imgRe.exec(html)) && images.length < 25) {
+  while ((im = imgRe.exec(html)) && images.length < 80) {
     const abs = resolveUrl(im[1], baseUrl);
     if (abs) images.push(abs);
   }
@@ -83,9 +83,9 @@ function extractFromHtml(
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim()
-    .slice(0, 9000);
+    .slice(0, 50000);
 
-  return { title, images, text: (ld ? ld.trim().slice(0, 3000) + "\n\n" : "") + text };
+  return { title, images, text: (ld ? ld.trim().slice(0, 6000) + "\n\n" : "") + text };
 }
 
 export async function scrapeProductPage(url: string): Promise<ScrapeResult> {
@@ -122,7 +122,7 @@ export async function scrapeProductPage(url: string): Promise<ScrapeResult> {
     if (!md.trim() && images.length === 0) {
       throw new Error("หน้านี้ไม่มีข้อมูลให้ดึง");
     }
-    return { text: md.slice(0, 12000), title, images };
+    return { text: md.slice(0, 60000), title, images };
   }
 
   // ---- โหมด fallback: fetch ตรง (เว็บทั่วไป) ----

@@ -39,7 +39,7 @@ export default function AdminConsole({
   const [list, setList] = useState<ShopSummary[]>(shops);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [load, setLoad] = useState<LoadState>({ kind: "none" });
-  const [shop, setShop] = useState<Shop>({ name: "", voice: "" });
+  const [shop, setShop] = useState<Shop>({ name: "", voice: "", memory: "" });
   const [rules, setRules] = useState<Rule[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [save, setSave] = useState<SaveState>("idle");
@@ -319,6 +319,15 @@ function ShopEditor({
             value={shop.voice}
             onChange={(e) => setShop({ voice: e.target.value })}
             rows={2}
+            className={inputClass}
+          />
+        </Field>
+        <Field label="สิ่งที่ AI ควรจำ (ข้อมูล/นโยบายร้าน)">
+          <textarea
+            value={shop.memory}
+            onChange={(e) => setShop({ memory: e.target.value })}
+            placeholder="ค่าส่ง / วิธีจ่ายเงิน / เก็บปลายทาง / รับประกัน / เวลาทำการ / ที่ตั้งร้าน"
+            rows={4}
             className={inputClass}
           />
         </Field>

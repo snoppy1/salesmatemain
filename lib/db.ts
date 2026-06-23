@@ -112,6 +112,8 @@ async function ensureSchema(): Promise<void> {
     ALTER TABLE shops ADD COLUMN IF NOT EXISTS auto_level TEXT;
     -- ตั้งค่า "ข้อมูลทดลอง (mock)" แยกต่อแพลตฟอร์ม เช่น {"lazada":{"chat":true,"catalog":false}}
     ALTER TABLE shops ADD COLUMN IF NOT EXISTS mock_settings JSONB;
+    -- "สิ่งที่ AI ควรจำ": ข้อมูล/นโยบายร้าน (ค่าส่ง/จ่ายเงิน/รับประกัน ฯลฯ) ให้ AI ตอบเองได้
+    ALTER TABLE shops ADD COLUMN IF NOT EXISTS ai_memory TEXT NOT NULL DEFAULT '';
     ALTER TABLE conversations ADD COLUMN IF NOT EXISTS pending_human BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE messages ADD COLUMN IF NOT EXISTS ext_id TEXT;
 

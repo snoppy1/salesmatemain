@@ -237,6 +237,29 @@ export default function Dashboard({
     return { products: newProducts.length };
   }
 
+  // นำเข้าจากลิงก์: ดึงหน้าเว็บสินค้า (Firecrawl/fetch) → AI สกัด ชื่อ/ราคา/รูป → เพิ่มต่อท้าย
+  async function handleImportUrl(url: string): Promise<{ products: number }> {
+    const res = await fetch("/api/import-url", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      products?: Array<Partial<Product>>;
+      error?: string;
+    };
+    if (!res.ok) throw new Error(data.error || "ดึงข้อมูลไม่สำเร็จ");
+    const newProducts: Product[] = (data.products ?? []).map((p) => ({
+      ...newProduct(),
+      ...p,
+    }));
+    if (newProducts.length) {
+      setProducts((prev) => [...prev, ...newProducts]);
+      markDirty();
+    }
+    return { products: newProducts.length };
+  }
+
   // ดึงสินค้าจาก marketplace (lazada/shopee) → เพิ่มเข้าคลัง
   // - ถ้าชื่อซ้ำกับสินค้าที่มาจาก platform อื่นอยู่แล้ว → ผนวก platform เข้า source เดิม (ไม่เพิ่มซ้ำ)
   // - ถ้าชื่อซ้ำกับสินค้าที่เพิ่มเอง (ไม่มี source) → ข้าม ไม่แตะ (กันโดนลบตอน disconnect)
@@ -368,6 +391,7 @@ export default function Dashboard({
               addProduct={addProduct}
               removeProduct={removeProduct}
               onImport={handleImport}
+              onImportUrl={handleImportUrl}
               onImportMarketplace={handleImportMarketplace}
               onDisconnectMarketplace={handleDisconnectMarketplace}
               save={save}
@@ -620,26 +644,49 @@ function SettingsView({
         <SaveButton save={save} onSave={onSave} />
       </div>
 
-      <div className="mt-4 space-y-4">
-        <Field label="ชื่อร้าน">
-          <input
-            type="text"
-            value={shop.name}
-            onChange={(e) => updateShop({ name: e.target.value })}
-            placeholder="เช่น ร้านสวยใส บิวตี้"
-            className={inputClass}
-          />
-        </Field>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        {/* ซ้าย: ข้อมูลร้านพื้นฐาน */}
+        <div className="space-y-4">
+          <Field label="ชื่อร้าน">
+            <input
+              type="text"
+              value={shop.name}
+              onChange={(e) => updateShop({ name: e.target.value })}
+              placeholder="เช่น ร้านสวยใส บิวตี้"
+              className={inputClass}
+            />
+          </Field>
 
-        <Field label="โทนการพูดของร้าน">
+          <Field label="โทนการพูดของร้าน">
+            <textarea
+              value={shop.voice}
+              onChange={(e) => updateShop({ voice: e.target.value })}
+              placeholder="เช่น เป็นกันเอง ใช้คำว่า 'นะคะ' น่ารักๆ ไม่ทางการ"
+              rows={3}
+              className={inputClass}
+            />
+          </Field>
+        </div>
+
+        {/* ขวา: สิ่งที่ AI ควรจำ (ข้อมูล/นโยบายร้าน) */}
+        <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 dark:border-indigo-900/60 dark:bg-indigo-950/20">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+            สิ่งที่ AI ควรจำ
+          </h3>
+          <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+            ใส่ข้อมูล/นโยบายร้านที่อยากให้ AI ตอบลูกค้าได้เอง เช่น ค่าส่ง วิธีจ่ายเงิน เก็บเงินปลายทาง
+            การรับประกัน เวลาทำการ ที่ตั้งร้าน — เรื่องไหนไม่ได้ใส่ AI จะขอเช็คกับแอดมินให้
+          </p>
           <textarea
-            value={shop.voice}
-            onChange={(e) => updateShop({ voice: e.target.value })}
-            placeholder="เช่น เป็นกันเอง ใช้คำว่า 'นะคะ' น่ารักๆ ไม่ทางการ"
-            rows={3}
-            className={inputClass}
+            value={shop.memory}
+            onChange={(e) => updateShop({ memory: e.target.value })}
+            placeholder={
+              "เช่น\n• ส่งฟรีเมื่อซื้อครบ 500 บาท ส่งทุกวันจันทร์–เสาร์\n• รับเก็บเงินปลายทาง (COD) ได้\n• โอนพร้อมเพย์ 081-xxx-xxxx\n• รับประกันสินค้า 7 วัน เปลี่ยน/คืนได้ถ้าชำรุด\n• ร้านอยู่ราชบุรี ส่ง Kerry / ไปรษณีย์ไทย"
+            }
+            rows={8}
+            className={`${inputClass} mt-2`}
           />
-        </Field>
+        </div>
       </div>
 
       <LineConnectBox />
@@ -1639,6 +1686,7 @@ function CatalogView({
   addProduct,
   removeProduct,
   onImport,
+  onImportUrl,
   onImportMarketplace,
   onDisconnectMarketplace,
   save,
@@ -1652,6 +1700,7 @@ function CatalogView({
   addProduct: () => void;
   removeProduct: (id: string) => void;
   onImport: (text: string) => Promise<{ products: number }>;
+  onImportUrl: (url: string) => Promise<{ products: number }>;
   onImportMarketplace: (platform: string) => Promise<number>;
   onDisconnectMarketplace: (platform: string) => Promise<void>;
   save: SaveState;
@@ -1689,6 +1738,9 @@ function CatalogView({
           />
         ))}
       </div>
+
+      {/* วางลิงก์สินค้า → AI ดึงจากหน้าเว็บ */}
+      <ImportUrlBox onImportUrl={onImportUrl} />
 
       {/* นำเข้าอัตโนมัติ อยู่บนกลาง เต็มความกว้าง */}
       <ImportBox onImport={onImport} />
@@ -2163,6 +2215,87 @@ function MarketplaceBox({
           {msg && (
             <span className="text-xs text-emerald-700 dark:text-emerald-400">{msg}</span>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ImportUrlBox({
+  onImportUrl,
+}: {
+  onImportUrl: (url: string) => Promise<{ products: number }>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [msg, setMsg] = useState("");
+
+  async function run() {
+    if (!url.trim() || status === "loading") return;
+    setStatus("loading");
+    setMsg("");
+    try {
+      const { products } = await onImportUrl(url.trim());
+      if (products === 0) {
+        setStatus("error");
+        setMsg("ไม่พบสินค้าในลิงก์นี้ — ลองวางลิงก์ “หน้าสินค้า” โดยตรง");
+        return;
+      }
+      setStatus("idle");
+      setMsg(`เพิ่มแล้ว: สินค้า ${products} รายการ (ตรวจ/แก้ได้ด้านล่าง)`);
+      setUrl("");
+    } catch (e) {
+      setStatus("error");
+      setMsg((e as Error).message || "ดึงข้อมูลไม่สำเร็จ ลองใหม่");
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50/50 p-3 dark:border-sky-900 dark:bg-sky-950/20">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between text-left"
+      >
+        <span className="text-sm font-semibold text-sky-800 dark:text-sky-300">
+          🔗 วางลิงก์สินค้า — AI ดึงชื่อ/ราคา/รูป จากหน้าเว็บให้เอง
+        </span>
+        <span className="text-sky-700 dark:text-sky-400">{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <div className="mt-3 space-y-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void run();
+              }}
+              placeholder="วางลิงก์สินค้า เช่น https://www.lazada.co.th/products/..."
+              className={inputClass}
+            />
+            <button
+              type="button"
+              onClick={run}
+              disabled={!url.trim() || status === "loading"}
+              className="shrink-0 rounded-lg bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {status === "loading" ? "กำลังดึง…" : "ดึงจากลิงก์"}
+            </button>
+          </div>
+          {msg && (
+            <span
+              className={`block text-xs ${status === "error" ? "text-red-600 dark:text-red-400" : "text-sky-700 dark:text-sky-400"}`}
+            >
+              {msg}
+            </span>
+          )}
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            รองรับลิงก์ Lazada / Shopee / TikTok และเว็บร้านทั่วไป — ดึงแล้วเพิ่มต่อท้าย ตรวจ/แก้ได้ก่อนใช้จริง
+          </p>
         </div>
       )}
     </div>

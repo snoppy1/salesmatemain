@@ -132,8 +132,8 @@ export function isMockEnabled(
 }
 
 export async function getShopData(shopId: string): Promise<ShopData> {
-  const shop = await queryOne<{ name: string; voice: string }>(
-    "SELECT name, voice FROM shops WHERE id = $1",
+  const shop = await queryOne<{ name: string; voice: string; ai_memory: string }>(
+    "SELECT name, voice, ai_memory FROM shops WHERE id = $1",
     [shopId],
   );
 
@@ -151,7 +151,11 @@ export async function getShopData(shopId: string): Promise<ShopData> {
   );
 
   return {
-    shop: { name: shop?.name ?? "", voice: shop?.voice ?? "" },
+    shop: {
+      name: shop?.name ?? "",
+      voice: shop?.voice ?? "",
+      memory: shop?.ai_memory ?? "",
+    },
     rules: ruleRows.map((r) => ({
       id: r.id,
       trigger: r.trigger,
@@ -216,11 +220,18 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
     : [];
 
   await withTx(async (client) => {
-    await client.query("UPDATE shops SET name = $1, voice = $2 WHERE id = $3", [
-      (data.shop?.name ?? "").toString(),
-      (data.shop?.voice ?? "").toString(),
-      shopId,
-    ]);
+    // memory: undefined = ผู้เรียกไม่ได้ส่งมา → คงค่าเดิม (COALESCE); "" = ตั้งใจล้างค่า
+    const memoryParam =
+      data.shop?.memory === undefined ? null : data.shop.memory.toString();
+    await client.query(
+      "UPDATE shops SET name = $1, voice = $2, ai_memory = COALESCE($4, ai_memory) WHERE id = $3",
+      [
+        (data.shop?.name ?? "").toString(),
+        (data.shop?.voice ?? "").toString(),
+        shopId,
+        memoryParam,
+      ],
+    );
     await client.query("DELETE FROM rules WHERE shop_id = $1", [shopId]);
     for (let i = 0; i < rules.length; i++) {
       const r = rules[i];

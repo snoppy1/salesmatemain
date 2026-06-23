@@ -1,6 +1,8 @@
 export type Shop = {
   name: string;
   voice: string;
+  /** ข้อมูล/นโยบายร้านที่อยากให้ AI จำไว้ตอบลูกค้าได้เอง (ค่าส่ง/จ่ายเงิน/รับประกัน/เวลาทำการ ฯลฯ) */
+  memory: string;
 };
 
 export type Admin = {
@@ -76,6 +78,7 @@ export type Rule = {
 export type GenerateRequest = {
   shopName: string;
   shopVoice: string;
+  shopMemory: string; // ข้อมูล/นโยบายร้านที่ร้านอยากให้ AI จำ (ดู Shop.memory)
   products: Product[];
   customerMsg: string; // ข้อความ + บริบทจากลูกค้า รวมในช่องเดียว
 };

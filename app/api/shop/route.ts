@@ -30,6 +30,7 @@ export async function PUT(request: Request) {
     shop: {
       name: body?.shop?.name ?? "",
       voice: body?.shop?.voice ?? "",
+      memory: body?.shop?.memory ?? "",
     },
     rules: Array.isArray(body?.rules) ? body.rules : [],
     products: Array.isArray(body?.products) ? body.products : [],

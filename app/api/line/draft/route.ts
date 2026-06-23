@@ -47,6 +47,7 @@ export async function POST(request: Request) {
     const result = await generateReply({
       shopName: shopData.shop.name,
       shopVoice: shopData.shop.voice,
+      shopMemory: shopData.shop.memory,
       products: shopData.products,
       customerMsg,
     });

@@ -744,10 +744,54 @@ function LineConnectBox() {
         </div>
       ) : (
         <div className="mt-3 space-y-3">
-          <ol className="list-decimal space-y-1 pl-5 text-xs text-gray-600 dark:text-gray-400">
-            <li>เปิด Messaging API บน LINE OA แล้วเข้า LINE Developers Console</li>
-            <li>
-              วาง Webhook URL นี้ในช่อง Webhook URL ของ LINE แล้วเปิด “Use webhook”:
+          <div className="space-y-3 text-xs text-gray-600 dark:text-gray-400">
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+              ℹ️ ต้องมี <b>LINE Official Account (บัญชีทางการของร้าน)</b> ก่อน — ยังไม่มี สมัครฟรีที่{" "}
+              <a
+                href="https://manager.line.biz"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium underline"
+              >
+                manager.line.biz
+              </a>
+            </p>
+
+            <div>
+              <p className="mb-1 font-semibold text-gray-800 dark:text-gray-200">
+                1️⃣ เอารหัส 2 ตัวจากเว็บ LINE Developers
+              </p>
+              <ol className="list-decimal space-y-1.5 pl-5">
+                <li>
+                  เข้า{" "}
+                  <a
+                    href="https://developers.line.biz/console/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium underline"
+                  >
+                    developers.line.biz
+                  </a>{" "}
+                  → ล็อกอินด้วย LINE ของร้าน → กดเลือกบัญชี OA ของร้าน
+                </li>
+                <li>
+                  เปิดแท็บ <b>Basic settings</b> → เลื่อนหา <b>Channel secret</b> → กดคัดลอกไว้
+                </li>
+                <li>
+                  เปิดแท็บ <b>Messaging API</b> → ที่หัวข้อ <b>Channel access token</b> กดปุ่ม{" "}
+                  <b>Issue</b> → กดคัดลอกไว้
+                </li>
+              </ol>
+            </div>
+
+            <div>
+              <p className="mb-1 font-semibold text-gray-800 dark:text-gray-200">
+                2️⃣ วางลิงก์รับข้อความ (Webhook)
+              </p>
+              <p>
+                ยังอยู่แท็บ <b>Messaging API</b> → เอาลิงก์ข้างล่างนี้ไปวางช่อง{" "}
+                <b>Webhook URL</b> → กด <b>Update</b> → เปิดสวิตช์ <b>“Use webhook”</b>
+              </p>
               <div className="mt-1 flex items-center gap-2">
                 <code className="flex-1 truncate rounded bg-white px-2 py-1 text-[11px] text-gray-800 dark:bg-gray-800 dark:text-gray-200">
                   {status?.webhookUrl ?? "…"}
@@ -760,10 +804,31 @@ function LineConnectBox() {
                   {copied ? "คัดลอกแล้ว ✓" : "คัดลอก"}
                 </button>
               </div>
-            </li>
-            <li>ก๊อป Channel secret และ Channel access token มาวางด้านล่าง แล้วกดเชื่อม</li>
-            <li>อย่าลืมปิด auto-reply/greeting ของ OA กันมันตอบชนกัน</li>
-          </ol>
+            </div>
+
+            <div>
+              <p className="mb-1 font-semibold text-gray-800 dark:text-gray-200">
+                3️⃣ ปิดบอทอัตโนมัติเดิม (กันตอบชนกับ AI)
+              </p>
+              <p>
+                กลับไปที่{" "}
+                <a
+                  href="https://manager.line.biz"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium underline"
+                >
+                  manager.line.biz
+                </a>{" "}
+                → ตั้งค่า → <b>การตอบกลับ</b> → ปิด <b>“ตอบกลับอัตโนมัติ”</b> และ{" "}
+                <b>“ข้อความทักทาย”</b>
+              </p>
+            </div>
+
+            <p className="font-medium text-gray-800 dark:text-gray-200">
+              4️⃣ เอา <b>Channel secret</b> + <b>access token</b> มาวาง 2 ช่องล่างนี้ แล้วกด “เชื่อม LINE” ✅
+            </p>
+          </div>
 
           <input
             type="text"

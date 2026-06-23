@@ -91,6 +91,12 @@ export async function processAutoReply(
     }
 
     await addAdminMessage(shopId, conversationId, result.message); // เคลียร์ pending ด้วย
+
+    // Full auto + AI ไม่มั่นใจ: ส่งข้อความ "ขอเช็คแอดมิน" ให้ลูกค้าแล้ว แต่ AI ยังตอบจริงไม่ได้
+    // → ตั้ง "รอตอบ" กลับ เพื่อให้แอดมินเห็นว่าต้องตามตอบต่อ (กันลูกค้ารอเก้อ)
+    if (result.needsHuman) {
+      await setPendingHuman(conversationId, true);
+    }
   } catch {
     await setPendingHuman(conversationId, true).catch(() => {});
   }

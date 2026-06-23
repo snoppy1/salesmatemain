@@ -45,8 +45,12 @@ export async function POST(request: Request) {
   const signature =
     request.headers.get("x-lazada-signature") ?? request.headers.get("authorization");
 
-  if (!verifySignature(raw, signature, process.env.LAZADA_CHAT_SECRET ?? "")) {
-    return NextResponse.json({ error: "ลายเซ็นไม่ถูกต้อง" }, { status: 401 });
+  // Lazada ยิงมา verify callback (และ retry) → ต้องตอบ 200 เสมอ ไม่งั้นขึ้น
+  // "Unknown error, please check the availability of message receiving service"
+  // ความปลอดภัย: ถ้าลายเซ็นไม่ผ่าน ตอบ 200 แต่ "ไม่ประมวลผล" ข้อความ (ไม่ ingest/ไม่ตอบ)
+  const verified = verifySignature(raw, signature, process.env.LAZADA_CHAT_SECRET ?? "");
+  if (!verified) {
+    return NextResponse.json({ ok: true });
   }
 
   let payload: LzPayload;

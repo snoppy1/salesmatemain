@@ -471,10 +471,10 @@ export default function InboxView({
   const visibleConvos = selectedPlatform
     ? conversations.filter((c) => c.channel === selectedPlatform)
     : [];
-  // เปิดข้อมูลทดลองแชตของเจ้านี้อยู่ไหม (ปิด = ซ่อนกล่องแชทจำลอง โชว์เฉพาะแชตจริง)
+  // เปิดข้อมูลทดลองแชตของเจ้านี้อยู่ไหม (ปิด = ซ่อนกล่องแชทจำลอง โชว์เฉพาะแชตจริง) — default ปิด
   const chatMockOn = selectedPlatform
-    ? mockSettings[selectedPlatform]?.chat !== false
-    : true;
+    ? mockSettings[selectedPlatform]?.chat === true
+    : false;
 
   // หน้ารวมแพลตฟอร์ม (ยังไม่ได้เลือกแพลตฟอร์ม)
   if (!selectedPlatform) {

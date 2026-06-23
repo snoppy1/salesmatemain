@@ -16,8 +16,8 @@ function clean(input: unknown): MockSettings {
       if (v && typeof v === "object") {
         const o = v as Record<string, unknown>;
         out[p] = {
-          chat: o.chat !== false,
-          catalog: o.catalog !== false,
+          chat: o.chat === true,
+          catalog: o.catalog === true,
         };
       }
     }

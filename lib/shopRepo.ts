@@ -94,13 +94,13 @@ export async function setMockSettings(
   ]);
 }
 
-/** เปิด mock ของหมวดนี้อยู่ไหม (ไม่มีค่า = เปิด โดยปริยาย) */
+/** เปิด mock ของหมวดนี้อยู่ไหม (ไม่มีค่า = ปิด โดยปริยาย → ระบบเป็น "ของจริงก่อน") */
 export function isMockEnabled(
   settings: MockSettings,
   platform: string,
   kind: "chat" | "catalog",
 ): boolean {
-  return settings[platform]?.[kind] !== false;
+  return settings[platform]?.[kind] === true;
 }
 
 export async function getShopData(shopId: string): Promise<ShopData> {

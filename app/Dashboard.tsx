@@ -93,7 +93,7 @@ export default function Dashboard({
   // สลับสวิตช์ข้อมูลทดลองของแพลตฟอร์ม (หมวด chat / catalog) + เซฟทันที
   function toggleMock(platform: string, kind: "chat" | "catalog") {
     setMockSettings((prev) => {
-      const base = prev[platform] ?? { chat: true, catalog: true };
+      const base = prev[platform] ?? { chat: false, catalog: false };
       const next: MockSettings = {
         ...prev,
         [platform]: { ...base, [kind]: base[kind] === false },
@@ -544,7 +544,7 @@ function MockSettingsModal({
               </span>
               <span className="flex w-12 justify-center">
                 <EnableToggle
-                  enabled={settings[p.id]?.chat !== false}
+                  enabled={settings[p.id]?.chat === true}
                   onToggle={() => onToggle(p.id, "chat")}
                   label={`ข้อมูลทดลองแชต ${p.name}`}
                 />
@@ -552,7 +552,7 @@ function MockSettingsModal({
               <span className="flex w-12 justify-center">
                 {p.catalog ? (
                   <EnableToggle
-                    enabled={settings[p.id]?.catalog !== false}
+                    enabled={settings[p.id]?.catalog === true}
                     onToggle={() => onToggle(p.id, "catalog")}
                     label={`ข้อมูลทดลองสินค้า ${p.name}`}
                   />

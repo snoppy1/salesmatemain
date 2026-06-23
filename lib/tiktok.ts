@@ -67,10 +67,13 @@ export async function exchangeCode(code: string): Promise<TokenSet> {
   const res = await fetch(`${TOKEN_HOST}/api/v2/token/get?${params}`, {
     method: "GET",
   });
-  const json = (await res.json()) as { data?: Record<string, unknown> };
+  const json = (await res.json()) as { data?: Record<string, unknown>; message?: string };
   const data = json.data ?? {};
+  if (!data.access_token) {
+    throw new Error(`TikTok token error: ${String(json.message ?? "unknown")}`);
+  }
   return {
-    accessToken: String(data.access_token ?? ""),
+    accessToken: String(data.access_token),
     refreshToken: String(data.refresh_token ?? ""),
     expiresAt: Date.now() + Number(data.access_token_expire_in ?? 604800) * 1000,
     sellerId: String(data.seller_name ?? data.open_id ?? ""),
@@ -117,6 +120,27 @@ function mockTokens(): TokenSet {
 
 /* ---------- catalog ---------- */
 
+/**
+ * ดึง shop_cipher (รหัสร้านเข้ารหัสที่ TikTok 202309 บังคับใส่ในทุกคำขอระดับร้าน)
+ * เรียก /authorization/202309/shops ด้วย access token ของร้าน → เอา cipher ของร้านแรก
+ */
+async function fetchShopCipher(accessToken: string): Promise<string> {
+  const path = "/authorization/202309/shops";
+  const ts = String(Math.floor(Date.now() / 1000));
+  const params: Record<string, string> = {
+    app_key: process.env.TIKTOK_APP_KEY as string,
+    timestamp: ts,
+  };
+  params.sign = sign(path, params, "");
+  const qs = new URLSearchParams(params);
+  const res = await fetch(`${HOST}${path}?${qs}`, {
+    method: "GET",
+    headers: { "x-tts-access-token": accessToken },
+  });
+  const json = (await res.json()) as { data?: { shops?: { cipher?: string }[] } };
+  return String(json.data?.shops?.[0]?.cipher ?? "");
+}
+
 export async function fetchCatalog(
   accessToken: string,
   _sellerId = "",
@@ -124,12 +148,17 @@ export async function fetchCatalog(
   if (!isTiktokConfigured() || accessToken.startsWith("mock-")) {
     return withLiveStock(MOCK_CATALOG);
   }
+  // TikTok 202309 ต้องมี shop_cipher ในทุกคำขอระดับร้าน → ดึงก่อน
+  const shopCipher = await fetchShopCipher(accessToken);
+  if (!shopCipher) return [];
+
   // TikTok Shop Product Search API (v202309)
   const path = "/product/202309/products/search";
   const ts = String(Math.floor(Date.now() / 1000));
-  const body = JSON.stringify({ page_size: 50, status: "ACTIVATE" });
+  const body = JSON.stringify({ page_size: 50 });
   const params: Record<string, string> = {
     app_key: process.env.TIKTOK_APP_KEY as string,
+    shop_cipher: shopCipher,
     timestamp: ts,
   };
   params.sign = sign(path, params, body);

@@ -78,8 +78,12 @@ export async function exchangeCode(code: string, shopId: string): Promise<TokenS
     }),
   });
   const data = (await res.json()) as Record<string, unknown>;
+  if (!data.access_token) {
+    // Shopee ตอบ error (เช่น sign ผิด/redirect ไม่ตรง/IP ไม่ whitelist) — โยน error ให้ callback เด้งหน้า error
+    throw new Error(`Shopee token error: ${String(data.error ?? data.message ?? "unknown")}`);
+  }
   return {
-    accessToken: String(data.access_token ?? ""),
+    accessToken: String(data.access_token),
     refreshToken: String(data.refresh_token ?? ""),
     expiresAt: Date.now() + Number(data.expire_in ?? 14400) * 1000,
     sellerId: shopId,
@@ -111,8 +115,11 @@ export async function refreshTokens(
     }),
   });
   const data = (await res.json()) as Record<string, unknown>;
+  if (!data.access_token) {
+    throw new Error(`Shopee refresh error: ${String(data.error ?? data.message ?? "unknown")}`);
+  }
   return {
-    accessToken: String(data.access_token ?? ""),
+    accessToken: String(data.access_token),
     refreshToken: String(data.refresh_token ?? refreshToken),
     expiresAt: Date.now() + Number(data.expire_in ?? 14400) * 1000,
     sellerId,

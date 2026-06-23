@@ -84,8 +84,11 @@ export async function deleteConnection(shopId: string, platform: string): Promis
 }
 
 /**
- * คืน access token ที่ใช้ได้ — ถ้าใกล้หมดอายุ (เหลือ < 1 วัน) จะ refresh + บันทึกใหม่
+ * คืน access token ที่ใช้ได้ — ถ้าใกล้หมดอายุ (เหลือ < 30 นาที) จะ refresh + บันทึกใหม่
  * คืน null ถ้ายังไม่เชื่อมต่อ
+ *
+ * หมายเหตุ: ใช้ buffer แค่ 30 นาที (ไม่ใช่ 1 วัน) เพราะ token ของ Shopee อายุสั้น (~4 ชม.)
+ * ถ้า buffer กว้างกว่าอายุ token จะ refresh ทุกครั้งที่เรียก → refresh token หมุนรัวจนโดน rate-limit
  */
 export async function getValidAccessToken(
   shopId: string,
@@ -95,10 +98,15 @@ export async function getValidAccessToken(
   if (!row) return null;
 
   const expiresAt = Number(row.expires_at);
-  const nearExpiry = expiresAt - Date.now() < 1000 * 60 * 60 * 24; // < 1 วัน
+  const nearExpiry = expiresAt - Date.now() < 1000 * 60 * 30; // < 30 นาที
   if (!nearExpiry) return row.access_token;
 
-  const refreshed = await refresherFor(platform)(row.refresh_token, row.seller_id);
-  await saveConnection(shopId, platform, refreshed);
-  return refreshed.accessToken;
+  try {
+    const refreshed = await refresherFor(platform)(row.refresh_token, row.seller_id);
+    await saveConnection(shopId, platform, refreshed);
+    return refreshed.accessToken;
+  } catch {
+    // refresh ไม่สำเร็จ (เน็ตหลุด/แพลตฟอร์มล่ม) → ใช้ token เดิมไปก่อน ดีกว่าทำให้พังทั้งระบบ
+    return row.access_token;
+  }
 }

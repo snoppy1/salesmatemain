@@ -89,7 +89,8 @@ export async function getAutoLevel(shopId: string): Promise<AutoLevel> {
     [shopId],
   );
   const lvl = row?.auto_level;
-  if (lvl === "off" || lvl === "safe" || lvl === "night" || lvl === "full") return lvl;
+  if (lvl === "off" || lvl === "safe" || lvl === "full") return lvl;
+  // ค่าเก่า "night" (เลิกใช้) หรือยังไม่ตั้ง → อนุมานจาก auto_reply (เปิดอยู่ = ปลอดภัย)
   return row?.auto_reply ? "safe" : "off";
 }
 

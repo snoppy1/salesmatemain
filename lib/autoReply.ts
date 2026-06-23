@@ -25,12 +25,6 @@ import { getChannelByShop as getSpChannel } from "./shopeeChannelRepo";
  * - ไม่มั่นใจ → ตั้ง "รอตอบ" ให้คนจัดการ
  * resolve access token ตามช่องทางเอง (รองรับ webhook จริง, กดสลับ, แชทจำลอง หลายแพลตฟอร์ม)
  */
-/** กลางคืนตามเวลาไทย (UTC+7, ไม่มี DST): 20:00–07:59 */
-function isNight(): boolean {
-  const h = (new Date().getUTCHours() + 7) % 24;
-  return h >= 20 || h < 8;
-}
-
 export async function processAutoReply(
   shopId: string,
   conversationId: string,
@@ -41,8 +35,8 @@ export async function processAutoReply(
     if (!convo) return;
     const shopData = await getShopData(shopId);
     const level = await getAutoLevel(shopId);
-    // โหมด full ตอนนี้ไหม: full ตลอด หรือ night ช่วงกลางคืน → AI ตอบแม้ไม่มั่นใจ
-    const fullNow = level === "full" || (level === "night" && isNight());
+    // โหมด full → AI ตอบแม้ไม่มั่นใจ (โหมดปลอดภัยจะเด้งรอตอบแทน)
+    const fullNow = level === "full";
     const customerMsg = buildConversationContext(
       convo.customerName,
       convo.channel,

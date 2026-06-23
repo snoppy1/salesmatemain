@@ -302,11 +302,9 @@ export default function InboxView({
   // เปลี่ยนระดับการตอบ AI — Full/Full กลางคืน ต้องยืนยันคำเตือนก่อน
   async function changeLevel(next: AutoLevel) {
     if (next === autoLevel) return;
-    if (next === "full" || next === "night") {
+    if (next === "full") {
       const msg =
-        next === "full"
-          ? "⚡ Full auto: AI จะตอบลูกค้าทุกข้อความเอง แม้แต่ตอนที่ไม่มั่นใจ (เช่น ต่อรองราคา / เคลม / คืนเงิน) ซึ่งอาจตอบผิดได้\n\nยืนยันเปิด Full auto?"
-          : "🌙 Full กลางคืน: ช่วง 2 ทุ่ม–8 โมงเช้า AI จะตอบทุกข้อความเอง แม้ไม่มั่นใจ (กลางวันยังเป็นโหมดปลอดภัย)\n\nยืนยันเปิด?";
+        "⚡ Full auto: AI จะตอบลูกค้าทุกข้อความเอง แม้แต่ตอนที่ไม่มั่นใจ (เช่น ต่อรองราคา / เคลม / คืนเงิน) ซึ่งอาจตอบผิดได้\n\nยืนยันเปิด Full auto?";
       if (!window.confirm(msg)) return; // ยกเลิก → select เด้งกลับค่าเดิม
     }
     const prev = autoLevel;
@@ -499,7 +497,6 @@ export default function InboxView({
             >
               <option value="off">✋ กดส่งเอง</option>
               <option value="safe">🛡️ ปลอดภัย</option>
-              <option value="night">🌙 Full กลางคืน</option>
               <option value="full">⚡ Full auto</option>
             </select>
           </div>

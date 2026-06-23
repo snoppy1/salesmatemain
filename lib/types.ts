@@ -32,12 +32,11 @@ export type MockSettings = Record<string, MockToggle>;
 
 /**
  * ระดับการตอบของ AI ต่อร้าน
- * - off   = ปิด (AI ร่างให้ คนกดส่งเอง)
- * - safe  = ปลอดภัย (ตอบเองเฉพาะที่มั่นใจ, ไม่มั่นใจ → รอตอบ)
- * - night = Full เฉพาะกลางคืน (กลางคืนตอบทุกอย่าง, กลางวันโหมดปลอดภัย)
- * - full  = Full auto (ตอบทุกข้อความ)
+ * - off  = ปิด (AI ร่างให้ คนกดส่งเอง)
+ * - safe = ปลอดภัย (ตอบเองเฉพาะที่มั่นใจ, ไม่มั่นใจ → รอตอบ)
+ * - full = Full auto (ตอบทุกข้อความ)
  */
-export type AutoLevel = "off" | "safe" | "night" | "full";
+export type AutoLevel = "off" | "safe" | "full";
 
 /** สถานะการเชื่อมต่อ marketplace ของร้าน */
 export type ConnectionStatus = {

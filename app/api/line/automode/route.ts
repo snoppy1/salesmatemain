@@ -7,7 +7,7 @@ import type { AutoLevel } from "@/lib/types";
 
 export const runtime = "nodejs";
 
-const LEVELS: AutoLevel[] = ["off", "safe", "night", "full"];
+const LEVELS: AutoLevel[] = ["off", "safe", "full"];
 
 // ระดับการตอบ AI ระดับร้าน: off | safe | night | full (คุมทุกแชต ไม่มี override รายแชต)
 export async function GET() {

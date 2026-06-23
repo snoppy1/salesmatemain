@@ -1,6 +1,7 @@
 import "server-only";
 import { createHmac, randomBytes } from "node:crypto";
 import type { TokenSet, CatalogItem } from "./marketplace";
+import { withLiveStock } from "./mockStock";
 
 /**
  * ตัวเชื่อม Shopee Open Platform (เจ้าที่ 2 ต่อจาก Lazada)
@@ -136,7 +137,7 @@ export async function fetchCatalog(
   shopId = "",
 ): Promise<CatalogItem[]> {
   if (!isShopeeConfigured() || accessToken.startsWith("mock-")) {
-    return MOCK_CATALOG;
+    return withLiveStock(MOCK_CATALOG);
   }
 
   // 1) ดึงรายการ item_id ของร้าน

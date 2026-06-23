@@ -1,5 +1,6 @@
 import "server-only";
 import { createHmac, randomBytes } from "node:crypto";
+import { withLiveStock } from "./mockStock";
 
 /**
  * ตัวเชื่อม Lazada Open Platform
@@ -127,7 +128,7 @@ function mockTokens(): TokenSet {
 
 export async function fetchCatalog(accessToken: string): Promise<CatalogItem[]> {
   if (!isLazadaConfigured() || accessToken.startsWith("mock-")) {
-    return MOCK_CATALOG;
+    return withLiveStock(MOCK_CATALOG);
   }
   const data = await signedCall("/products/get", {
     access_token: accessToken,

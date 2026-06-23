@@ -1,6 +1,7 @@
 import "server-only";
 import { createHmac, randomBytes } from "node:crypto";
 import type { TokenSet, CatalogItem } from "./marketplace";
+import { withLiveStock } from "./mockStock";
 
 /**
  * ตัวเชื่อม TikTok Shop Partner (เจ้าที่ 3 ต่อจาก Lazada/Shopee) — ฝั่งดึงสินค้า
@@ -121,7 +122,7 @@ export async function fetchCatalog(
   _sellerId = "",
 ): Promise<CatalogItem[]> {
   if (!isTiktokConfigured() || accessToken.startsWith("mock-")) {
-    return MOCK_CATALOG;
+    return withLiveStock(MOCK_CATALOG);
   }
   // TikTok Shop Product Search API (v202309)
   const path = "/product/202309/products/search";

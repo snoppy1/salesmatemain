@@ -1,6 +1,7 @@
 import "server-only";
 import { query, queryOne, withTx } from "./db";
 import { newId } from "./auth";
+import { sourceList, unifyStock } from "./stock";
 import type { Product, Rule, ShopData, ShopSummary, MockSettings } from "./types";
 
 type RuleRow = {
@@ -218,4 +219,88 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
   });
 
   return getShopData(shopId);
+}
+
+/**
+ * อัปเดตสต็อก/ราคาของสินค้าจาก marketplace แบบเจาะจง (สำหรับระบบซิงค์) — จับคู่ด้วยชื่อ
+ * - เจอสินค้าเดิม (มาจาก marketplace) → อัปเดต stock รายเจ้า + ราคา + ผนวก source
+ * - เพิ่มเอง (ไม่มี source) → ไม่แตะ
+ * - สินค้าใหม่ที่ยังไม่มี → เพิ่มเข้าคลัง
+ * - สินค้าเดิมที่หายไปจาก marketplace → คงไว้ (ไม่ลบเอง)
+ */
+export async function syncProductsStock(
+  shopId: string,
+  platform: string,
+  items: {
+    name: string;
+    price: string;
+    description: string;
+    image?: string;
+    externalId: string;
+    stock?: number;
+  }[],
+): Promise<{ updated: number; added: number }> {
+  const rows = await query<{
+    id: string;
+    name: string;
+    source: string | null;
+    stock_by_platform: Record<string, number> | null;
+  }>(
+    "SELECT id, name, source, stock_by_platform FROM products WHERE shop_id = $1",
+    [shopId],
+  );
+  const norm = (s: string) => s.trim().toLowerCase();
+  const maxRow = await queryOne<{ m: number }>(
+    "SELECT COALESCE(MAX(sort_order), -1)::int AS m FROM products WHERE shop_id = $1",
+    [shopId],
+  );
+  let nextOrder = (maxRow?.m ?? -1) + 1;
+  let updated = 0;
+  let added = 0;
+
+  for (const it of items) {
+    if (!it.name.trim()) continue;
+    const match = rows.find((r) => norm(r.name) === norm(it.name));
+    if (match) {
+      const srcs = sourceList(match.source ?? undefined);
+      if (srcs.length === 0) continue; // เพิ่มเอง → ไม่แตะ
+      const sbp = { ...(match.stock_by_platform ?? {}) };
+      if (it.stock != null) sbp[platform] = Number(it.stock);
+      const source = srcs.includes(platform)
+        ? match.source
+        : [...srcs, platform].join(",");
+      await query(
+        "UPDATE products SET stock = $1, stock_by_platform = $2, price = $3, source = $4 WHERE id = $5",
+        [
+          unifyStock(sbp) ?? null,
+          Object.keys(sbp).length ? JSON.stringify(sbp) : null,
+          it.price,
+          source,
+          match.id,
+        ],
+      );
+      updated++;
+    } else {
+      const sbp = it.stock != null ? { [platform]: Number(it.stock) } : null;
+      await query(
+        `INSERT INTO products (id, shop_id, name, description, price, image_url, source, external_id, enabled, stock, stock_by_platform, sort_order)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,$9,$10,$11)`,
+        [
+          newId(),
+          shopId,
+          it.name,
+          it.description,
+          it.price,
+          it.image ?? null,
+          platform,
+          it.externalId,
+          sbp ? (unifyStock(sbp) ?? null) : null,
+          sbp ? JSON.stringify(sbp) : null,
+          nextOrder++,
+        ],
+      );
+      added++;
+    }
+  }
+  return { updated, added };
 }

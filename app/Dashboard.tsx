@@ -17,6 +17,7 @@ import type {
 } from "@/lib/types";
 import ThemeToggle from "@/components/ThemeToggle";
 import InboxView from "./InboxView";
+import { sourceList, unifyStock } from "@/lib/stock";
 
 function genId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -54,26 +55,6 @@ async function fileToResizedDataUrl(file: File, max = 512): Promise<string> {
   return canvas.toDataURL("image/jpeg", 0.8);
 }
 
-/** แยก source (CSV) เป็นรายชื่อ platform */
-function sourceList(source?: string): string[] {
-  return (source ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-/**
- * รวมสต็อกแยกรายแพลตฟอร์มเป็นเลขเดียว (ที่ใช้ตอบลูกค้า/AI)
- * - ทุกเจ้าเท่ากัน → ใช้เลขนั้น
- * - ไม่เท่ากัน → ใช้ค่ามากสุด (ของยังมี) ส่วนรายละเอียดโชว์ติดข้างไอคอนแต่ละเจ้า
- */
-function unifyStock(map?: Record<string, number>): number | undefined {
-  if (!map) return undefined;
-  const vals = Object.values(map).filter((v) => typeof v === "number");
-  if (!vals.length) return undefined;
-  return vals.every((v) => v === vals[0]) ? vals[0] : Math.max(...vals);
-}
-
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 type View = "inbox" | "settings" | "catalog";
@@ -96,6 +77,8 @@ export default function Dashboard({
   const [view, setView] = useState<View>("inbox");
   const [mockSettings, setMockSettings] = useState<MockSettings>({});
   const [mockModalOpen, setMockModalOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<number | null>(null);
 
   // โหลดตั้งค่า "ข้อมูลทดลอง (mock)" ต่อร้าน
   useEffect(() => {
@@ -174,6 +157,36 @@ export default function Dashboard({
       savingRef.current = false;
     }
   }, [shop, products]);
+
+  // ซิงค์สินค้า+สต็อกล่าสุดจากทุก marketplace ที่เชื่อมไว้
+  // - silent (อัตโนมัติ): ข้ามถ้ากำลังแก้ค้างไว้ กันทับของที่ยังไม่เซฟ
+  // - manual: เซฟก่อนแล้วค่อยซิงค์
+  const handleSync = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (dirty) {
+        if (opts?.silent) return;
+        await handleSave();
+      }
+      setSyncing(true);
+      const seq = editSeqRef.current;
+      try {
+        const res = await fetch("/api/catalog/sync", { method: "POST" });
+        if (res.ok) {
+          const d = (await res.json()) as { products?: Product[] };
+          // ใช้ผลซิงค์เฉพาะเมื่อไม่มีการแก้ระหว่างรอ (กันทับของที่ผู้ใช้พิมพ์)
+          if (Array.isArray(d.products) && editSeqRef.current === seq) {
+            setProducts(d.products);
+          }
+          setLastSync(Date.now());
+        }
+      } catch {
+        /* เงียบ */
+      } finally {
+        setSyncing(false);
+      }
+    },
+    [dirty, handleSave],
+  );
 
   // บันทึกอัตโนมัติ: หลังหยุดแก้ ~1.2 วิ (ไม่ยิงซ้อนระหว่างกำลังเซฟ)
   useEffect(() => {
@@ -359,6 +372,9 @@ export default function Dashboard({
               onDisconnectMarketplace={handleDisconnectMarketplace}
               save={save}
               onSave={handleSave}
+              onSync={handleSync}
+              syncing={syncing}
+              lastSync={lastSync}
             />
           )}
         </div>
@@ -1627,6 +1643,9 @@ function CatalogView({
   onDisconnectMarketplace,
   save,
   onSave,
+  onSync,
+  syncing,
+  lastSync,
 }: {
   products: Product[];
   updateProduct: (id: string, patch: Partial<Product>) => void;
@@ -1637,7 +1656,19 @@ function CatalogView({
   onDisconnectMarketplace: (platform: string) => Promise<void>;
   save: SaveState;
   onSave: () => void;
+  onSync: (opts?: { silent?: boolean }) => Promise<void>;
+  syncing: boolean;
+  lastSync: number | null;
 }) {
+  // ซิงค์สต็อกอัตโนมัติ: ตอนเปิดหน้าคลังสินค้า + ทุก 45 วิ ระหว่างเปิดหน้าอยู่
+  const onSyncRef = useRef(onSync);
+  onSyncRef.current = onSync;
+  useEffect(() => {
+    void onSyncRef.current({ silent: true });
+    const id = setInterval(() => void onSyncRef.current({ silent: true }), 45000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
       <div className="flex items-center justify-between">
@@ -1662,7 +1693,25 @@ function CatalogView({
       {/* นำเข้าอัตโนมัติ อยู่บนกลาง เต็มความกว้าง */}
       <ImportBox onImport={onImport} />
 
-      <div className="mt-6 rounded-xl border border-gray-200 p-3 dark:border-gray-800">
+      {/* แถบซิงค์สต็อก — ดึงจำนวนคงเหลือล่าสุดจาก marketplace ที่เชื่อมไว้ */}
+      <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-2 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+        <button
+          type="button"
+          onClick={() => void onSync()}
+          disabled={syncing}
+          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+        >
+          {syncing ? "กำลังซิงค์…" : "🔄 ซิงค์สต็อก"}
+        </button>
+        <span className="text-xs text-gray-600 dark:text-gray-400">
+          {lastSync
+            ? `ซิงค์ล่าสุด ${new Date(lastSync).toLocaleTimeString("th-TH")}`
+            : "ดึงจำนวนคงเหลือล่าสุดจาก marketplace ที่เชื่อมไว้"}{" "}
+          · อัปเดตอัตโนมัติทุก 45 วิ
+        </span>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-gray-200 p-3 dark:border-gray-800">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white">รายการสินค้า</h3>
           <button type="button" onClick={addProduct} className={secondaryBtnClass}>

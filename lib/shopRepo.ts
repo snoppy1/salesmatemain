@@ -2,7 +2,14 @@ import "server-only";
 import { query, queryOne, withTx } from "./db";
 import { newId } from "./auth";
 import { sourceList, unifyStock } from "./stock";
-import type { Product, Rule, ShopData, ShopSummary, MockSettings } from "./types";
+import type {
+  Product,
+  Rule,
+  ShopData,
+  ShopSummary,
+  MockSettings,
+  AutoLevel,
+} from "./types";
 
 type RuleRow = {
   id: string;
@@ -73,6 +80,26 @@ export async function getAutoReply(shopId: string): Promise<boolean> {
 
 export async function setAutoReply(shopId: string, value: boolean): Promise<void> {
   await query("UPDATE shops SET auto_reply = $1 WHERE id = $2", [value, shopId]);
+}
+
+/** ระดับการตอบ AI ของร้าน — ไม่เคยตั้ง → อนุมานจาก auto_reply เดิม (true=safe, false=off) */
+export async function getAutoLevel(shopId: string): Promise<AutoLevel> {
+  const row = await queryOne<{ auto_level: string | null; auto_reply: boolean }>(
+    "SELECT auto_level, auto_reply FROM shops WHERE id = $1",
+    [shopId],
+  );
+  const lvl = row?.auto_level;
+  if (lvl === "off" || lvl === "safe" || lvl === "night" || lvl === "full") return lvl;
+  return row?.auto_reply ? "safe" : "off";
+}
+
+/** ตั้งระดับการตอบ AI + อัปเดต auto_reply ให้สอดคล้อง (off=ปิด, อื่นๆ=เปิด) */
+export async function setAutoLevel(shopId: string, level: AutoLevel): Promise<void> {
+  await query("UPDATE shops SET auto_level = $1, auto_reply = $2 WHERE id = $3", [
+    level,
+    level !== "off",
+    shopId,
+  ]);
 }
 
 /** ตั้งค่า "ข้อมูลทดลอง (mock)" แยกต่อแพลตฟอร์ม — {} = ค่าเริ่มต้นเปิดทั้งหมด */

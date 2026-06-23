@@ -5,7 +5,7 @@ import {
   addAdminMessage,
   getSendTarget,
 } from "./inboxRepo";
-import { getShopData } from "./shopRepo";
+import { getShopData, getAutoLevel } from "./shopRepo";
 import { generateReply } from "./claude";
 import { buildConversationContext } from "./prompt";
 import { replyMessage, pushMessage } from "./lineClient";
@@ -25,6 +25,12 @@ import { getChannelByShop as getSpChannel } from "./shopeeChannelRepo";
  * - ไม่มั่นใจ → ตั้ง "รอตอบ" ให้คนจัดการ
  * resolve access token ตามช่องทางเอง (รองรับ webhook จริง, กดสลับ, แชทจำลอง หลายแพลตฟอร์ม)
  */
+/** กลางคืนตามเวลาไทย (UTC+7, ไม่มี DST): 20:00–07:59 */
+function isNight(): boolean {
+  const h = (new Date().getUTCHours() + 7) % 24;
+  return h >= 20 || h < 8;
+}
+
 export async function processAutoReply(
   shopId: string,
   conversationId: string,
@@ -34,6 +40,9 @@ export async function processAutoReply(
     const convo = await getConversation(shopId, conversationId);
     if (!convo) return;
     const shopData = await getShopData(shopId);
+    const level = await getAutoLevel(shopId);
+    // โหมด full ตอนนี้ไหม: full ตลอด หรือ night ช่วงกลางคืน → AI ตอบแม้ไม่มั่นใจ
+    const fullNow = level === "full" || (level === "night" && isNight());
     const customerMsg = buildConversationContext(
       convo.customerName,
       convo.channel,
@@ -45,7 +54,13 @@ export async function processAutoReply(
       products: shopData.products,
       customerMsg,
     });
-    if (result.needsHuman || !result.message.trim()) {
+    // ตอบไม่ออกจริงๆ (ข้อความว่าง) → รอคนเสมอ แม้ full auto (กันส่งข้อความเปล่า)
+    if (!result.message.trim()) {
+      await setPendingHuman(conversationId, true);
+      return;
+    }
+    // ไม่มั่นใจ + ไม่ใช่ full → รอคนตอบ (โหมดปลอดภัย); ถ้า full → ส่งคำตอบไปเลย
+    if (result.needsHuman && !fullNow) {
       await setPendingHuman(conversationId, true);
       return;
     }

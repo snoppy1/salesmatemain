@@ -5,6 +5,7 @@ import type {
   ConversationSummary,
   ConversationDetail,
   MockSettings,
+  AutoLevel,
 } from "@/lib/types";
 
 const btnPrimary =
@@ -26,7 +27,7 @@ function timeAgo(ts: number): string {
 let convCache: ConversationSummary[] = [];
 let activeIdCache: string | null = null;
 let selectedPlatformCache: string | null = null;
-let autoReplyCache = false;
+let autoLevelCache: AutoLevel = "off";
 const detailCache = new Map<string, ConversationDetail>();
 
 /** ไอคอน LINE (ฟองแชตสีเขียวแบรนด์) */
@@ -160,37 +161,6 @@ function sendBaseFor(channel: string | undefined): string {
   return "/api/line";
 }
 
-/** สวิตช์เปิด/ปิด */
-function Toggle({
-  enabled,
-  onToggle,
-  label,
-}: {
-  enabled: boolean;
-  onToggle: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={enabled}
-      aria-label={label}
-      title={label}
-      onClick={onToggle}
-      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition ${
-        enabled ? "bg-emerald-500" : "bg-gray-300 dark:bg-gray-600"
-      }`}
-    >
-      <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${
-          enabled ? "translate-x-4" : "translate-x-0.5"
-        }`}
-      />
-    </button>
-  );
-}
-
 export default function InboxView({
   mockSettings = {},
 }: {
@@ -214,7 +184,7 @@ export default function InboxView({
   const [choicesMap, setChoicesMap] = useState<Record<string, string[]>>({});
   const [drafting, setDrafting] = useState(false);
   const [choosing, setChoosing] = useState(false);
-  const [autoReply, setAutoReply] = useState<boolean>(() => autoReplyCache);
+  const [autoLevel, setAutoLevel] = useState<AutoLevel>(() => autoLevelCache);
   const [sending, setSending] = useState(false);
   const [simText, setSimText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -316,33 +286,41 @@ export default function InboxView({
     }
   }, [selectedPlatform, detail]);
 
-  // โหลดสถานะสวิตช์รวม "ให้ AI ตอบเองอัตโนมัติ"
+  // โหลดระดับการตอบ AI ของร้าน (off/safe/night/full)
   useEffect(() => {
     fetch("/api/line/automode")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d) {
-          autoReplyCache = Boolean(d.autoReply);
-          setAutoReply(autoReplyCache);
+        if (d?.level) {
+          autoLevelCache = d.level as AutoLevel;
+          setAutoLevel(autoLevelCache);
         }
       })
       .catch(() => {});
   }, []);
 
-  // สลับสวิตช์รวม: ให้ AI ตอบเองทุกแชต (เปิดแล้ว AI ตอบข้อความที่ค้างให้ด้วย)
-  async function toggleAuto() {
-    const next = !autoReply;
-    setAutoReply(next);
-    autoReplyCache = next;
+  // เปลี่ยนระดับการตอบ AI — Full/Full กลางคืน ต้องยืนยันคำเตือนก่อน
+  async function changeLevel(next: AutoLevel) {
+    if (next === autoLevel) return;
+    if (next === "full" || next === "night") {
+      const msg =
+        next === "full"
+          ? "⚡ Full auto: AI จะตอบลูกค้าทุกข้อความเอง แม้แต่ตอนที่ไม่มั่นใจ (เช่น ต่อรองราคา / เคลม / คืนเงิน) ซึ่งอาจตอบผิดได้\n\nยืนยันเปิด Full auto?"
+          : "🌙 Full กลางคืน: ช่วง 2 ทุ่ม–8 โมงเช้า AI จะตอบทุกข้อความเอง แม้ไม่มั่นใจ (กลางวันยังเป็นโหมดปลอดภัย)\n\nยืนยันเปิด?";
+      if (!window.confirm(msg)) return; // ยกเลิก → select เด้งกลับค่าเดิม
+    }
+    const prev = autoLevel;
+    setAutoLevel(next);
+    autoLevelCache = next;
     try {
       await fetch("/api/line/automode", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ autoReply: next }),
+        body: JSON.stringify({ level: next }),
       });
     } catch {
-      setAutoReply(!next);
-      autoReplyCache = !next;
+      setAutoLevel(prev);
+      autoLevelCache = prev;
       return;
     }
     // โหมดทุกแชตเปลี่ยน + อาจมีการตอบอัตโนมัติ → รีเฟรช
@@ -513,16 +491,17 @@ export default function InboxView({
                 </p>
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">
-                {autoReply ? "🤖 AI ตอบเอง" : "✋ กดส่งเอง"}
-              </span>
-              <Toggle
-                enabled={autoReply}
-                onToggle={toggleAuto}
-                label="ให้ AI ตอบเองอัตโนมัติทุกแชต"
-              />
-            </div>
+            <select
+              value={autoLevel}
+              onChange={(e) => void changeLevel(e.target.value as AutoLevel)}
+              aria-label="ระดับการตอบของ AI"
+              className="shrink-0 rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+            >
+              <option value="off">✋ กดส่งเอง</option>
+              <option value="safe">🛡️ ปลอดภัย</option>
+              <option value="night">🌙 Full กลางคืน</option>
+              <option value="full">⚡ Full auto</option>
+            </select>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">

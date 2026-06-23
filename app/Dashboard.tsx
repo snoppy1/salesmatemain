@@ -212,7 +212,10 @@ export default function Dashboard({
   // กลับจากเชื่อม: Facebook (?fb=) → หน้าตั้งค่า · marketplace (?connected=/?connect=) → อยู่หน้าคลังสินค้า
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
-    if (sp.get("fb")) {
+    if (sp.get("connected") === "lazada-chat") {
+      setView("settings");
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (sp.get("fb")) {
       setView("settings");
     } else if (sp.get("connected") || sp.get("connect")) {
       setView("catalog");
@@ -1457,9 +1460,16 @@ function LazadaConnectBox() {
         </div>
       ) : (
         <div className="mt-3 space-y-3">
+          <a
+            href="/api/lazada/connect/start"
+            className="inline-flex items-center gap-2 rounded-lg bg-[#0F146E] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0a0e52]"
+          >
+            🛍️ เข้าสู่ระบบ Lazada เพื่อเชื่อมแชต
+          </a>
           <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-            ℹ️ แชต Lazada ใช้ Access Token ตัวเดียวกับฝั่งดึงสินค้า (เชื่อม Lazada ในหน้าคลังสินค้า) —
-            ตอนนี้ใส่ token ขึ้นต้น <code>mock-</code> เพื่อทดลองก่อนได้ พอได้สิทธิ์ IM จริงค่อยใส่ token จริง
+            ℹ️ กดปุ่มด้านบนเพื่อล็อกอิน Lazada → ระบบจะดึง Access Token ของแอปแชต (IM) มาให้เอง
+            (ต้องตั้ง env <code>LAZADA_IM_APP_KEY/SECRET</code> ก่อน). ยังไม่ได้สิทธิ์จริง? ใส่ token ขึ้นต้น{" "}
+            <code>mock-</code> ด้านล่างเพื่อทดลองได้
           </p>
 
           <details className="rounded-lg border border-gray-300 bg-white/60 p-2 text-xs dark:border-gray-700 dark:bg-gray-800/40">

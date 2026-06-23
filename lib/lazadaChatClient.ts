@@ -22,6 +22,7 @@ function imAppCreds(): { appKey: string; appSecret: string } {
 }
 
 const API_BASE = process.env.LAZADA_API_BASE || "https://api.lazada.co.th/rest";
+const AUTH_URL = "https://auth.lazada.com/oauth/authorize";
 
 function isMock(token: string): boolean {
   return !token || token.startsWith("mock-");
@@ -76,6 +77,72 @@ async function signedCall(
     method,
   });
   return (await res.json()) as Record<string, unknown>;
+}
+
+/* ---------- OAuth ของแอปแชต (IM) เพื่อขอ access token ---------- */
+
+/** URL ให้ร้านล็อกอิน Lazada เพื่ออนุญาตแอปแชต (state=imchat ให้ callback รู้ว่าเป็นฝั่งแชต) */
+export function buildImAuthUrl(origin: string): string {
+  const { appKey } = imAppCreds();
+  const params = new URLSearchParams({
+    response_type: "code",
+    force_auth: "true",
+    redirect_uri: `${origin}/api/connect/lazada/callback`,
+    client_id: appKey,
+    state: "imchat",
+  });
+  return `${AUTH_URL}?${params.toString()}`;
+}
+
+export type ImTokenResult = {
+  ok: boolean;
+  accessToken: string;
+  refreshToken: string;
+  accountId: string;
+  name: string;
+};
+
+/** แลก authorization code → access token ของแอปแชต + ดึง seller id จาก response */
+export async function exchangeImCode(code: string): Promise<ImTokenResult> {
+  const empty: ImTokenResult = {
+    ok: false,
+    accessToken: "",
+    refreshToken: "",
+    accountId: "",
+    name: "",
+  };
+  const { appKey, appSecret } = imAppCreds();
+  if (!appKey || !appSecret || !code) return empty;
+
+  const path = "/auth/token/create";
+  const params: Record<string, string> = {
+    app_key: appKey,
+    sign_method: "sha256",
+    timestamp: String(Date.now()),
+    code,
+  };
+  params.sign = sign(path, params, appSecret);
+
+  try {
+    const res = await fetch(`${API_BASE}${path}?${new URLSearchParams(params)}`);
+    const data = (await res.json()) as Record<string, unknown>;
+    const accessToken = String(data.access_token ?? "");
+    if (!accessToken) return empty;
+    const cui = Array.isArray(data.country_user_info)
+      ? (data.country_user_info[0] as Record<string, unknown> | undefined)
+      : undefined;
+    const accountId = String(cui?.seller_id ?? cui?.short_code ?? data.account ?? "");
+    const name = String(data.account ?? cui?.seller_id ?? "");
+    return {
+      ok: true,
+      accessToken,
+      refreshToken: String(data.refresh_token ?? ""),
+      accountId,
+      name,
+    };
+  } catch {
+    return empty;
+  }
 }
 
 /** ส่งข้อความหาลูกค้า — true ถ้าสำเร็จ (หรือโหมดทดลอง) */

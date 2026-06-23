@@ -6,10 +6,20 @@ import { createHmac, createHash, timingSafeEqual } from "node:crypto";
  * - access token ขึ้นต้น mock- (หรือว่าง) → โหมดทดลอง ไม่ยิง API จริง
  * - LAZADA_CHAT_SECRET เป็นระดับแอป (env) ใช้ verify ลายเซ็น webhook (push notification)
  *
- * หมายเหตุ: Lazada ใช้ access token ตัวเดียวกับฝั่งดึงสินค้า (OAuth เดียวกัน)
- * แต่แยกแชตเป็นช่องของตัวเอง เพื่อให้โครงสร้างสม่ำเสมอกับ LINE/Facebook/TikTok
+ * หมายเหตุ: แชต Lazada มักเป็น "แอปแยก" (หมวด In-house IM Chat คนละแอปกับตัวดึงสินค้า)
+ * จึงใช้คีย์ของแอปแชตเอง LAZADA_IM_APP_KEY/SECRET ถ้าตั้งไว้ ไม่งั้น fallback ไป LAZADA_APP_KEY/SECRET
  * โค้ดส่วน "จริง" เป็น best-effort ตามรูปแบบ Lazada Open Platform — พอได้สิทธิ์ IM จริงค่อยปรับ endpoint
  */
+
+/** คีย์ของแอปแชต (IM) — แยกจากแอปดึงสินค้าได้ ถ้าไม่ตั้งให้ fallback ไปใช้คีย์หลัก */
+function imAppCreds(): { appKey: string; appSecret: string } {
+  return {
+    appKey: (process.env.LAZADA_IM_APP_KEY || process.env.LAZADA_APP_KEY || "") as string,
+    appSecret: (process.env.LAZADA_IM_APP_SECRET ||
+      process.env.LAZADA_APP_SECRET ||
+      "") as string,
+  };
+}
 
 const API_BASE = process.env.LAZADA_API_BASE || "https://api.lazada.co.th/rest";
 
@@ -53,8 +63,7 @@ async function signedCall(
   extra: Record<string, string>,
   method: "GET" | "POST" = "GET",
 ): Promise<Record<string, unknown>> {
-  const appKey = process.env.LAZADA_APP_KEY as string;
-  const appSecret = process.env.LAZADA_APP_SECRET as string;
+  const { appKey, appSecret } = imAppCreds();
   const params: Record<string, string> = {
     app_key: appKey,
     access_token: accessToken,

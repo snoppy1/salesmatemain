@@ -2,6 +2,7 @@ import "server-only";
 import { query, queryOne } from "./db";
 import { newId } from "./auth";
 import { trimConversation } from "./retention";
+import { addInboxApp, getChannelLevel } from "./inboxAppsRepo";
 import type {
   ChatMessage,
   ConversationSummary,
@@ -48,11 +49,11 @@ export async function ensureConversation(
     [customerId, channel],
   );
   if (existing) return existing.id;
-  const shop = await queryOne<{ auto_reply: boolean }>(
-    "SELECT auto_reply FROM shops WHERE id = $1",
-    [shopId],
-  );
-  const mode = shop?.auto_reply ? "auto" : "manual";
+  // กันแชตหาย: ลูกค้าทักในแอปที่ยังไม่เพิ่ม → เพิ่มแอปอัตโนมัติ (โหมด off)
+  await addInboxApp(shopId, channel);
+  // โหมดของบทสนทนาใหม่ยึดตามโหมด AI ของ "แอป" นั้น (off = manual, อื่นๆ = auto)
+  const level = await getChannelLevel(shopId, channel);
+  const mode = level === "off" ? "manual" : "auto";
   const id = newId();
   const now = Date.now();
   await query(
@@ -305,4 +306,16 @@ export async function setAllConversationsMode(
     mode,
     shopId,
   ]);
+}
+
+/** ตั้งโหมดเฉพาะบทสนทนาของ channel นั้น (ใช้ตอนสลับโหมด AI ของแอปเดียว) */
+export async function setChannelConversationsMode(
+  shopId: string,
+  channel: string,
+  mode: "manual" | "auto",
+): Promise<void> {
+  await query(
+    "UPDATE conversations SET mode = $1 WHERE shop_id = $2 AND channel = $3",
+    [mode, shopId, channel],
+  );
 }

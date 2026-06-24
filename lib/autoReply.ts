@@ -5,7 +5,8 @@ import {
   addAdminMessage,
   getSendTarget,
 } from "./inboxRepo";
-import { getShopData, getAutoLevel } from "./shopRepo";
+import { getShopData } from "./shopRepo";
+import { getChannelLevel } from "./inboxAppsRepo";
 import { generateReply } from "./claude";
 import { buildConversationContext } from "./prompt";
 import { replyMessage, pushMessage } from "./lineClient";
@@ -34,7 +35,7 @@ export async function processAutoReply(
     const convo = await getConversation(shopId, conversationId);
     if (!convo) return;
     const shopData = await getShopData(shopId);
-    const level = await getAutoLevel(shopId);
+    const level = await getChannelLevel(shopId, convo.channel);
     // โหมด full → AI ตอบแม้ไม่มั่นใจ (โหมดปลอดภัยจะเด้งรอตอบแทน)
     const fullNow = level === "full";
     const ctx = buildConversationContext(

@@ -1,6 +1,10 @@
 import { NextResponse, after } from "next/server";
 import { verifySignature, fetchUserName } from "@/lib/facebookClient";
-import { ingestCustomerMessage, getConversationMode } from "@/lib/inboxRepo";
+import {
+  ingestCustomerMessage,
+  getConversationMode,
+  setPendingHuman,
+} from "@/lib/inboxRepo";
 import { getChannelByPageId } from "@/lib/facebookChannelRepo";
 import { processAutoReply } from "@/lib/autoReply";
 
@@ -77,7 +81,14 @@ export async function POST(request: Request) {
       if (!conversationId) continue; // ซ้ำ (retry) — ข้าม
 
       const mode = await getConversationMode(conversationId);
-      if (mode === "auto") autoJobs.push({ shopId, conversationId });
+      if (mode === "auto") {
+        if (imageUrl) {
+          // ได้รูป → ยังไม่ตอบ รอลูกค้าพิมพ์คำถามก่อน แต่ขึ้น "รอตอบ" ให้แอดมินเห็น
+          await setPendingHuman(conversationId, true);
+        } else {
+          autoJobs.push({ shopId, conversationId });
+        }
+      }
     }
   }
 

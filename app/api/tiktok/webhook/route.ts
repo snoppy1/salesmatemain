@@ -1,6 +1,10 @@
 import { NextResponse, after } from "next/server";
 import { verifySignature, fetchUserName } from "@/lib/tiktokClient";
-import { ingestCustomerMessage, getConversationMode } from "@/lib/inboxRepo";
+import {
+  ingestCustomerMessage,
+  getConversationMode,
+  setPendingHuman,
+} from "@/lib/inboxRepo";
 import { getChannelByAccountId } from "@/lib/tiktokChannelRepo";
 import { processAutoReply } from "@/lib/autoReply";
 
@@ -93,7 +97,14 @@ export async function POST(request: Request) {
     if (!conversationId) continue;
 
     const mode = await getConversationMode(conversationId);
-    if (mode === "auto") autoJobs.push({ conversationId });
+    if (mode === "auto") {
+      if (imageUrl) {
+        // ได้รูป → ยังไม่ตอบ รอลูกค้าพิมพ์คำถามก่อน แต่ขึ้น "รอตอบ" ให้แอดมินเห็น
+        await setPendingHuman(conversationId, true);
+      } else {
+        autoJobs.push({ conversationId });
+      }
+    }
   }
 
   if (autoJobs.length) {

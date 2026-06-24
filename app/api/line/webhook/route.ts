@@ -5,7 +5,11 @@ import {
   fetchDisplayName,
   getMessageContent,
 } from "@/lib/lineClient";
-import { ingestCustomerMessage, getConversationMode } from "@/lib/inboxRepo";
+import {
+  ingestCustomerMessage,
+  getConversationMode,
+  setPendingHuman,
+} from "@/lib/inboxRepo";
 import { getChannelByBotUserId } from "@/lib/lineChannelRepo";
 import { isBlobConfigured, putImage } from "@/lib/blobStore";
 import { processAutoReply } from "@/lib/autoReply";
@@ -119,8 +123,14 @@ export async function POST(request: Request) {
     if (!conversationId) continue; // ซ้ำ (retry) — ข้าม
 
     const mode = await getConversationMode(conversationId);
-    if (mode === "auto" && ev.replyToken) {
-      autoJobs.push({ conversationId, replyToken: ev.replyToken });
+    if (mode === "auto") {
+      if (ev.message.type === "image") {
+        // ได้รูป → ยังไม่ตอบ รอลูกค้าพิมพ์คำถามก่อน (ส่วนใหญ่ส่งรูปมาพร้อมคำถาม)
+        // แต่ขึ้น "รอตอบ" ให้แอดมินเห็น เผื่อลูกค้าส่งแค่รูปแล้วเงียบไป
+        await setPendingHuman(conversationId, true);
+      } else if (ev.replyToken) {
+        autoJobs.push({ conversationId, replyToken: ev.replyToken });
+      }
     }
   }
 

@@ -21,7 +21,12 @@ export async function GET(request: Request) {
 
 type FbMessaging = {
   sender?: { id?: string };
-  message?: { mid?: string; text?: string; is_echo?: boolean };
+  message?: {
+    mid?: string;
+    text?: string;
+    is_echo?: boolean;
+    attachments?: { type?: string; payload?: { url?: string } }[];
+  };
 };
 type FbEntry = { id?: string; messaging?: FbMessaging[] };
 
@@ -53,8 +58,11 @@ export async function POST(request: Request) {
     for (const ev of entry.messaging ?? []) {
       if (ev.message?.is_echo) continue; // ข้อความที่เพจส่งเอง — ข้าม
       const psid = ev.sender?.id ?? "";
-      const text = ev.message?.text ?? "";
-      if (!psid || !text.trim()) continue;
+      if (!psid) continue;
+      const imageUrl = ev.message?.attachments?.find((a) => a.type === "image")
+        ?.payload?.url;
+      const text = imageUrl ? "" : ev.message?.text ?? "";
+      if (!imageUrl && !text.trim()) continue;
 
       const displayName = await fetchUserName(channel.access_token, psid);
       const conversationId = await ingestCustomerMessage(shopId, {
@@ -63,6 +71,8 @@ export async function POST(request: Request) {
         displayName,
         text,
         extId: ev.message?.mid,
+        kind: imageUrl ? "image" : "text",
+        imageUrl,
       });
       if (!conversationId) continue; // ซ้ำ (retry) — ข้าม
 

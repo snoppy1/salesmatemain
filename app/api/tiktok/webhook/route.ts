@@ -14,8 +14,11 @@ export async function GET() {
 type TtMessage = {
   message_id?: string;
   msg_id?: string;
-  content?: { text?: string } | string;
+  type?: string;
+  content?: { text?: string; url?: string } | string;
   text?: string;
+  image_url?: string;
+  url?: string;
   sender?: { id?: string };
   from_user_id?: string;
   user_id?: string;
@@ -34,6 +37,13 @@ function textOf(m: TtMessage): string {
 }
 function userOf(m: TtMessage): string {
   return m.sender?.id ?? m.from_user_id ?? m.user_id ?? "";
+}
+function imageOf(m: TtMessage): string | undefined {
+  const c = typeof m.content === "object" ? m.content : undefined;
+  if (m.type === "image") return c?.url ?? m.image_url ?? m.url ?? undefined;
+  // บางรูปแบบส่ง url รูปมาโดยไม่มี type → ถือเป็นรูปถ้าไม่มีข้อความ
+  if ((c?.url || m.image_url) && !textOf(m).trim()) return c?.url ?? m.image_url;
+  return undefined;
 }
 
 // POST: รับ event ข้อความจาก TikTok IM (routing ด้วย shop/account id)
@@ -65,8 +75,10 @@ export async function POST(request: Request) {
   const autoJobs: { conversationId: string }[] = [];
   for (const m of msgs) {
     const userId = userOf(m);
-    const text = textOf(m);
-    if (!userId || !text.trim()) continue;
+    if (!userId) continue;
+    const imageUrl = imageOf(m);
+    const text = imageUrl ? "" : textOf(m);
+    if (!imageUrl && !text.trim()) continue;
 
     const displayName = await fetchUserName(channel.access_token, userId);
     const conversationId = await ingestCustomerMessage(shopId, {
@@ -75,6 +87,8 @@ export async function POST(request: Request) {
       displayName,
       text,
       extId: m.message_id ?? m.msg_id,
+      kind: imageUrl ? "image" : "text",
+      imageUrl,
     });
     if (!conversationId) continue;
 

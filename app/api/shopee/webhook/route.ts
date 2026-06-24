@@ -17,8 +17,10 @@ type ShContent = {
   from_id?: string | number;
   from_user_name?: string;
   message_type?: string;
-  content?: { text?: string } | string;
+  content?: { text?: string; url?: string } | string;
   text?: string;
+  image_url?: string;
+  url?: string;
 };
 type ShPayload = {
   shop_id?: string | number;
@@ -36,6 +38,11 @@ function textOf(m: ShContent): string {
 }
 function userOf(m: ShContent): string {
   return m.from_id != null ? String(m.from_id) : "";
+}
+function imageOf(m: ShContent): string | undefined {
+  if (m.message_type !== "image") return undefined;
+  const c = typeof m.content === "object" ? m.content : undefined;
+  return c?.url ?? m.image_url ?? m.url ?? undefined;
 }
 
 function webhookUrlOf(req: Request): string {
@@ -75,10 +82,13 @@ export async function POST(request: Request) {
 
   const autoJobs: { conversationId: string }[] = [];
   for (const m of msgs) {
-    if (m.message_type && m.message_type !== "text") continue;
     const userId = userOf(m);
-    const text = textOf(m);
-    if (!userId || !text.trim()) continue;
+    if (!userId) continue;
+    const imageUrl = imageOf(m);
+    // ชนิดที่ไม่ใช่ text/image (เช่น sticker/order) → ข้าม
+    if (!imageUrl && m.message_type && m.message_type !== "text") continue;
+    const text = imageUrl ? "" : textOf(m);
+    if (!imageUrl && !text.trim()) continue;
 
     const displayName =
       m.from_user_name || (await fetchUserName(channel.access_token, userId));
@@ -88,6 +98,8 @@ export async function POST(request: Request) {
       displayName,
       text,
       extId: m.message_id != null ? String(m.message_id) : undefined,
+      kind: imageUrl ? "image" : "text",
+      imageUrl,
     });
     if (!conversationId) continue;
 

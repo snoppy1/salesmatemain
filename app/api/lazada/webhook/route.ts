@@ -14,8 +14,11 @@ export async function GET() {
 type LzMessage = {
   message_id?: string;
   msg_id?: string;
-  content?: { text?: string } | string;
+  type?: string;
+  content?: { text?: string; url?: string } | string;
   text?: string;
+  image_url?: string;
+  url?: string;
   session_id?: string;
   buyer_id?: string;
   from_user_id?: string;
@@ -37,6 +40,12 @@ function textOf(m: LzMessage): string {
 }
 function userOf(m: LzMessage): string {
   return m.session_id ?? m.buyer_id ?? m.from_user_id ?? m.user_id ?? "";
+}
+function imageOf(m: LzMessage): string | undefined {
+  const c = typeof m.content === "object" ? m.content : undefined;
+  if (m.type === "image") return c?.url ?? m.image_url ?? m.url ?? undefined;
+  if ((c?.url || m.image_url) && !textOf(m).trim()) return c?.url ?? m.image_url;
+  return undefined;
 }
 
 // POST: รับ event ข้อความจาก Lazada IM (routing ด้วย seller/account id)
@@ -73,8 +82,10 @@ export async function POST(request: Request) {
   const autoJobs: { conversationId: string }[] = [];
   for (const m of msgs) {
     const userId = userOf(m);
-    const text = textOf(m);
-    if (!userId || !text.trim()) continue;
+    if (!userId) continue;
+    const imageUrl = imageOf(m);
+    const text = imageUrl ? "" : textOf(m);
+    if (!imageUrl && !text.trim()) continue;
 
     const displayName = await fetchUserName(channel.access_token, userId);
     const conversationId = await ingestCustomerMessage(shopId, {
@@ -83,6 +94,8 @@ export async function POST(request: Request) {
       displayName,
       text,
       extId: m.message_id ?? m.msg_id,
+      kind: imageUrl ? "image" : "text",
+      imageUrl,
     });
     if (!conversationId) continue;
 

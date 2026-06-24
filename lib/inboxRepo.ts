@@ -1,6 +1,7 @@
 import "server-only";
 import { query, queryOne } from "./db";
 import { newId } from "./auth";
+import { trimConversation } from "./retention";
 import type {
   ChatMessage,
   ConversationSummary,
@@ -84,6 +85,7 @@ export async function addMessage(
     now,
     conversationId,
   ]);
+  await trimConversation(conversationId);
   return {
     id,
     sender,

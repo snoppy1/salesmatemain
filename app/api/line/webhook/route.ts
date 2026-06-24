@@ -1,8 +1,13 @@
 import { NextResponse, after } from "next/server";
 import { queryOne } from "@/lib/db";
-import { verifySignature, fetchDisplayName } from "@/lib/lineClient";
+import {
+  verifySignature,
+  fetchDisplayName,
+  getMessageContent,
+} from "@/lib/lineClient";
 import { ingestCustomerMessage, getConversationMode } from "@/lib/inboxRepo";
 import { getChannelByBotUserId } from "@/lib/lineChannelRepo";
+import { isBlobConfigured, putImage } from "@/lib/blobStore";
 import { processAutoReply } from "@/lib/autoReply";
 
 export const runtime = "nodejs";
@@ -67,10 +72,38 @@ export async function POST(request: Request) {
   const autoJobs: { conversationId: string; replyToken: string }[] = [];
 
   for (const ev of payload.events ?? []) {
-    if (ev.type !== "message" || ev.message?.type !== "text") continue;
+    if (ev.type !== "message" || !ev.message) continue;
     const userId = ev.source?.userId ?? "";
-    const text = ev.message.text ?? "";
-    if (!userId || !text.trim()) continue;
+    if (!userId) continue;
+
+    let kind: "text" | "image" = "text";
+    let imageUrl: string | undefined;
+    let blobKey: string | undefined;
+    let text = "";
+
+    if (ev.message.type === "text") {
+      text = ev.message.text ?? "";
+      if (!text.trim()) continue;
+    } else if (ev.message.type === "image") {
+      if (isBlobConfigured() && ev.message.id) {
+        try {
+          const { buffer, contentType } = await getMessageContent(
+            accessToken,
+            ev.message.id,
+          );
+          const up = await putImage(buffer, contentType);
+          kind = "image";
+          imageUrl = up.url;
+          blobKey = up.key;
+        } catch {
+          text = "🖼️ ลูกค้าส่งรูป (เปิดดูในแอป LINE)";
+        }
+      } else {
+        text = "🖼️ ลูกค้าส่งรูป (เปิดดูในแอป LINE)";
+      }
+    } else {
+      continue; // sticker/location/ฯลฯ — ข้ามไปก่อน (คงพฤติกรรมเดิม)
+    }
 
     const displayName = await fetchDisplayName(accessToken, userId);
     const conversationId = await ingestCustomerMessage(shopId, {
@@ -79,6 +112,9 @@ export async function POST(request: Request) {
       displayName,
       text,
       extId: ev.message.id,
+      kind,
+      imageUrl,
+      blobKey,
     });
     if (!conversationId) continue; // ซ้ำ (retry) — ข้าม
 

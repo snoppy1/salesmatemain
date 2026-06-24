@@ -106,6 +106,21 @@ export async function fetchBotInfo(accessToken: string): Promise<BotInfo | null>
   }
 }
 
+/** ดึงไฟล์รูป/มีเดียจาก LINE ตาม messageId (ต้องใช้ access token ของ OA) */
+export async function getMessageContent(
+  accessToken: string,
+  messageId: string,
+): Promise<{ buffer: Buffer; contentType: string }> {
+  const res = await fetch(
+    `https://api-data.line.me/v2/bot/message/${messageId}/content`,
+    { headers: { authorization: `Bearer ${accessToken}` } },
+  );
+  if (!res.ok) throw new Error(`LINE content ${res.status}`);
+  const contentType = res.headers.get("content-type") ?? "image/jpeg";
+  const buffer = Buffer.from(await res.arrayBuffer());
+  return { buffer, contentType };
+}
+
 /** ดึงชื่อโปรไฟล์ลูกค้า — "" ถ้าไม่ได้/โหมดทดลอง */
 export async function fetchDisplayName(
   accessToken: string,

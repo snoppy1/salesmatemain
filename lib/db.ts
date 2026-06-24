@@ -122,6 +122,15 @@ async function ensureSchema(): Promise<void> {
     ALTER TABLE messages ADD COLUMN IF NOT EXISTS blob_key TEXT;
     CREATE INDEX IF NOT EXISTS idx_messages_blob ON messages(blob_key) WHERE blob_key IS NOT NULL;
 
+    -- แอปที่ร้านเพิ่มเข้ากล่องแชต + โหมด AI แยกต่อแอป (off/safe/full)
+    CREATE TABLE IF NOT EXISTS inbox_apps (
+      shop_id    TEXT NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+      channel    TEXT NOT NULL,
+      auto_level TEXT NOT NULL DEFAULT 'off',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (shop_id, channel)
+    );
+
     -- ลูกค้าที่ทักเข้ามา (เช่นทาง LINE) ต่อร้าน
     CREATE TABLE IF NOT EXISTS customers (
       id            TEXT PRIMARY KEY,

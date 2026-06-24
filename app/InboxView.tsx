@@ -579,7 +579,18 @@ export default function InboxView({
                         : "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100"
                     }`}
                   >
-                    {m.text}
+                    {m.kind === "image" && m.imageUrl ? (
+                      <a href={m.imageUrl} target="_blank" rel="noopener noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={m.imageUrl}
+                          alt="รูปจากลูกค้า"
+                          className="max-h-48 max-w-[12rem] rounded-lg object-cover"
+                        />
+                      </a>
+                    ) : (
+                      m.text
+                    )}
                   </div>
                 </div>
               ))}

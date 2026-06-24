@@ -27,8 +27,18 @@ function timeAgo(ts: number): string {
 let convCache: ConversationSummary[] = [];
 let activeIdCache: string | null = null;
 let selectedPlatformCache: string | null = null;
-let autoLevelCache: AutoLevel = "off";
+let appsCache: InboxApp[] = [];
 const detailCache = new Map<string, ConversationDetail>();
+
+/** แอปที่ร้านเพิ่มในกล่องแชต + โหมด AI ของแอปนั้น */
+type InboxApp = { channel: string; level: AutoLevel };
+
+/** ตัวเลือกโหมด AI (ใช้ทั้งการ์ดในหน้ารวม + header ในหน้าแชต) */
+const LEVEL_OPTIONS: { value: AutoLevel; label: string }[] = [
+  { value: "off", label: "✋ กดส่งเอง" },
+  { value: "safe", label: "🛡️ ปลอดภัย" },
+  { value: "full", label: "⚡ Full auto" },
+];
 
 /** ไอคอน LINE (ฟองแชตสีเขียวแบรนด์) */
 function LineGlyph({ small }: { small?: boolean }) {
@@ -184,7 +194,7 @@ export default function InboxView({
   const [choicesMap, setChoicesMap] = useState<Record<string, string[]>>({});
   const [drafting, setDrafting] = useState(false);
   const [choosing, setChoosing] = useState(false);
-  const [autoLevel, setAutoLevel] = useState<AutoLevel>(() => autoLevelCache);
+  const [apps, setApps] = useState<InboxApp[]>(() => appsCache);
   const [sending, setSending] = useState(false);
   const [simText, setSimText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -286,44 +296,87 @@ export default function InboxView({
     }
   }, [selectedPlatform, detail]);
 
-  // โหลดระดับการตอบ AI ของร้าน (off/safe/night/full)
-  useEffect(() => {
-    fetch("/api/line/automode")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d?.level) {
-          autoLevelCache = d.level as AutoLevel;
-          setAutoLevel(autoLevelCache);
-        }
-      })
-      .catch(() => {});
+  // โหลดลิสต์แอปที่ร้านเพิ่ม (+ โหมด AI ต่อแอป)
+  const loadApps = useCallback(async () => {
+    try {
+      const r = await fetch("/api/inbox/apps");
+      if (!r.ok) return;
+      const d = (await r.json()) as { apps: InboxApp[] };
+      appsCache = d.apps;
+      setApps(d.apps);
+    } catch {
+      /* เงียบไว้ */
+    }
   }, []);
 
-  // เปลี่ยนระดับการตอบ AI — Full/Full กลางคืน ต้องยืนยันคำเตือนก่อน
-  async function changeLevel(next: AutoLevel) {
-    if (next === autoLevel) return;
+  useEffect(() => {
+    void loadApps();
+  }, [loadApps]);
+
+  const levelOf = (channel: string | null): AutoLevel =>
+    apps.find((a) => a.channel === channel)?.level ?? "off";
+
+  // เปลี่ยนโหมด AI "ของแอปนั้น" — Full auto ต้องยืนยันก่อน
+  async function changeLevel(channel: string, next: AutoLevel) {
+    if (next === levelOf(channel)) return;
     if (next === "full") {
       const msg =
         "⚡ Full auto: AI จะตอบลูกค้าทุกข้อความเอง แม้แต่ตอนที่ไม่มั่นใจ (เช่น ต่อรองราคา / เคลม / คืนเงิน) ซึ่งอาจตอบผิดได้\n\nยืนยันเปิด Full auto?";
-      if (!window.confirm(msg)) return; // ยกเลิก → select เด้งกลับค่าเดิม
+      if (!window.confirm(msg)) return;
     }
-    const prev = autoLevel;
-    setAutoLevel(next);
-    autoLevelCache = next;
+    const prev = apps;
+    const optimistic = apps.map((a) =>
+      a.channel === channel ? { ...a, level: next } : a,
+    );
+    setApps(optimistic);
+    appsCache = optimistic;
     try {
-      await fetch("/api/line/automode", {
+      await fetch("/api/inbox/apps/level", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ level: next }),
+        body: JSON.stringify({ channel, level: next }),
       });
     } catch {
-      setAutoLevel(prev);
-      autoLevelCache = prev;
+      setApps(prev);
+      appsCache = prev;
       return;
     }
-    // โหมดทุกแชตเปลี่ยน + อาจมีการตอบอัตโนมัติ → รีเฟรช
+    // โหมดของแชตในแอปนี้เปลี่ยน + อาจมีการตอบอัตโนมัติ → รีเฟรช
     void loadConversations();
     if (activeIdRef.current) void loadDetail(activeIdRef.current);
+  }
+
+  // เพิ่มแอปเข้ากล่องแชต
+  async function addApp(channel: string) {
+    try {
+      const r = await fetch("/api/inbox/apps", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ channel }),
+      });
+      if (!r.ok) return;
+      const d = (await r.json()) as { apps: InboxApp[] };
+      appsCache = d.apps;
+      setApps(d.apps);
+    } catch {
+      /* เงียบไว้ */
+    }
+  }
+
+  // ลบแอปออกจากกล่องแชต (ไม่ลบแชต/การเชื่อมต่อ)
+  async function removeApp(channel: string) {
+    if (!window.confirm("ลบแอปนี้ออกจากกล่องแชต? (แชต/การเชื่อมต่อไม่หาย เพิ่มกลับมาได้)")) return;
+    try {
+      const r = await fetch(`/api/inbox/apps?channel=${encodeURIComponent(channel)}`, {
+        method: "DELETE",
+      });
+      if (!r.ok) return;
+      const d = (await r.json()) as { apps: InboxApp[] };
+      appsCache = d.apps;
+      setApps(d.apps);
+    } catch {
+      /* เงียบไว้ */
+    }
   }
 
   // เลือกแพลตฟอร์มจากหน้ารวม → เข้าหน้าแชต แล้วเด้งไปบทสนทนาแรกของเจ้านั้น
@@ -456,7 +509,14 @@ export default function InboxView({
   if (!selectedPlatform) {
     return (
       <div className="h-[calc(100vh-8rem)]">
-        <PlatformHub conversations={conversations} onPick={pickPlatform} />
+        <AppList
+          apps={apps}
+          conversations={conversations}
+          onPick={pickPlatform}
+          onChangeLevel={changeLevel}
+          onAddApp={addApp}
+          onRemoveApp={removeApp}
+        />
       </div>
     );
   }
@@ -490,14 +550,19 @@ export default function InboxView({
               </div>
             </div>
             <select
-              value={autoLevel}
-              onChange={(e) => void changeLevel(e.target.value as AutoLevel)}
+              value={levelOf(selectedPlatform)}
+              onChange={(e) =>
+                selectedPlatform &&
+                void changeLevel(selectedPlatform, e.target.value as AutoLevel)
+              }
               aria-label="ระดับการตอบของ AI"
               className="shrink-0 rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
             >
-              <option value="off">✋ กดส่งเอง</option>
-              <option value="safe">🛡️ ปลอดภัย</option>
-              <option value="full">⚡ Full auto</option>
+              {LEVEL_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -719,62 +784,168 @@ export default function InboxView({
   );
 }
 
-/** หน้ารวมแพลตฟอร์ม — การ์ดไอคอน + ชื่อ กดเข้าหน้าแชตของเจ้านั้น */
-function PlatformHub({
+/** กล่องแชต: ลิสต์แอปที่ร้านเพิ่มเอง (การ์ด 2 บรรทัด) + ปุ่มเพิ่ม/ลบ + โหมด AI ต่อแอป */
+function AppList({
+  apps,
   conversations,
   onPick,
+  onChangeLevel,
+  onAddApp,
+  onRemoveApp,
 }: {
+  apps: InboxApp[];
   conversations: ConversationSummary[];
   onPick: (channel: string) => void;
+  onChangeLevel: (channel: string, level: AutoLevel) => void;
+  onAddApp: (channel: string) => void;
+  onRemoveApp: (channel: string) => void;
 }) {
+  const [adding, setAdding] = useState(false);
+  const addedChannels = new Set(apps.map((a) => a.channel));
+  const available = PLATFORMS.filter((p) => !addedChannels.has(p.channel));
+
   return (
     <div className="flex h-full flex-col">
       <div className="mb-5">
         <h2 className="text-lg font-bold text-gray-900 dark:text-white">กล่องแชต</h2>
         <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-          รวมแชตจากทุกแพลตฟอร์มไว้ที่เดียว — กดแพลตฟอร์มเพื่อเปิดแชต
+          เพิ่มแอปที่ใช้ แล้วตั้งโหมด AI แยกแต่ละแอปได้
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {PLATFORMS.map((p) => {
-          const convos = conversations.filter((c) => c.channel === p.channel);
-          const pending = convos.filter((c) => c.pendingHuman).length;
-          return (
-            <button
-              key={p.id}
-              type="button"
-              disabled={!p.available}
-              onClick={() => p.available && onPick(p.channel)}
-              className={`flex flex-col items-start gap-3 rounded-2xl border p-4 text-left transition ${
-                p.available
-                  ? "border-gray-200 bg-white hover:border-emerald-400 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:border-emerald-600"
-                  : "cursor-not-allowed border-dashed border-gray-200 bg-gray-50 opacity-60 dark:border-gray-800 dark:bg-gray-900/40"
-              }`}
-            >
-              <span
-                className={`flex h-12 w-12 items-center justify-center rounded-xl text-white ${p.iconBg}`}
+      {apps.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            ยังไม่มีแอป — เริ่มด้วยการเพิ่มแอปที่คุณใช้
+          </p>
+          <AddAppButton
+            available={available}
+            adding={adding}
+            setAdding={setAdding}
+            onAddApp={onAddApp}
+          />
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {apps.map((a) => {
+            const def = PLATFORMS.find((p) => p.channel === a.channel);
+            const convos = conversations.filter((c) => c.channel === a.channel);
+            const pending = convos.filter((c) => c.pendingHuman).length;
+            return (
+              <div
+                key={a.channel}
+                className="group relative rounded-2xl border border-gray-200 bg-white p-3 transition hover:border-emerald-400 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-emerald-600"
               >
-                <p.Glyph />
-              </span>
-              <div className="w-full">
-                <div className="flex items-center gap-2">
-                  <span className="text-base font-semibold text-gray-900 dark:text-white">
-                    {p.name}
+                <button
+                  type="button"
+                  onClick={() => onPick(a.channel)}
+                  className="flex w-full items-center gap-3 text-left"
+                >
+                  <span
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white ${def?.iconBg ?? "bg-gray-400"}`}
+                  >
+                    {def ? <def.Glyph /> : null}
                   </span>
-                  {pending > 0 && (
-                    <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-950/50 dark:text-red-300">
-                      รอตอบ {pending}
+                  <span className="flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="text-base font-semibold text-gray-900 dark:text-white">
+                        {def?.name ?? a.channel}
+                      </span>
+                      {pending > 0 && (
+                        <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-950/50 dark:text-red-300">
+                          รอตอบ {pending}
+                        </span>
+                      )}
                     </span>
-                  )}
+                    <span className="block text-xs text-gray-500 dark:text-gray-400">
+                      {convos.length} บทสนทนา
+                    </span>
+                  </span>
+                </button>
+                <div className="mt-2 flex items-center gap-2 pl-[3.25rem]">
+                  <span className="text-[11px] text-gray-500 dark:text-gray-400">โหมด AI:</span>
+                  <select
+                    value={a.level}
+                    onChange={(e) => onChangeLevel(a.channel, e.target.value as AutoLevel)}
+                    aria-label={`โหมด AI ของ ${def?.name ?? a.channel}`}
+                    className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                  >
+                    {LEVEL_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {p.available ? `${convos.length} บทสนทนา` : "เร็วๆ นี้"}
-                </span>
+                <button
+                  type="button"
+                  onClick={() => onRemoveApp(a.channel)}
+                  aria-label="ลบแอปออกจากกล่องแชต"
+                  className="absolute right-2 top-2 hidden rounded-md px-1.5 py-0.5 text-xs text-gray-400 transition hover:bg-red-50 hover:text-red-600 group-hover:block dark:hover:bg-red-950/30"
+                >
+                  ✕
+                </button>
               </div>
-            </button>
-          );
-        })}
+            );
+          })}
+          <AddAppButton
+            available={available}
+            adding={adding}
+            setAdding={setAdding}
+            onAddApp={onAddApp}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** ปุ่ม ➕ เพิ่มแอป + เมนูเลือกแอปที่ยังไม่ได้เพิ่ม */
+function AddAppButton({
+  available,
+  adding,
+  setAdding,
+  onAddApp,
+}: {
+  available: PlatformDef[];
+  adding: boolean;
+  setAdding: (v: boolean) => void;
+  onAddApp: (channel: string) => void;
+}) {
+  if (available.length === 0) return null;
+  if (!adding) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAdding(true)}
+        className="flex w-full items-center justify-center gap-1 rounded-2xl border border-dashed border-gray-300 px-3 py-2.5 text-sm font-medium text-gray-500 transition hover:border-emerald-400 hover:text-emerald-600 dark:border-gray-700 dark:text-gray-400"
+      >
+        ➕ เพิ่มแอป
+      </button>
+    );
+  }
+  return (
+    <div className="rounded-2xl border border-gray-200 p-2 dark:border-gray-800">
+      <p className="mb-1 px-1 text-[11px] text-gray-400">เลือกแอปที่จะเพิ่ม</p>
+      <div className="flex flex-wrap gap-2">
+        {available.map((p) => (
+          <button
+            key={p.channel}
+            type="button"
+            onClick={() => {
+              onAddApp(p.channel);
+              setAdding(false);
+            }}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2 py-1 text-sm text-gray-700 transition hover:border-emerald-400 dark:border-gray-700 dark:text-gray-200"
+          >
+            <span
+              className={`flex h-5 w-5 items-center justify-center rounded text-white ${p.iconBg}`}
+            >
+              <p.Glyph small />
+            </span>
+            {p.name}
+          </button>
+        ))}
       </div>
     </div>
   );

@@ -99,12 +99,11 @@ export async function POST(request: Request) {
           kind = "image";
           imageUrl = up.url;
           blobKey = up.key;
-        } catch (e) {
-          const reason = e instanceof Error ? e.message : String(e);
-          text = `🖼️ ลูกค้าส่งรูป [debug: capture-fail ${reason}]`;
+        } catch {
+          text = "🖼️ ลูกค้าส่งรูป (เปิดดูในแอป LINE)";
         }
       } else {
-        text = `🖼️ ลูกค้าส่งรูป [debug: blob=${isBlobConfigured()} id=${Boolean(ev.message.id)}]`;
+        text = "🖼️ ลูกค้าส่งรูป (เปิดดูในแอป LINE)";
       }
     } else {
       continue; // sticker/location/ฯลฯ — ข้ามไปก่อน (คงพฤติกรรมเดิม)

@@ -27,6 +27,7 @@ export async function POST(request: Request) {
     conversationId?: string;
     customerName?: string;
     channel?: string;
+    imageUrl?: string;
   };
   try {
     body = await request.json();
@@ -35,9 +36,11 @@ export async function POST(request: Request) {
   }
 
   const text = (body.text ?? "").trim();
-  if (!text) {
+  const imageUrl = (body.imageUrl ?? "").trim() || undefined;
+  if (!text && !imageUrl) {
     return NextResponse.json({ error: "ใส่ข้อความลูกค้าก่อน" }, { status: 400 });
   }
+  const media = { kind: imageUrl ? ("image" as const) : ("text" as const), imageUrl };
   const channel =
     body.channel === "facebook" ||
     body.channel === "tiktok" ||
@@ -54,7 +57,7 @@ export async function POST(request: Request) {
     if (!owns) {
       return NextResponse.json({ error: "ไม่พบบทสนทนา" }, { status: 404 });
     }
-    await addMessage(body.conversationId, "customer", text);
+    await addMessage(body.conversationId, "customer", text, undefined, media);
     conversationId = body.conversationId;
   } else {
     // เริ่มลูกค้าจำลองใหม่
@@ -64,6 +67,8 @@ export async function POST(request: Request) {
       lineUserId: "mock-" + newId(),
       displayName: name,
       text,
+      kind: media.kind,
+      imageUrl: media.imageUrl,
     });
     if (!cid) {
       return NextResponse.json({ error: "เพิ่มข้อความไม่สำเร็จ" }, { status: 500 });

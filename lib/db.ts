@@ -116,6 +116,11 @@ async function ensureSchema(): Promise<void> {
     ALTER TABLE shops ADD COLUMN IF NOT EXISTS ai_memory TEXT NOT NULL DEFAULT '';
     ALTER TABLE conversations ADD COLUMN IF NOT EXISTS pending_human BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE messages ADD COLUMN IF NOT EXISTS ext_id TEXT;
+    -- ชนิดข้อความ + รูป (เก็บลิงก์ CDN ของแพลตฟอร์ม หรือ blob ที่เราโฮสต์เอง)
+    ALTER TABLE messages ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'text';
+    ALTER TABLE messages ADD COLUMN IF NOT EXISTS image_url TEXT;
+    ALTER TABLE messages ADD COLUMN IF NOT EXISTS blob_key TEXT;
+    CREATE INDEX IF NOT EXISTS idx_messages_blob ON messages(blob_key) WHERE blob_key IS NOT NULL;
 
     -- ลูกค้าที่ทักเข้ามา (เช่นทาง LINE) ต่อร้าน
     CREATE TABLE IF NOT EXISTS customers (

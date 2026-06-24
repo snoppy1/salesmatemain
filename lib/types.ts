@@ -102,6 +102,9 @@ export type ChatMessage = {
   sender: "customer" | "admin";
   text: string;
   createdAt: number;
+  kind: "text" | "image";
+  imageUrl?: string;
+  blobKey?: string;
 };
 
 /** สรุปบทสนทนาในลิสต์ฝั่งซ้าย */

@@ -68,19 +68,31 @@ export async function addMessage(
   sender: "customer" | "admin",
   text: string,
   extId?: string,
+  media?: { kind: "text" | "image"; imageUrl?: string; blobKey?: string },
 ): Promise<ChatMessage> {
   const id = newId();
   const now = Date.now();
+  const kind = media?.kind ?? "text";
+  const imageUrl = media?.imageUrl ?? null;
+  const blobKey = media?.blobKey ?? null;
   await query(
-    `INSERT INTO messages (id, conversation_id, sender, text, created_at, ext_id)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [id, conversationId, sender, text, now, extId ?? null],
+    `INSERT INTO messages (id, conversation_id, sender, text, created_at, ext_id, kind, image_url, blob_key)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [id, conversationId, sender, text, now, extId ?? null, kind, imageUrl, blobKey],
   );
   await query("UPDATE conversations SET last_message_at = $1 WHERE id = $2", [
     now,
     conversationId,
   ]);
-  return { id, sender, text, createdAt: now };
+  return {
+    id,
+    sender,
+    text,
+    createdAt: now,
+    kind,
+    imageUrl: imageUrl ?? undefined,
+    blobKey: blobKey ?? undefined,
+  };
 }
 
 /**
@@ -95,6 +107,9 @@ export async function ingestCustomerMessage(
     displayName: string;
     text: string;
     extId?: string;
+    kind?: "text" | "image";
+    imageUrl?: string;
+    blobKey?: string;
   },
 ): Promise<string | null> {
   if (opts.extId) {
@@ -111,7 +126,11 @@ export async function ingestCustomerMessage(
     opts.displayName,
   );
   const conversationId = await ensureConversation(shopId, customerId, opts.channel);
-  await addMessage(conversationId, "customer", opts.text, opts.extId);
+  await addMessage(conversationId, "customer", opts.text, opts.extId, {
+    kind: opts.kind ?? "text",
+    imageUrl: opts.imageUrl,
+    blobKey: opts.blobKey,
+  });
   return conversationId;
 }
 
@@ -222,8 +241,11 @@ export async function getConversation(
     sender: string;
     text: string;
     created_at: string;
+    kind: string;
+    image_url: string | null;
+    blob_key: string | null;
   }>(
-    `SELECT id, sender, text, created_at FROM messages
+    `SELECT id, sender, text, created_at, kind, image_url, blob_key FROM messages
      WHERE conversation_id = $1 ORDER BY created_at ASC`,
     [conversationId],
   );
@@ -238,6 +260,9 @@ export async function getConversation(
       sender: m.sender === "admin" ? "admin" : "customer",
       text: m.text,
       createdAt: Number(m.created_at),
+      kind: m.kind === "image" ? "image" : "text",
+      imageUrl: m.image_url ?? undefined,
+      blobKey: m.blob_key ?? undefined,
     })),
   };
 }

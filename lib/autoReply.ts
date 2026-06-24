@@ -37,7 +37,7 @@ export async function processAutoReply(
     const level = await getAutoLevel(shopId);
     // โหมด full → AI ตอบแม้ไม่มั่นใจ (โหมดปลอดภัยจะเด้งรอตอบแทน)
     const fullNow = level === "full";
-    const customerMsg = buildConversationContext(
+    const ctx = buildConversationContext(
       convo.customerName,
       convo.channel,
       convo.messages,
@@ -47,7 +47,8 @@ export async function processAutoReply(
       shopVoice: shopData.shop.voice,
       shopMemory: shopData.shop.memory,
       products: shopData.products,
-      customerMsg,
+      customerMsg: ctx.text,
+      imageUrls: ctx.imageUrls,
     });
     // ตอบไม่ออกจริงๆ (ข้อความว่าง) → รอคนเสมอ แม้ full auto (กันส่งข้อความเปล่า)
     if (!result.message.trim()) {

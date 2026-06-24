@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   }
 
   const shopData = await getShopData(admin.shopId);
-  const customerMsg = buildConversationContext(
+  const ctx = buildConversationContext(
     convo.customerName,
     convo.channel,
     convo.messages,
@@ -48,7 +48,8 @@ export async function POST(request: Request) {
       shopVoice: shopData.shop.voice,
       shopMemory: shopData.shop.memory,
       products: shopData.products,
-      customerMsg,
+      customerMsg: ctx.text,
+      imageUrls: ctx.imageUrls,
     });
     return NextResponse.json({ choices });
   } catch (e) {

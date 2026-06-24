@@ -36,6 +36,15 @@ async function callClaudeRaw(
   }
 
   const userContent = buildUserContent(req);
+  const imgs = req.imageUrls ?? [];
+  // มีรูป → ส่งเป็น content blocks (text + image url) ให้ Claude ดูภาพ; ไม่มีรูป → string เดิม (ไม่มีต้นทุนรูปเพิ่ม)
+  const content =
+    imgs.length === 0
+      ? userContent
+      : [
+          { type: "text", text: userContent },
+          ...imgs.map((url) => ({ type: "image", source: { type: "url", url } })),
+        ];
 
   let res: Response;
   try {
@@ -50,7 +59,7 @@ async function callClaudeRaw(
         model: MODEL,
         max_tokens: 900,
         system: systemPrompt,
-        messages: [{ role: "user", content: userContent }],
+        messages: [{ role: "user", content }],
       }),
     });
   } catch {

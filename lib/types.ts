@@ -81,6 +81,7 @@ export type GenerateRequest = {
   shopMemory: string; // ข้อมูล/นโยบายร้านที่ร้านอยากให้ AI จำ (ดู Shop.memory)
   products: Product[];
   customerMsg: string; // ข้อความ + บริบทจากลูกค้า รวมในช่องเดียว
+  imageUrls?: string[]; // ลิงก์รูปจากลูกค้า (ส่งเข้า Claude ให้ดูภาพ) — มีเฉพาะตอนแชตมีรูป
 };
 
 /** ผลลัพธ์การแยกข้อมูลอัตโนมัติจากข้อความดิบ (ยังไม่มี id) */

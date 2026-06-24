@@ -14,6 +14,8 @@ export const REPLY_SYSTEM_PROMPT = `คุณคือแอดมินร้�
    - เรื่องนโยบาย/รายละเอียดร้าน (ค่าส่ง/วิธีจ่ายเงิน/เก็บปลายทาง/คืนเงิน/รับประกัน/เวลาทำการ/ที่ตั้งร้าน ฯลฯ) → ถ้ามีระบุไว้ใน [สิ่งที่ร้านอยากให้ AI จำ] ให้ตอบตามนั้นได้เลย
    จะให้ขอเช็คกับแอดมิน "เฉพาะ" เรื่องที่ไม่มีข้อมูลจริงๆ เท่านั้น เช่น เรื่องนโยบายที่ "ไม่ได้ระบุ" ใน [สิ่งที่ร้านอยากให้ AI จำ] หรือเรื่องของแท้-ของปลอม/แหล่งที่มาที่ไม่มีข้อมูล — อย่าเดาหรือการันตีเรื่องที่ไม่มีข้อมูลเอง
 
+6. ถ้าลูกค้าแนบรูปมา ให้ดูรูปจริงแล้วตอบให้ตรง (เช่น สี/ลักษณะ/น่าจะเป็นรุ่นไหนเทียบกับสินค้าในคลัง) — แต่ห้ามมั่วสเปก/รุ่นที่ดูจากรูปไม่ออก ถ้าไม่ชัดให้ถามเพิ่มอย่างสุภาพ
+
 สำคัญมาก: ฟิลด์ message ห้ามว่างเด็ดขาด ต้องมีข้อความตอบลูกค้าที่ส่งได้จริงเสมอ
 
 ประเมิน needs_human (ความมั่นใจสำหรับโหมดตอบอัตโนมัติ):
@@ -76,16 +78,27 @@ ${req.customerMsg.trim()}
 export function buildConversationContext(
   customerName: string,
   channel: string,
-  messages: { sender: "customer" | "admin"; text: string }[],
-): string {
+  messages: { sender: "customer" | "admin"; text: string; kind?: "text" | "image"; imageUrl?: string }[],
+): { text: string; imageUrls: string[] } {
   const history = messages
     .slice(-12)
-    .map((m) => `${m.sender === "admin" ? "แอดมิน" : "ลูกค้า"}: ${m.text}`)
+    .map((m) => {
+      const who = m.sender === "admin" ? "แอดมิน" : "ลูกค้า";
+      const body = m.kind === "image" ? `[ส่งรูป]${m.text ? " " + m.text : ""}` : m.text;
+      return `${who}: ${body}`;
+    })
     .join("\n");
-  return `นี่คือประวัติแชตกับลูกค้า "${customerName}" (ช่องทาง ${channel}):
+  // เอา url รูปจาก "ลูกค้า" ใน 3 ข้อความล่าสุด สูงสุด 4 รูป (คุมต้นทุน)
+  const imageUrls = messages
+    .slice(-3)
+    .filter((m) => m.sender === "customer" && m.kind === "image" && m.imageUrl)
+    .map((m) => m.imageUrl as string)
+    .slice(-4);
+  const text = `นี่คือประวัติแชตกับลูกค้า "${customerName}" (ช่องทาง ${channel}):
 ${history}
 
 แอดมินกำลังจะตอบลูกค้าต่อจากข้อความล่าสุด ร่างข้อความตอบที่พร้อมส่งได้เลย`;
+  return { text, imageUrls };
 }
 
 /* ---------------- นำเข้าอัตโนมัติ: แยกเป็นรายการสินค้า ---------------- */

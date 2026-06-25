@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentAdmin } from "@/lib/auth";
 import { getValidAccessToken } from "@/lib/connectionRepo";
+import { getMockSettings } from "@/lib/shopRepo";
 import { attributeUpsells } from "@/lib/upsellAttribution";
 import { salesSince } from "@/lib/lazadaOrders";
 import { upsellSummary, soldSummary, monthStart } from "@/lib/upsellRepo";
@@ -13,9 +14,13 @@ export async function POST() {
   if (!admin) {
     return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
   }
+  // เปิดโหมดข้อมูลทดลอง (mock) อยู่ไหม — ถ้าเปิด ยอดขายโชว์ 0 (เดโม) แต่ยังนับการพ่วงปกติ
+  const mock = await getMockSettings(admin.shopId);
+  const mockOn = Object.values(mock).some((s) => s?.chat === true || s?.catalog === true);
+
   // เชื่อม Lazada จริงไหม — ถ้าไม่ (ไม่มี token / เป็น mock) ยอดขาย+พ่วงขายได้โชว์ 0 (ไม่ปลอม)
   const token = await getValidAccessToken(admin.shopId, "lazada");
-  const hasRealLazada = !!token && !token.startsWith("mock");
+  const hasRealLazada = !mockOn && !!token && !token.startsWith("mock");
   if (hasRealLazada) await attributeUpsells(admin.shopId, token!).catch(() => {});
 
   const since = monthStart(Date.now());

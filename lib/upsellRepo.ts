@@ -80,3 +80,8 @@ export async function soldSummary(
   );
   return { count: Number(row?.count ?? 0), totalSoldValue: Number(row?.total ?? 0) };
 }
+
+/** ล้างเหตุการณ์พ่วงทั้งหมดของร้าน (รีเซ็ตตอนสลับจาก mock → ของจริง) */
+export async function clearUpsells(shopId: string): Promise<void> {
+  await query("DELETE FROM upsell_events WHERE shop_id = $1", [shopId]);
+}

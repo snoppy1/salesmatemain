@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, Fragment } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type {
   Product,
@@ -78,6 +78,7 @@ export default function Dashboard({
   const [view, setView] = useState<View>("inbox");
   const [mockSettings, setMockSettings] = useState<MockSettings>({});
   const [mockModalOpen, setMockModalOpen] = useState(false);
+  const [metricsKey, setMetricsKey] = useState(0); // bump เพื่อให้การ์ดวัดยอดโหลดใหม่
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<number | null>(null);
 
@@ -91,35 +92,23 @@ export default function Dashboard({
       .catch(() => {});
   }, []);
 
-  // สลับสวิตช์ข้อมูลทดลองของแพลตฟอร์ม (หมวด chat / catalog) + เซฟทันที
-  function toggleMock(platform: string, kind: "chat" | "catalog") {
-    setMockSettings((prev) => {
-      const base = prev[platform] ?? { chat: false, catalog: false };
-      const next: MockSettings = {
-        ...prev,
-        [platform]: { ...base, [kind]: base[kind] === false },
-      };
-      void fetch("/api/mock-settings", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ settings: next }),
-      }).catch(() => {});
-      return next;
-    });
-  }
-
   // เปิด/ปิดข้อมูลทดลองทั้งหมด (ทุกแพลตฟอร์ม ทั้งแชต+สินค้า) ทีเดียว
-  function setAllMock(on: boolean) {
+  async function setAllMock(on: boolean) {
     const next: MockSettings = {};
     for (const p of MOCK_PLATFORMS) {
       next[p.id] = { chat: on, catalog: p.catalog ? on : false };
     }
     setMockSettings(next);
-    void fetch("/api/mock-settings", {
+    await fetch("/api/mock-settings", {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ settings: next }),
     }).catch(() => {});
+    // สลับกลับเป็นของจริง → ล้างข้อมูลพ่วงที่สะสมตอนเดโม (รีเซ็ตเหลือ 0)
+    if (!on) {
+      await fetch("/api/metrics/reset", { method: "POST" }).catch(() => {});
+    }
+    setMetricsKey((k) => k + 1); // ให้การ์ดวัดยอดโหลดใหม่ (mock→ยอดขาย 0 / real→ค่าจริง)
   }
 
   function markDirty() {
@@ -385,7 +374,6 @@ export default function Dashboard({
         open={mockModalOpen}
         onClose={() => setMockModalOpen(false)}
         settings={mockSettings}
-        onToggle={toggleMock}
         onToggleAll={setAllMock}
       />
       <main className="pl-16">
@@ -407,7 +395,7 @@ export default function Dashboard({
                 <h2 className="mb-4 text-base font-semibold text-gray-900 dark:text-white">
                   ร้านค้า
                 </h2>
-                <UpsellMetric />
+                <UpsellMetric key={metricsKey} />
               </section>
             </div>
           )}
@@ -547,13 +535,11 @@ function MockSettingsModal({
   open,
   onClose,
   settings,
-  onToggle,
   onToggleAll,
 }: {
   open: boolean;
   onClose: () => void;
   settings: MockSettings;
-  onToggle: (platform: string, kind: "chat" | "catalog") => void;
   onToggleAll: (on: boolean) => void;
 }) {
   if (!open) return null;
@@ -584,11 +570,11 @@ function MockSettingsModal({
           </button>
         </div>
         <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
-          เปิด = โชว์ข้อมูลตัวอย่างให้ลองเล่น · ปิด = ใช้ของจริงล้วน (แยกแชต / สินค้า)
+          เปิด = โชว์ข้อมูลตัวอย่างให้ลองเล่น (ยอดขายจะเป็น ฿0) · ปิด = ใช้ของจริง แล้วรีเซ็ตข้อมูลเดโมเหลือ 0
         </p>
-        <div className="mb-4 flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800/60">
+        <div className="mb-3 flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2.5 dark:bg-gray-800/60">
           <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-            เปิด/ปิดทั้งหมด
+            เปิดข้อมูลทดลอง (ทุกแพลตฟอร์ม)
           </span>
           <EnableToggle
             enabled={allOn}
@@ -596,41 +582,15 @@ function MockSettingsModal({
             label="เปิด/ปิดข้อมูลทดลองทั้งหมด"
           />
         </div>
-        <div className="grid grid-cols-[1fr_auto_auto] items-center gap-x-5 gap-y-3">
-          <span className="text-[11px] font-medium text-gray-400">แพลตฟอร์ม</span>
-          <span className="w-12 text-center text-[11px] font-medium text-gray-400">
-            แชต
-          </span>
-          <span className="w-12 text-center text-[11px] font-medium text-gray-400">
-            สินค้า
-          </span>
+        <div className="flex flex-wrap gap-1.5">
           {MOCK_PLATFORMS.map((p) => (
-            <Fragment key={p.id}>
-              <span className="flex items-center gap-2">
-                <span className={`h-6 w-6 shrink-0 rounded-md ${p.color}`} />
-                <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                  {p.name}
-                </span>
-              </span>
-              <span className="flex w-12 justify-center">
-                <EnableToggle
-                  enabled={settings[p.id]?.chat === true}
-                  onToggle={() => onToggle(p.id, "chat")}
-                  label={`ข้อมูลทดลองแชต ${p.name}`}
-                />
-              </span>
-              <span className="flex w-12 justify-center">
-                {p.catalog ? (
-                  <EnableToggle
-                    enabled={settings[p.id]?.catalog === true}
-                    onToggle={() => onToggle(p.id, "catalog")}
-                    label={`ข้อมูลทดลองสินค้า ${p.name}`}
-                  />
-                ) : (
-                  <span className="text-xs text-gray-300 dark:text-gray-600">—</span>
-                )}
-              </span>
-            </Fragment>
+            <span
+              key={p.id}
+              className="flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+            >
+              <span className={`h-3 w-3 rounded-sm ${p.color}`} />
+              {p.name}
+            </span>
           ))}
         </div>
       </div>

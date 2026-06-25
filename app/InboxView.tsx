@@ -42,20 +42,20 @@ const LEVEL_OPTIONS: { value: AutoLevel; label: string }[] = [
 
 /** ไอคอนแบรนด์ทางการ (react-icons / Simple Icons) — โลโก้สีขาวบนพื้นสีแบรนด์ */
 function LineGlyph({ small }: { small?: boolean }) {
-  return <SiLine className={small ? "h-4 w-4" : "h-6 w-6"} aria-hidden="true" />;
+  return <SiLine className={small ? "h-4 w-4" : "h-7 w-7"} aria-hidden="true" />;
 }
 function FacebookGlyph({ small }: { small?: boolean }) {
-  return <SiFacebook className={small ? "h-4 w-4" : "h-6 w-6"} aria-hidden="true" />;
+  return <SiFacebook className={small ? "h-4 w-4" : "h-7 w-7"} aria-hidden="true" />;
 }
 function TiktokGlyph({ small }: { small?: boolean }) {
-  return <SiTiktok className={small ? "h-4 w-4" : "h-6 w-6"} aria-hidden="true" />;
+  return <SiTiktok className={small ? "h-4 w-4" : "h-7 w-7"} aria-hidden="true" />;
 }
 // โลโก้ Lazada — รูปถุงทางการ (จากไฟล์ที่ผู้ใช้ให้) เป็น silhouette สีขาวบนพื้นน้ำเงิน
 function LazadaGlyph({ small }: { small?: boolean }) {
   return (
     <svg
       viewBox="0 0 67.46 54.72"
-      className={small ? "h-4 w-4" : "h-6 w-6"}
+      className={small ? "h-4 w-4" : "h-7 w-7"}
       fill="currentColor"
       aria-hidden="true"
     >
@@ -64,7 +64,7 @@ function LazadaGlyph({ small }: { small?: boolean }) {
   );
 }
 function ShopeeGlyph({ small }: { small?: boolean }) {
-  return <SiShopee className={small ? "h-4 w-4" : "h-6 w-6"} aria-hidden="true" />;
+  return <SiShopee className={small ? "h-4 w-4" : "h-7 w-7"} aria-hidden="true" />;
 }
 
 /** แพลตฟอร์มที่โชว์ในหน้ารวมกล่องแชต (เพิ่มเจ้าอื่นภายหลังได้) */
@@ -801,7 +801,7 @@ function AppList({
                   className="flex w-full items-center gap-3 text-left"
                 >
                   <span
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white ${def?.iconBg ?? "bg-gray-400"}`}
+                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-white ${def?.iconBg ?? "bg-gray-400"}`}
                   >
                     {def ? <def.Glyph /> : null}
                   </span>

@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "พ่วง — ผู้ช่วยเสนอขายพ่วง",
+  title: "SalesMate — ผู้ช่วยขายอัจฉริยะ",
   description:
-    "เครื่องมือช่วยแอดมินร้านแชตเจนประโยคขายพ่วง (cross-sell/upsell) แบบ human-in-the-loop",
+    "ผู้ช่วยขาย AI + กล่องแชตรวมหลายแพลตฟอร์ม ช่วยตอบลูกค้าและขายพ่วงให้ร้านแชต",
 };
 
 // ตั้งคลาส .dark ก่อน paint กันจอกระพริบ (อ่านจาก localStorage / ค่าระบบ)

@@ -6,7 +6,6 @@ import {
   getSendTarget,
 } from "./inboxRepo";
 import { getShopData } from "./shopRepo";
-import { getChannelLevel } from "./inboxAppsRepo";
 import { generateReply, generateReplyWithTools, type ReplyResult } from "./claude";
 import { buildConversationContext } from "./prompt";
 import { listPromotions } from "./promotionsRepo";
@@ -40,9 +39,6 @@ export async function processAutoReply(
     const convo = await getConversation(shopId, conversationId);
     if (!convo) return;
     const shopData = await getShopData(shopId);
-    const level = await getChannelLevel(shopId, convo.channel);
-    // โหมด full → AI ตอบแม้ไม่มั่นใจ (โหมดปลอดภัยจะเด้งรอตอบแทน)
-    const fullNow = level === "full";
     const ctx = buildConversationContext(
       convo.customerName,
       convo.channel,
@@ -83,8 +79,8 @@ export async function processAutoReply(
       await setPendingHuman(conversationId, true);
       return;
     }
-    // ไม่มั่นใจ + ไม่ใช่ full → รอคนตอบ (โหมดปลอดภัย); ถ้า full → ส่งคำตอบไปเลย
-    if (result.needsHuman && !fullNow) {
+    // ไม่มั่นใจ → รอคนตอบเสมอ (เรื่องที่ตอบไม่ได้ห้ามเดา/สมมุติข้อมูลขึ้นเอง)
+    if (result.needsHuman) {
       await setPendingHuman(conversationId, true);
       return;
     }
@@ -131,12 +127,6 @@ export async function processAutoReply(
         product: result.upsellProduct,
         estValue: result.estAddedValue,
       }).catch(() => {});
-    }
-
-    // Full auto + AI ไม่มั่นใจ: ส่งข้อความ "ขอเช็คแอดมิน" ให้ลูกค้าแล้ว แต่ AI ยังตอบจริงไม่ได้
-    // → ตั้ง "รอตอบ" กลับ เพื่อให้แอดมินเห็นว่าต้องตามตอบต่อ (กันลูกค้ารอเก้อ)
-    if (result.needsHuman) {
-      await setPendingHuman(conversationId, true);
     }
   } catch {
     await setPendingHuman(conversationId, true).catch(() => {});

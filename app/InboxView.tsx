@@ -37,7 +37,6 @@ type InboxApp = { channel: string; level: AutoLevel };
 const LEVEL_OPTIONS: { value: AutoLevel; label: string }[] = [
   { value: "off", label: "✋ กดส่งเอง" },
   { value: "safe", label: "🛡️ ปลอดภัย" },
-  { value: "full", label: "⚡ Full auto" },
 ];
 
 /** ไอคอน LINE (ฟองแชตสีเขียวแบรนด์) */
@@ -313,17 +312,14 @@ export default function InboxView({
     void loadApps();
   }, [loadApps]);
 
-  const levelOf = (channel: string | null): AutoLevel =>
-    apps.find((a) => a.channel === channel)?.level ?? "off";
+  const levelOf = (channel: string | null): AutoLevel => {
+    const lvl = apps.find((a) => a.channel === channel)?.level ?? "off";
+    return lvl === "full" ? "safe" : lvl; // โหมด full เดิม → แสดงเป็นปลอดภัย
+  };
 
-  // เปลี่ยนโหมด AI "ของแอปนั้น" — Full auto ต้องยืนยันก่อน
+  // เปลี่ยนโหมด AI ของแอปนั้น
   async function changeLevel(channel: string, next: AutoLevel) {
     if (next === levelOf(channel)) return;
-    if (next === "full") {
-      const msg =
-        "⚡ Full auto: AI จะตอบลูกค้าทุกข้อความเอง แม้แต่ตอนที่ไม่มั่นใจ (เช่น ต่อรองราคา / เคลม / คืนเงิน) ซึ่งอาจตอบผิดได้\n\nยืนยันเปิด Full auto?";
-      if (!window.confirm(msg)) return;
-    }
     const prev = apps;
     const optimistic = apps.map((a) =>
       a.channel === channel ? { ...a, level: next } : a,
@@ -865,7 +861,7 @@ function AppList({
                 <div className="mt-2 flex items-center gap-2 pl-[3.25rem]">
                   <span className="text-[11px] text-gray-500 dark:text-gray-400">โหมด AI:</span>
                   <select
-                    value={a.level}
+                    value={a.level === "full" ? "safe" : a.level}
                     onChange={(e) => onChangeLevel(a.channel, e.target.value as AutoLevel)}
                     aria-label={`โหมด AI ของ ${def?.name ?? a.channel}`}
                     className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"

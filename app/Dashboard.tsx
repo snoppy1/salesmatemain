@@ -376,22 +376,25 @@ export default function Dashboard({
       <main className="pl-16">
         <div
           className={`mx-auto px-4 py-6 sm:py-8 ${
-            view === "catalog" || view === "inbox" ? "max-w-6xl" : "max-w-3xl"
+            view === "settings" || view === "catalog" || view === "inbox" ? "max-w-6xl" : "max-w-3xl"
           }`}
         >
-          {view === "inbox" && (
-            <>
-              <UpsellMetric />
-              <InboxView mockSettings={mockSettings} />
-            </>
-          )}
+          {view === "inbox" && <InboxView mockSettings={mockSettings} />}
           {view === "settings" && (
-            <SettingsView
-              shop={shop}
-              updateShop={updateShop}
-              save={save}
-              onSave={handleSave}
-            />
+            <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+              <SettingsView
+                shop={shop}
+                updateShop={updateShop}
+                save={save}
+                onSave={handleSave}
+              />
+              <section className="h-fit rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                <h2 className="mb-4 text-base font-semibold text-gray-900 dark:text-white">
+                  ร้านค้า
+                </h2>
+                <UpsellMetric />
+              </section>
+            </div>
           )}
           {view === "catalog" && (
             <CatalogView

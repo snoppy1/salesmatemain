@@ -24,13 +24,12 @@ export default function UpsellMetric() {
     };
   }, []);
 
-  // ซ่อนทั้งแถบถ้ายังไม่มีอะไรให้โชว์เลย
-  if (!m || (m.offered.count === 0 && m.sales.totalRevenue === 0)) return null;
+  if (!m) return null; // ระหว่างโหลด
 
   const baht = (n: number) => `฿${n.toLocaleString()}`;
 
   return (
-    <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-2">
       <Tile label="ยอดขาย Lazada (เดือนนี้)" value={baht(m.sales.totalRevenue)} hint={`${m.sales.orderCount} ออเดอร์`} />
       <Tile label="AI เสนอพ่วง (ส่งแล้ว)" value={baht(m.offered.totalEstValue)} hint={`${m.offered.count} ครั้ง`} />
       <Tile label="พ่วงขายได้จริง" value={baht(m.sold.totalSoldValue)} hint={`${m.sold.count} ครั้ง`} highlight />

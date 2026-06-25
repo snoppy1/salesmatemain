@@ -24,6 +24,20 @@ export type Product = {
   stockByPlatform?: Record<string, number>; // จำนวนคงเหลือแยกรายแพลตฟอร์ม เช่น { lazada: 12, shopee: 8 }
 };
 
+/** โปรโมชั่นระดับร้าน (sync มาจาก Lazada หรือพิมพ์เอง) ที่ AI ใช้แนะนำลูกค้า */
+export type Promotion = {
+  id: string;
+  title: string;            // ชื่อโปร เช่น "ซื้อ 2 ลด 50"
+  type: string;             // percent | fixed | code | bundle | ...
+  conditionsText: string;   // เงื่อนไขแบบอ่านรู้เรื่องให้ AI
+  minSpend: number | null;  // ยอดขั้นต่ำ (บาท) — null = ไม่มี
+  productScope: string;     // "" = ทุกชิ้น; ไม่ว่าง = ชื่อ/คีย์เวิร์ดสินค้าที่ใช้ได้
+  code: string;             // โค้ดส่วนลด ("" ถ้าไม่มี)
+  startsAt: number | null;  // epoch ms; null = ไม่จำกัดเริ่ม
+  endsAt: number | null;    // epoch ms; null = ไม่จำกัดสิ้นสุด
+  source: string;           // "lazada" | "manual"
+};
+
 /**
  * ตั้งค่า "ข้อมูลทดลอง (mock)" แยกต่อแพลตฟอร์ม — 2 หมวด: แชต / สินค้า
  * คีย์ = channel/platform (line/facebook/tiktok/lazada/shopee)

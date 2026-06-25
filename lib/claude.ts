@@ -26,7 +26,23 @@ export type ReplyResult = {
   message: string;
   needsHuman: boolean;
   reason: string;
+  shouldUpsell: boolean;
+  estAddedValue: number | null;
+  upsellProduct: string;
 };
+
+/** แปลง JSON ดิบจากโมเดล → ReplyResult (pure, เทสต์ได้) */
+export function parseReplyResult(obj: Record<string, unknown>): ReplyResult {
+  const ev = obj.est_added_value;
+  return {
+    message: typeof obj.message === "string" ? obj.message : "",
+    needsHuman: Boolean(obj.needs_human),
+    reason: typeof obj.reason_for_admin === "string" ? obj.reason_for_admin : "",
+    shouldUpsell: Boolean(obj.should_upsell),
+    estAddedValue: typeof ev === "number" && Number.isFinite(ev) ? ev : null,
+    upsellProduct: typeof obj.upsell_product === "string" ? obj.upsell_product : "",
+  };
+}
 
 /** เรียก Claude แล้วคืน JSON object ที่ parse แล้ว (โยน ClaudeError ถ้าพลาด) */
 async function callClaudeRaw(
@@ -88,11 +104,7 @@ async function callClaudeRaw(
 /** กล่องแชต: ตอบลูกค้าเสมอ + ประเมิน needs_human (ใช้ทั้ง draft และ auto) */
 export async function generateReply(req: GenerateRequest): Promise<ReplyResult> {
   const obj = await callClaudeRaw(REPLY_SYSTEM_PROMPT, req);
-  return {
-    message: typeof obj.message === "string" ? obj.message : "",
-    needsHuman: Boolean(obj.needs_human),
-    reason: typeof obj.reason_for_admin === "string" ? obj.reason_for_admin : "",
-  };
+  return parseReplyResult(obj);
 }
 
 /** โหมด manual: เสนอ 2-3 คำตอบให้แอดมินเลือก */
@@ -218,12 +230,10 @@ export async function generateReplyWithTools(
   try {
     obj = parseModelJson(finalText) as Record<string, unknown>;
   } catch {
-    // โมเดลตอบเป็นข้อความล้วน (เช่น ถามเลขออเดอร์) → ใช้เป็น message ตรงๆ
-    return { message: finalText.trim(), needsHuman: false, reason: "" };
+    // โมเดลตอบเป็นข้อความล้วน (เช่น ถามเลขออเดอร์) → ไม่ถือเป็นการพ่วง
+    return { message: finalText.trim(), needsHuman: false, reason: "", shouldUpsell: false, estAddedValue: null, upsellProduct: "" };
   }
-  return {
-    message: typeof obj.message === "string" ? obj.message : finalText.trim(),
-    needsHuman: Boolean(obj.needs_human),
-    reason: typeof obj.reason_for_admin === "string" ? obj.reason_for_admin : "",
-  };
+  const parsed = parseReplyResult(obj);
+  // order path: ถ้า JSON ไม่มี message ให้ fallback เป็นข้อความสุดท้าย
+  return { ...parsed, message: parsed.message || finalText.trim() };
 }

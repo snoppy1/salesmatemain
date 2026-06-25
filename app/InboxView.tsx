@@ -161,6 +161,9 @@ const PLATFORMS: PlatformDef[] = [
   },
 ];
 
+// ช่องทางที่ยังไม่พร้อม — ซ่อนจาก UI ก่อน (โค้ด/ไอคอนยังอยู่ครบ เปิดคืนได้)
+const HIDDEN_CHANNELS = new Set(["tiktok", "shopee"]);
+
 /** ปลายทาง API ส่งข้อความตามช่องทาง (draft/choices ใช้ /api/line ร่วมกันได้) */
 function sendBaseFor(channel: string | undefined): string {
   if (channel === "facebook") return "/api/facebook";
@@ -798,7 +801,9 @@ function AppList({
 }) {
   const [adding, setAdding] = useState(false);
   const addedChannels = new Set(apps.map((a) => a.channel));
-  const available = PLATFORMS.filter((p) => !addedChannels.has(p.channel));
+  const available = PLATFORMS.filter(
+    (p) => !addedChannels.has(p.channel) && !HIDDEN_CHANNELS.has(p.channel),
+  );
 
   return (
     <div className="flex h-full flex-col">
@@ -823,7 +828,7 @@ function AppList({
         </div>
       ) : (
         <div className="space-y-2">
-          {apps.map((a) => {
+          {apps.filter((a) => !HIDDEN_CHANNELS.has(a.channel)).map((a) => {
             const def = PLATFORMS.find((p) => p.channel === a.channel);
             const convos = conversations.filter((c) => c.channel === a.channel);
             const pending = convos.filter((c) => c.pendingHuman).length;

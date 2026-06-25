@@ -20,6 +20,10 @@ import InboxView from "./InboxView";
 import UpsellMetric from "@/components/UpsellMetric";
 import { sourceList, unifyStock } from "@/lib/stock";
 
+// ช่องทางที่ยังไม่พร้อม — ซ่อนจาก UI ก่อน (โค้ดหลังบ้านยังอยู่ครบ เปิดคืนได้)
+const HIDDEN_PLATFORMS = ["tiktok", "shopee"];
+const SHOW_COMING_SOON_CHANNELS = false;
+
 function genId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -583,7 +587,7 @@ function MockSettingsModal({
           />
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {MOCK_PLATFORMS.map((p) => (
+          {MOCK_PLATFORMS.filter((p) => !HIDDEN_PLATFORMS.includes(p.id)).map((p) => (
             <span
               key={p.id}
               className="flex items-center gap-1.5 rounded-full bg-surface2 px-2.5 py-1 text-xs text-muted"
@@ -697,9 +701,9 @@ function SettingsView({
 
       <LineConnectBox />
       <FacebookConnectBox />
-      <TiktokConnectBox />
+      {SHOW_COMING_SOON_CHANNELS && <TiktokConnectBox />}
       <LazadaConnectBox />
-      <ShopeeConnectBox />
+      {SHOW_COMING_SOON_CHANNELS && <ShopeeConnectBox />}
     </section>
   );
 }
@@ -1742,7 +1746,7 @@ function CatalogView({
 
       {/* เชื่อมต่อ marketplace (Lazada / Shopee / TikTok) */}
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {MARKETPLACES.map((cfg) => (
+        {MARKETPLACES.filter((cfg) => !HIDDEN_PLATFORMS.includes(cfg.platform)).map((cfg) => (
           <MarketplaceBox
             key={cfg.platform}
             cfg={cfg}
@@ -2307,7 +2311,7 @@ function ImportUrlBox({
             </span>
           )}
           <p className="text-xs text-muted">
-            รองรับลิงก์ Lazada / Shopee / TikTok และเว็บร้านทั่วไป — ดึงแล้วเพิ่มต่อท้าย ตรวจ/แก้ได้ก่อนใช้จริง
+            รองรับลิงก์ Lazada และเว็บร้านทั่วไป — ดึงแล้วเพิ่มต่อท้าย ตรวจ/แก้ได้ก่อนใช้จริง
           </p>
         </div>
       )}

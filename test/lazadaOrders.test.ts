@@ -11,7 +11,7 @@ describe("parseOrder", () => {
     };
     const o = parseOrder(raw);
     expect(o).toMatchObject({ orderId: "12345", status: "shipped", createdAt: 1700000000000 });
-    expect(o?.items).toEqual([{ name: "หูฟัง", quantity: 2 }]);
+    expect(o?.items).toEqual([{ name: "หูฟัง", quantity: 2, price: 0 }]);
   });
   it("missing order_id → null", () => {
     expect(parseOrder({})).toBeNull();

@@ -2,7 +2,7 @@ import "server-only";
 import { createHmac } from "node:crypto";
 import { isLazadaConfigured } from "./marketplace";
 
-export type OrderItem = { name: string; quantity: number };
+export type OrderItem = { name: string; quantity: number; price: number };
 export type OrderSummary = {
   orderId: string;
   status: string;
@@ -39,16 +39,19 @@ function parseLazadaDate(v: unknown): number | null {
   return Number.isFinite(t) ? t : null;
 }
 
-// Lazada คืน order item 1 แถวต่อ 1 ชิ้น → รวมตามชื่อ + นับจำนวน
+// Lazada คืน order item 1 แถวต่อ 1 ชิ้น → รวมตามชื่อ (นับจำนวน + รวมราคา)
 function aggregateItems(arr: unknown[]): OrderItem[] {
-  const map = new Map<string, number>();
+  const map = new Map<string, { quantity: number; price: number }>();
   for (const it of arr) {
     const x = (it ?? {}) as Record<string, unknown>;
     const name = String(x.name ?? "").trim();
     if (!name) continue;
-    map.set(name, (map.get(name) ?? 0) + (Number(x.quantity ?? 1) || 1));
+    const q = Number(x.quantity ?? 1) || 1;
+    const pr = Number(x.paid_price ?? x.item_price ?? 0) || 0;
+    const cur = map.get(name) ?? { quantity: 0, price: 0 };
+    map.set(name, { quantity: cur.quantity + q, price: cur.price + pr });
   }
-  return [...map].map(([name, quantity]) => ({ name, quantity }));
+  return [...map].map(([name, v]) => ({ name, quantity: v.quantity, price: v.price }));
 }
 
 const STATUS_TEXT: Record<string, string> = {
@@ -68,7 +71,11 @@ export function parseOrder(raw: Record<string, unknown>): OrderSummary | null {
   const items: OrderItem[] = Array.isArray(itemsRaw)
     ? itemsRaw.map((it) => {
         const x = (it ?? {}) as Record<string, unknown>;
-        return { name: String(x.name ?? "").trim(), quantity: Number(x.quantity ?? 1) || 1 };
+        return {
+          name: String(x.name ?? "").trim(),
+          quantity: Number(x.quantity ?? 1) || 1,
+          price: Number(x.paid_price ?? x.item_price ?? 0) || 0,
+        };
       })
     : [];
   return {
@@ -128,7 +135,7 @@ function mockOrder(orderId: string): OrderSummary {
     status: "shipped",
     statusText: STATUS_TEXT.shipped,
     createdAt: Date.now() - 1000 * 60 * 60 * 24 * 2,
-    items: [{ name: "หูฟังบลูทูธ TWS", quantity: 1 }],
+    items: [{ name: "หูฟังบลูทูธ TWS", quantity: 1, price: 590 }],
   };
 }
 
@@ -186,4 +193,27 @@ export async function getOrdersByBuyer(accessToken: string, buyerId: string): Pr
   // Lazada GetOrders กรองได้แค่ตามวันที่/สถานะ ไม่มีตัวกรองตาม buyer
   // → คืน [] แล้วให้ AI ขอเลขออเดอร์จากลูกค้าแทน (ใช้ได้จริงทุกช่องทาง)
   return [];
+}
+
+/** ยอดขายรวมจาก Lazada ตั้งแต่ sinceMs (mock = ตัวเลขเดโม; จริง = รวม price จาก GetOrders) */
+export async function salesSince(
+  accessToken: string,
+  sinceMs: number,
+): Promise<{ orderCount: number; totalRevenue: number }> {
+  if (isMock(accessToken)) return { orderCount: 12, totalRevenue: 128400 };
+  try {
+    const data = await signedGet("/orders/get", accessToken, {
+      created_after: new Date(sinceMs).toISOString(),
+      limit: "100",
+    });
+    if (String(data.code ?? "0") !== "0") return { orderCount: 0, totalRevenue: 0 };
+    const orders = ((data.data as Record<string, unknown>)?.orders as unknown[]) ?? [];
+    let total = 0;
+    for (const o of orders) {
+      total += Number((o as Record<string, unknown>).price ?? 0) || 0;
+    }
+    return { orderCount: orders.length, totalRevenue: Math.round(total) };
+  } catch {
+    return { orderCount: 0, totalRevenue: 0 };
+  }
 }

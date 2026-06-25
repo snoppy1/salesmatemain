@@ -9,11 +9,11 @@ import type {
 } from "@/lib/types";
 
 const btnPrimary =
-  "rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50";
+  "rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-contrast transition hover:opacity-90 disabled:opacity-50";
 const btnGhost =
-  "rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700";
+  "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-fg disabled:opacity-50";
 const inputCls =
-  "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white";
+  "w-full rounded-lg border border-line bg-app px-3 py-2 text-sm text-fg outline-none transition focus:border-accent";
 
 function timeAgo(ts: number): string {
   const s = Math.floor((Date.now() - ts) / 1000);
@@ -520,12 +520,12 @@ export default function InboxView({
   return (
     <div className="flex h-[calc(100vh-8rem)] gap-4">
       {/* ซ้าย: รายการบทสนทนา */}
-      <div className="flex w-72 shrink-0 flex-col rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-        <div className="border-b border-gray-200 p-3 dark:border-gray-800">
+      <div className="flex w-72 shrink-0 flex-col rounded-2xl border border-line bg-surface">
+        <div className="border-b border-line p-3">
           <button
             type="button"
             onClick={() => setSelectedPlatform(null)}
-            className="mb-2 flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+            className="mb-2 flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-muted transition hover:bg-surface2 hover:text-fg"
           >
             ‹ กล่องแชต
           </button>
@@ -537,10 +537,10 @@ export default function InboxView({
                 {platform ? <platform.Glyph small /> : null}
               </span>
               <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+                <h2 className="text-sm font-semibold text-fg">
                   {platform?.name ?? "แชต"}
                 </h2>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                <p className="text-[11px] text-muted">
                   {visibleConvos.length} บทสนทนา
                 </p>
               </div>
@@ -552,7 +552,7 @@ export default function InboxView({
                 void changeLevel(selectedPlatform, e.target.value as AutoLevel)
               }
               aria-label="ระดับการตอบของ AI"
-              className="shrink-0 rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+              className="shrink-0 rounded-lg border border-line bg-app px-2 py-1 text-xs font-medium text-fg outline-none focus:border-accent"
             >
               {LEVEL_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -564,7 +564,7 @@ export default function InboxView({
         </div>
         <div className="flex-1 overflow-y-auto">
           {visibleConvos.length === 0 ? (
-            <p className="p-4 text-center text-xs text-gray-500 dark:text-gray-400">
+            <p className="p-4 text-center text-xs text-muted">
               ยังไม่มีบทสนทนา — ลองจำลองลูกค้าทักด้านล่าง
             </p>
           ) : (
@@ -575,15 +575,15 @@ export default function InboxView({
                   key={c.id}
                   type="button"
                   onClick={() => setActiveId(c.id)}
-                  className={`flex w-full flex-col gap-0.5 border-b border-gray-100 px-3 py-2.5 text-left transition dark:border-gray-800 ${
+                  className={`flex w-full flex-col gap-0.5 border-b border-line px-3 py-2.5 text-left transition ${
                     active
-                      ? "bg-emerald-50 dark:bg-emerald-950/30"
-                      : "hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                      ? "bg-accent/12"
+                      : "hover:bg-surface2"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="flex min-w-0 items-center gap-1.5">
-                      <span className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                      <span className="truncate text-sm font-medium text-fg">
                         {c.customerName}
                       </span>
                       {c.pendingHuman && (
@@ -592,11 +592,11 @@ export default function InboxView({
                         </span>
                       )}
                     </span>
-                    <span className="shrink-0 text-[10px] text-gray-400">
+                    <span className="shrink-0 text-[10px] text-muted">
                       {timeAgo(c.lastMessageAt)}
                     </span>
                   </div>
-                  <span className="truncate text-xs text-gray-500 dark:text-gray-400">
+                  <span className="truncate text-xs text-muted">
                     {c.lastSender === "admin" ? "คุณ: " : ""}
                     {c.lastText || "—"}
                   </span>
@@ -608,16 +608,16 @@ export default function InboxView({
       </div>
 
       {/* ขวา: บทสนทนา + ช่องตอบ */}
-      <div className="flex flex-1 flex-col rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex flex-1 flex-col rounded-2xl border border-line bg-surface">
         {!detail ? (
-          <div className="flex flex-1 items-center justify-center text-sm text-gray-400">
+          <div className="flex flex-1 items-center justify-center text-sm text-muted">
             {activeId ? "กำลังโหลด…" : "เลือกบทสนทนา หรือจำลองลูกค้าทักเพื่อเริ่ม"}
           </div>
         ) : (
           <>
-            <div className="flex items-center border-b border-gray-200 px-4 py-3 dark:border-gray-800">
+            <div className="flex items-center border-b border-line px-4 py-3">
               <div>
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                <span className="text-sm font-semibold text-fg">
                   {detail.customerName}
                 </span>
                 <span className="ml-2 rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700 dark:bg-green-950/50 dark:text-green-300">
@@ -636,8 +636,8 @@ export default function InboxView({
                   <div
                     className={`max-w-[75%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm ${
                       m.sender === "admin"
-                        ? "bg-emerald-600 text-white"
-                        : "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100"
+                        ? "bg-accent text-accent-contrast"
+                        : "bg-surface2 text-fg"
                     }`}
                   >
                     {m.kind === "image" && m.imageUrl ? (
@@ -659,7 +659,7 @@ export default function InboxView({
             </div>
 
             {/* ช่องร่าง/ส่ง */}
-            <div className="border-t border-gray-200 p-3 dark:border-gray-800">
+            <div className="border-t border-line p-3">
               {reason && (
                 <p className="mb-2 rounded-lg bg-amber-50 px-3 py-1.5 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
                   💡 {reason}
@@ -678,7 +678,7 @@ export default function InboxView({
                         setDraftFor(activeId, c);
                         setChoicesFor(activeId, []);
                       }}
-                      className="block w-full rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-left text-sm text-gray-800 transition hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-gray-100 dark:hover:bg-emerald-950/40"
+                      className="block w-full rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-left text-sm text-fg transition hover:bg-accent/20"
                     >
                       {c}
                     </button>
@@ -722,8 +722,8 @@ export default function InboxView({
 
               {/* แถวจำลองลูกค้า (สำหรับทดสอบ) — ซ่อนเมื่อปิดข้อมูลทดลองแชต */}
               {chatMockOn && (
-                <div className="mt-3 flex items-center gap-2 rounded-lg bg-gray-50 p-2 dark:bg-gray-800/50">
-                  <span className="shrink-0 text-[11px] font-medium text-gray-400">
+                <div className="mt-3 flex items-center gap-2 rounded-lg bg-surface2 p-2">
+                  <span className="shrink-0 text-[11px] font-medium text-muted">
                     จำลองลูกค้า:
                   </span>
                   <input
@@ -752,7 +752,7 @@ export default function InboxView({
 
         {/* เริ่มแชทจำลองใหม่ (เมื่อยังไม่เลือก/ไม่มีบทสนทนา) — ซ่อนเมื่อปิดข้อมูลทดลองแชต */}
         {!detail && chatMockOn && (
-          <div className="border-t border-gray-200 p-3 dark:border-gray-800">
+          <div className="border-t border-line p-3">
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -803,15 +803,15 @@ function AppList({
   return (
     <div className="flex h-full flex-col">
       <div className="mb-5">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white">กล่องแชต</h2>
-        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+        <h2 className="text-lg font-bold text-fg">กล่องแชต</h2>
+        <p className="mt-0.5 text-sm text-muted">
           เพิ่มแอปที่ใช้ แล้วตั้งโหมด AI แยกแต่ละแอปได้
         </p>
       </div>
 
       {apps.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-sm text-muted">
             ยังไม่มีแอป — เริ่มด้วยการเพิ่มแอปที่คุณใช้
           </p>
           <AddAppButton
@@ -830,7 +830,7 @@ function AppList({
             return (
               <div
                 key={a.channel}
-                className="group relative rounded-2xl border border-gray-200 bg-white p-3 transition hover:border-emerald-400 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-emerald-600"
+                className="group relative rounded-2xl border border-line bg-surface p-3 transition hover:border-accent/50"
               >
                 <button
                   type="button"
@@ -844,7 +844,7 @@ function AppList({
                   </span>
                   <span className="flex-1">
                     <span className="flex items-center gap-2">
-                      <span className="text-base font-semibold text-gray-900 dark:text-white">
+                      <span className="text-base font-semibold text-fg">
                         {def?.name ?? a.channel}
                       </span>
                       {pending > 0 && (
@@ -853,18 +853,18 @@ function AppList({
                         </span>
                       )}
                     </span>
-                    <span className="block text-xs text-gray-500 dark:text-gray-400">
+                    <span className="block text-xs text-muted">
                       {convos.length} บทสนทนา
                     </span>
                   </span>
                 </button>
                 <div className="mt-2 flex items-center gap-2 pl-[3.25rem]">
-                  <span className="text-[11px] text-gray-500 dark:text-gray-400">โหมด AI:</span>
+                  <span className="text-[11px] text-muted">โหมด AI:</span>
                   <select
                     value={a.level === "full" ? "safe" : a.level}
                     onChange={(e) => onChangeLevel(a.channel, e.target.value as AutoLevel)}
                     aria-label={`โหมด AI ของ ${def?.name ?? a.channel}`}
-                    className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 outline-none focus:border-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                    className="rounded-lg border border-line bg-app px-2 py-1 text-xs font-medium text-fg outline-none focus:border-accent"
                   >
                     {LEVEL_OPTIONS.map((o) => (
                       <option key={o.value} value={o.value}>
@@ -877,7 +877,7 @@ function AppList({
                   type="button"
                   onClick={() => onRemoveApp(a.channel)}
                   aria-label="ลบแอปออกจากกล่องแชต"
-                  className="absolute right-2 top-2 hidden rounded-md px-1.5 py-0.5 text-xs text-gray-400 transition hover:bg-red-50 hover:text-red-600 group-hover:block dark:hover:bg-red-950/30"
+                  className="absolute right-2 top-2 hidden rounded-md px-1.5 py-0.5 text-xs text-muted transition hover:bg-red-500/10 hover:text-red-500 group-hover:block"
                 >
                   ✕
                 </button>
@@ -914,15 +914,15 @@ function AddAppButton({
       <button
         type="button"
         onClick={() => setAdding(true)}
-        className="flex w-full items-center justify-center gap-1 rounded-2xl border border-dashed border-gray-300 px-3 py-2.5 text-sm font-medium text-gray-500 transition hover:border-emerald-400 hover:text-emerald-600 dark:border-gray-700 dark:text-gray-400"
+        className="flex w-full items-center justify-center gap-1 rounded-2xl border border-dashed border-line px-3 py-2.5 text-sm font-medium text-muted transition hover:border-accent hover:text-accent"
       >
         ➕ เพิ่มแอป
       </button>
     );
   }
   return (
-    <div className="rounded-2xl border border-gray-200 p-2 dark:border-gray-800">
-      <p className="mb-1 px-1 text-[11px] text-gray-400">เลือกแอปที่จะเพิ่ม</p>
+    <div className="rounded-2xl border border-line p-2">
+      <p className="mb-1 px-1 text-[11px] text-muted">เลือกแอปที่จะเพิ่ม</p>
       <div className="flex flex-wrap gap-2">
         {available.map((p) => (
           <button
@@ -932,7 +932,7 @@ function AddAppButton({
               onAddApp(p.channel);
               setAdding(false);
             }}
-            className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2 py-1 text-sm text-gray-700 transition hover:border-emerald-400 dark:border-gray-700 dark:text-gray-200"
+            className="flex items-center gap-1.5 rounded-lg border border-line px-2 py-1 text-sm text-fg transition hover:border-accent"
           >
             <span
               className={`flex h-5 w-5 items-center justify-center rounded text-white ${p.iconBg}`}

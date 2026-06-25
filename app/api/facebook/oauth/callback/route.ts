@@ -39,7 +39,7 @@ export async function GET(request: Request) {
   const jar = await cookies();
   const savedState = jar.get("fb_oauth_state")?.value;
   if (!code || !state || state !== savedState) {
-    return NextResponse.redirect(new URL("/?fb=error", origin));
+    return NextResponse.redirect(new URL("/?fb=error_state", origin));
   }
 
   try {
@@ -69,7 +69,10 @@ export async function GET(request: Request) {
     res.cookies.set("fb_user_token", userToken, cookieOpts(origin));
     res.cookies.delete("fb_oauth_state");
     return res;
-  } catch {
-    return NextResponse.redirect(new URL("/?fb=error", origin));
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : "เชื่อมต่อ Facebook ผิดพลาด";
+    return NextResponse.redirect(
+      new URL(`/?fb=error&reason=${encodeURIComponent(reason)}`, origin),
+    );
   }
 }

@@ -967,13 +967,17 @@ function FacebookConnectBox() {
     void loadStatus();
     void loadPages();
     // อ่านผลลัพธ์ที่เด้งกลับมาจาก Facebook (?fb=...)
-    const fb = new URLSearchParams(window.location.search).get("fb");
+    const sp = new URLSearchParams(window.location.search);
+    const fb = sp.get("fb");
     if (fb) {
+      const reason = sp.get("reason");
       const map: Record<string, string> = {
         connected: "เชื่อม Facebook สำเร็จ 🎉",
         choose: "คุณมีหลายเพจ — เลือกเพจที่จะใช้ด้านล่าง",
         nopage: "ไม่พบเพจที่คุณเป็นแอดมิน — สร้างเพจก่อนแล้วลองใหม่",
-        error: "เชื่อมไม่สำเร็จ ลองใหม่อีกครั้ง",
+        error: reason ? `เชื่อมไม่สำเร็จ: ${reason}` : "เชื่อมไม่สำเร็จ ลองใหม่อีกครั้ง",
+        error_state:
+          "เซสชันหมดอายุหรือไม่ตรง — กดเชื่อมใหม่ (เข้าผ่าน phuang.vercel.app และอย่ารอเกิน 10 นาที)",
         noapp: "ระบบยังไม่ได้ตั้งค่า Facebook (ผู้ดูแลต้องตั้ง FB_APP_ID/SECRET)",
       };
       setNotice(map[fb] ?? "");

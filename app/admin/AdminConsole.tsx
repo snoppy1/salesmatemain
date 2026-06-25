@@ -112,22 +112,22 @@ export default function AdminConsole({
       <header className="mb-6 flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">SalesMate</h1>
-            <span className="rounded-full bg-gray-900 px-2 py-0.5 text-xs font-semibold text-white dark:bg-gray-700">
+            <h1 className="text-2xl font-bold tracking-tight text-fg">SalesMate</h1>
+            <span className="rounded-full bg-surface2 px-2 py-0.5 text-xs font-semibold text-muted">
               ผู้ดูแลระบบ
             </span>
           </div>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+          <p className="mt-1 text-sm text-muted">
             ดู/แก้ข้อมูลได้ทุกร้าน — เพื่อการคุมระบบเท่านั้น
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2 text-sm">
-          <span className="hidden text-gray-500 dark:text-gray-400 sm:inline">@{username}</span>
+          <span className="hidden text-muted sm:inline">@{username}</span>
           <ThemeToggle />
           <button
             type="button"
             onClick={handleLogout}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            className="rounded-lg border border-line bg-surface px-3 py-1.5 font-medium text-fg transition hover:bg-surface2"
           >
             ออกจากระบบ
           </button>
@@ -136,22 +136,22 @@ export default function AdminConsole({
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[18rem_1fr]">
         {/* รายชื่อร้าน */}
-        <aside className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <aside className="rounded-2xl border border-line bg-surface p-4">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+            <h2 className="text-sm font-semibold text-fg">
               ร้านทั้งหมด ({list.length})
             </h2>
             <button
               type="button"
               onClick={() => router.refresh()}
-              className="text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+              className="text-xs font-medium text-accent hover:underline"
             >
               รีเฟรช
             </button>
           </div>
 
           {list.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
+            <p className="rounded-lg border border-dashed border-line bg-surface2 px-3 py-6 text-center text-sm text-muted">
               ยังไม่มีร้านในระบบ
             </p>
           ) : (
@@ -165,14 +165,14 @@ export default function AdminConsole({
                       onClick={() => selectShop(s.id)}
                       className={`w-full rounded-lg border px-3 py-2 text-left transition ${
                         active
-                          ? "border-emerald-400 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-950/40"
-                          : "border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800/40 dark:hover:bg-gray-800"
+                          ? "border-accent/50 bg-accent/12"
+                          : "border-line bg-surface hover:bg-surface2"
                       }`}
                     >
-                      <div className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+                      <div className="truncate text-sm font-semibold text-fg">
                         {s.name || "(ยังไม่ตั้งชื่อร้าน)"}
                       </div>
-                      <div className="mt-0.5 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                      <div className="mt-0.5 flex items-center justify-between text-xs text-muted">
                         <span className="truncate">@{s.username}</span>
                         <span className="shrink-0">{s.ruleCount} คู่พ่วง</span>
                       </div>
@@ -185,13 +185,13 @@ export default function AdminConsole({
         </aside>
 
         {/* ตัวแก้ไขร้านที่เลือก */}
-        <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <section className="rounded-2xl border border-line bg-surface p-5">
           {!selected ? (
-            <div className="flex min-h-[12rem] items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+            <div className="flex min-h-[12rem] items-center justify-center text-sm text-muted">
               เลือกร้านจากรายการด้านซ้ายเพื่อดู/แก้ข้อมูล
             </div>
           ) : load.kind === "loading" ? (
-            <div className="flex min-h-[12rem] items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+            <div className="flex min-h-[12rem] items-center justify-center text-sm text-muted">
               กำลังโหลดข้อมูลร้าน…
             </div>
           ) : load.kind === "error" ? (
@@ -284,10 +284,10 @@ function ShopEditor({
     <div>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+          <h2 className="text-base font-semibold text-fg">
             {shop.name || "(ยังไม่ตั้งชื่อร้าน)"}
           </h2>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mt-0.5 text-xs text-muted">
             แอดมิน @{selected.username} · รหัสร้าน {selected.id.slice(0, 8)}…
           </p>
         </div>
@@ -297,8 +297,8 @@ function ShopEditor({
           disabled={save === "saving"}
           className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
             save === "error"
-              ? "border border-red-300 bg-white text-red-600 hover:bg-red-50 dark:border-red-800 dark:bg-transparent dark:text-red-400 dark:hover:bg-red-950/40"
-              : "bg-emerald-600 text-white hover:bg-emerald-700"
+              ? "border border-red-500/30 bg-red-500/10 text-red-500 hover:bg-red-500/20"
+              : "bg-accent text-accent-contrast hover:opacity-90"
           }`}
         >
           {saveLabel}
@@ -335,22 +335,22 @@ function ShopEditor({
 
       <div className="mt-6">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">รายการคู่พ่วง</h3>
+          <h3 className="text-sm font-semibold text-fg">รายการคู่พ่วง</h3>
           <button type="button" onClick={addRule} className={secondaryBtnClass}>
             + เพิ่มคู่พ่วง
           </button>
         </div>
 
         {rules.length === 0 ? (
-          <p className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
+          <p className="mt-3 rounded-lg border border-dashed border-line bg-surface2 px-3 py-6 text-center text-sm text-muted">
             ร้านนี้ยังไม่มีคู่พ่วง
           </p>
         ) : (
           <div className="mt-3 space-y-3">
             {rules.map((rule, i) => (
-              <div key={rule.id} className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
+              <div key={rule.id} className="rounded-lg border border-line bg-surface2 p-3">
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  <span className="text-xs font-medium text-muted">
                     คู่พ่วง #{i + 1}
                   </span>
                   <button
@@ -414,22 +414,22 @@ function ShopEditor({
 
       <div className="mt-6">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">คลังสินค้า</h3>
+          <h3 className="text-sm font-semibold text-fg">คลังสินค้า</h3>
           <button type="button" onClick={addProduct} className={secondaryBtnClass}>
             + เพิ่มสินค้า
           </button>
         </div>
 
         {products.length === 0 ? (
-          <p className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
+          <p className="mt-3 rounded-lg border border-dashed border-line bg-surface2 px-3 py-6 text-center text-sm text-muted">
             ร้านนี้ยังไม่มีสินค้าในคลัง
           </p>
         ) : (
           <div className="mt-3 space-y-3">
             {products.map((product, i) => (
-              <div key={product.id} className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
+              <div key={product.id} className="rounded-lg border border-line bg-surface2 p-3">
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  <span className="text-xs font-medium text-muted">
                     สินค้า #{i + 1}
                   </span>
                   <button
@@ -490,7 +490,7 @@ function Field({
   return (
     <label className="block">
       <span
-        className={`mb-1 block font-medium text-gray-700 dark:text-gray-300 ${compact ? "text-xs" : "text-sm"}`}
+        className={`mb-1 block font-medium text-fg ${compact ? "text-xs" : "text-sm"}`}
       >
         {label}
       </span>
@@ -500,7 +500,7 @@ function Field({
 }
 
 const inputClass =
-  "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500";
+  "w-full rounded-lg border border-line bg-app px-3 py-2 text-sm text-fg placeholder-muted/60 transition focus:border-accent focus:outline-none";
 
 const secondaryBtnClass =
-  "rounded-md border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-700 dark:bg-transparent dark:text-emerald-400 dark:hover:bg-emerald-950/40";
+  "rounded-lg border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-fg transition hover:bg-surface2";

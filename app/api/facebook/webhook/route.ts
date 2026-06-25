@@ -65,8 +65,8 @@ export async function POST(request: Request) {
       if (!psid) continue;
       const imageUrl = ev.message?.attachments?.find((a) => a.type === "image")
         ?.payload?.url;
-      const text = imageUrl ? "" : ev.message?.text ?? "";
-      if (!imageUrl && !text.trim()) continue;
+      const text = (ev.message?.text ?? "").trim(); // เก็บคำถามที่มากับรูปด้วย (เดิมทิ้ง)
+      if (!imageUrl && !text) continue;
 
       const displayName = await fetchUserName(channel.access_token, psid);
       const conversationId = await ingestCustomerMessage(shopId, {
@@ -82,10 +82,11 @@ export async function POST(request: Request) {
 
       const mode = await getConversationMode(conversationId);
       if (mode === "auto") {
-        if (imageUrl) {
-          // ได้รูป → ยังไม่ตอบ รอลูกค้าพิมพ์คำถามก่อน แต่ขึ้น "รอตอบ" ให้แอดมินเห็น
+        if (imageUrl && !text) {
+          // รูปล้วน (ยังไม่มีคำถาม) → รอลูกค้าพิมพ์คำถามก่อน ขึ้น "รอตอบ"
           await setPendingHuman(conversationId, true);
         } else {
+          // มีข้อความ หรือ รูป+คำถาม → ให้ AI ตอบ (เห็นรูปในบริบทด้วย)
           autoJobs.push({ shopId, conversationId });
         }
       }

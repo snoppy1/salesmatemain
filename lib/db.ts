@@ -235,6 +235,22 @@ async function ensureSchema(): Promise<void> {
       UNIQUE (account_id)
     );
 
+    -- โปรโมชั่นที่ sync มาจาก Lazada (ระดับร้าน) ให้ AI แนะนำลูกค้า
+    CREATE TABLE IF NOT EXISTS promotions (
+      id              TEXT PRIMARY KEY,
+      shop_id         TEXT NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+      title           TEXT NOT NULL DEFAULT '',
+      type            TEXT NOT NULL DEFAULT '',
+      conditions_text TEXT NOT NULL DEFAULT '',
+      min_spend       INTEGER,
+      product_scope   TEXT NOT NULL DEFAULT '',
+      code            TEXT NOT NULL DEFAULT '',
+      starts_at       BIGINT,
+      ends_at         BIGINT,
+      source          TEXT NOT NULL DEFAULT 'lazada',
+      synced_at       BIGINT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_rules_shop ON rules(shop_id);
     CREATE INDEX IF NOT EXISTS idx_products_shop ON products(shop_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_admin ON sessions(admin_id);
@@ -247,6 +263,7 @@ async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_tiktok_channels_account ON tiktok_channels(account_id);
     CREATE INDEX IF NOT EXISTS idx_lazada_channels_account ON lazada_channels(account_id);
     CREATE INDEX IF NOT EXISTS idx_shopee_channels_account ON shopee_channels(account_id);
+    CREATE INDEX IF NOT EXISTS idx_promotions_shop ON promotions(shop_id);
   `);
 }
 

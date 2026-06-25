@@ -251,6 +251,20 @@ async function ensureSchema(): Promise<void> {
       synced_at       BIGINT NOT NULL
     );
 
+    -- เหตุการณ์ "AI เสนอพ่วงและส่งถึงลูกค้า" (วัดยอดพ่วง) — คอลัมน์ sold/* เผื่อ B3
+    CREATE TABLE IF NOT EXISTS upsell_events (
+      id               TEXT PRIMARY KEY,
+      shop_id          TEXT NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+      conversation_id  TEXT NOT NULL,
+      channel          TEXT NOT NULL DEFAULT '',
+      product          TEXT NOT NULL DEFAULT '',
+      est_value        INTEGER,
+      created_at       BIGINT NOT NULL,
+      sold             BOOLEAN NOT NULL DEFAULT false,
+      sold_value       INTEGER,
+      matched_order_id TEXT
+    );
+
     CREATE INDEX IF NOT EXISTS idx_rules_shop ON rules(shop_id);
     CREATE INDEX IF NOT EXISTS idx_products_shop ON products(shop_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_admin ON sessions(admin_id);
@@ -264,6 +278,7 @@ async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_lazada_channels_account ON lazada_channels(account_id);
     CREATE INDEX IF NOT EXISTS idx_shopee_channels_account ON shopee_channels(account_id);
     CREATE INDEX IF NOT EXISTS idx_promotions_shop ON promotions(shop_id);
+    CREATE INDEX IF NOT EXISTS idx_upsell_events_shop ON upsell_events(shop_id);
   `);
 }
 

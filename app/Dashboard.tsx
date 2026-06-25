@@ -391,8 +391,8 @@ export default function Dashboard({
                 save={save}
                 onSave={handleSave}
               />
-              <section className="h-fit rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                <h2 className="mb-4 text-base font-semibold text-gray-900 dark:text-white">
+              <section className="h-fit rounded-2xl border border-line bg-surface p-5">
+                <h2 className="mb-4 text-base font-semibold text-fg">
                   ร้านค้า
                 </h2>
                 <UpsellMetric key={metricsKey} />
@@ -553,27 +553,27 @@ function MockSettingsModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-gray-900"
+        className="w-full max-w-md rounded-2xl border border-line bg-surface p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-1 flex items-center justify-between gap-2">
-          <h3 className="text-base font-bold text-gray-900 dark:text-white">
+          <h3 className="text-base font-bold text-fg">
             ตั้งค่าข้อมูลทดลอง (mock)
           </h3>
           <button
             type="button"
             onClick={onClose}
             aria-label="ปิด"
-            className="rounded-md p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+            className="rounded-md p-1 text-muted transition hover:bg-surface2 hover:text-fg"
           >
             ✕
           </button>
         </div>
-        <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mb-3 text-xs text-muted">
           เปิด = โชว์ข้อมูลตัวอย่างให้ลองเล่น (ยอดขายจะเป็น ฿0) · ปิด = ใช้ของจริง แล้วรีเซ็ตข้อมูลเดโมเหลือ 0
         </p>
-        <div className="mb-3 flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2.5 dark:bg-gray-800/60">
-          <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+        <div className="mb-3 flex items-center justify-between rounded-lg bg-surface2 px-3 py-2.5">
+          <span className="text-sm font-semibold text-fg">
             เปิดข้อมูลทดลอง (ทุกแพลตฟอร์ม)
           </span>
           <EnableToggle
@@ -586,7 +586,7 @@ function MockSettingsModal({
           {MOCK_PLATFORMS.map((p) => (
             <span
               key={p.id}
-              className="flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+              className="flex items-center gap-1.5 rounded-full bg-surface2 px-2.5 py-1 text-xs text-muted"
             >
               <span className={`h-3 w-3 rounded-sm ${p.color}`} />
               {p.name}
@@ -644,9 +644,9 @@ function SettingsView({
   onSave: () => void;
 }) {
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+    <section className="rounded-2xl border border-line bg-surface p-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white">ตั้งค่าร้าน</h2>
+        <h2 className="text-base font-semibold text-fg">ตั้งค่าร้าน</h2>
         <SaveButton save={save} onSave={onSave} />
       </div>
 
@@ -676,10 +676,10 @@ function SettingsView({
 
         {/* ขวา: สิ่งที่ AI ควรจำ (ข้อมูล/นโยบายร้าน) */}
         <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 dark:border-indigo-900/60 dark:bg-indigo-950/20">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+          <h3 className="text-sm font-semibold text-fg">
             สิ่งที่ AI ควรจำ
           </h3>
-          <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-xs leading-relaxed text-muted">
             ใส่ข้อมูล/นโยบายร้านที่อยากให้ AI ตอบลูกค้าได้เอง เช่น ค่าส่ง วิธีจ่ายเงิน เก็บเงินปลายทาง
             การรับประกัน เวลาทำการ ที่ตั้งร้าน — เรื่องไหนไม่ได้ใส่ AI จะขอเช็คกับแอดมินให้
           </p>
@@ -781,11 +781,11 @@ function LineConnectBox() {
           )}
         </span>
         {connected ? (
-          <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
+          <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-contrast">
             เชื่อมแล้ว
           </span>
         ) : (
-          <span className="rounded-full bg-gray-400 px-2 py-0.5 text-xs font-semibold text-white dark:bg-gray-600">
+          <span className="rounded-full bg-surface2 px-2 py-0.5 text-xs font-semibold text-muted">
             ยังไม่เชื่อม
           </span>
         )}
@@ -794,26 +794,26 @@ function LineConnectBox() {
       {connected ? (
         <div className="mt-3 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-gray-700 dark:text-gray-200">
+            <span className="text-sm text-fg">
               OA: <b>{status?.displayName || "—"}</b>{" "}
-              <span className="text-gray-400">{status?.basicId}</span>
+              <span className="text-muted">{status?.basicId}</span>
             </span>
             <button
               type="button"
               onClick={disconnect}
               disabled={busy}
-              className="ml-auto rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+              className="ml-auto rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium text-fg transition hover:bg-surface2 disabled:opacity-50"
             >
               ยกเลิกการเชื่อมต่อ
             </button>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+          <p className="text-xs text-muted">
             ตั้งค่า “ให้ AI ตอบเองอัตโนมัติ” ได้ที่หน้า <b>กล่องแชต</b> (สวิตช์ข้างไอคอน LINE)
           </p>
         </div>
       ) : (
         <div className="mt-3 space-y-3">
-          <div className="space-y-3 text-xs text-gray-600 dark:text-gray-400">
+          <div className="space-y-3 text-xs text-muted">
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
               ℹ️ ต้องมี <b>LINE Official Account (บัญชีทางการของร้าน)</b> ก่อน — ยังไม่มี สมัครฟรีที่{" "}
               <a
@@ -827,7 +827,7 @@ function LineConnectBox() {
             </p>
 
             <div>
-              <p className="mb-1 font-semibold text-gray-800 dark:text-gray-200">
+              <p className="mb-1 font-semibold text-fg">
                 1️⃣ เอารหัส 2 ตัวจากเว็บ LINE Developers
               </p>
               <ol className="list-decimal space-y-1.5 pl-5">
@@ -854,7 +854,7 @@ function LineConnectBox() {
             </div>
 
             <div>
-              <p className="mb-1 font-semibold text-gray-800 dark:text-gray-200">
+              <p className="mb-1 font-semibold text-fg">
                 2️⃣ วางลิงก์รับข้อความ (Webhook)
               </p>
               <p>
@@ -862,13 +862,13 @@ function LineConnectBox() {
                 <b>Webhook URL</b> → กด <b>Update</b> → เปิดสวิตช์ <b>“Use webhook”</b>
               </p>
               <div className="mt-1 flex items-center gap-2">
-                <code className="flex-1 truncate rounded bg-white px-2 py-1 text-[11px] text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                <code className="flex-1 truncate rounded bg-app px-2 py-1 text-[11px] text-fg">
                   {status?.webhookUrl ?? "…"}
                 </code>
                 <button
                   type="button"
                   onClick={copyWebhook}
-                  className="shrink-0 rounded border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                  className="shrink-0 rounded border border-line px-2 py-1 text-[11px] font-medium text-muted hover:bg-surface2"
                 >
                   {copied ? "คัดลอกแล้ว ✓" : "คัดลอก"}
                 </button>
@@ -876,7 +876,7 @@ function LineConnectBox() {
             </div>
 
             <div>
-              <p className="mb-1 font-semibold text-gray-800 dark:text-gray-200">
+              <p className="mb-1 font-semibold text-fg">
                 3️⃣ ปิดบอทอัตโนมัติเดิม (กันตอบชนกับ AI)
               </p>
               <p>
@@ -894,7 +894,7 @@ function LineConnectBox() {
               </p>
             </div>
 
-            <p className="font-medium text-gray-800 dark:text-gray-200">
+            <p className="font-medium text-fg">
               4️⃣ เอา <b>Channel secret</b> + <b>access token</b> มาวาง 2 ช่องล่างนี้ แล้วกด “เชื่อม LINE” ✅
             </p>
           </div>
@@ -1057,11 +1057,11 @@ function FacebookConnectBox() {
           )}
         </span>
         {connected ? (
-          <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
+          <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-contrast">
             เชื่อมแล้ว
           </span>
         ) : (
-          <span className="rounded-full bg-gray-400 px-2 py-0.5 text-xs font-semibold text-white dark:bg-gray-600">
+          <span className="rounded-full bg-surface2 px-2 py-0.5 text-xs font-semibold text-muted">
             ยังไม่เชื่อม
           </span>
         )}
@@ -1070,19 +1070,19 @@ function FacebookConnectBox() {
       {connected ? (
         <div className="mt-3 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-gray-700 dark:text-gray-200">
+            <span className="text-sm text-fg">
               เพจ: <b>{status?.pageName || "—"}</b>
             </span>
             <button
               type="button"
               onClick={disconnect}
               disabled={busy}
-              className="ml-auto rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+              className="ml-auto rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium text-fg transition hover:bg-surface2 disabled:opacity-50"
             >
               ยกเลิกการเชื่อมต่อ
             </button>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+          <p className="text-xs text-muted">
             ตั้งค่า “ให้ AI ตอบเองอัตโนมัติ” ได้ที่หน้า <b>กล่องแชต</b> (สวิตช์ข้างไอคอน Facebook)
           </p>
         </div>
@@ -1098,7 +1098,7 @@ function FacebookConnectBox() {
           {pages.length > 0 ? (
             // มีหลายเพจ → ให้เลือก
             <div className="space-y-2">
-              <p className="text-sm text-gray-700 dark:text-gray-200">เลือกเพจที่จะใช้:</p>
+              <p className="text-sm text-fg">เลือกเพจที่จะใช้:</p>
               <select
                 value={pickId}
                 onChange={(e) => setPickId(e.target.value)}
@@ -1131,7 +1131,7 @@ function FacebookConnectBox() {
                 </svg>
                 เชื่อม Facebook (เข้าสู่ระบบ)
               </a>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-xs text-muted">
                 กดแล้วล็อกอิน Facebook → เลือกเพจร้าน → เสร็จเลย (ระบบตั้งค่าให้อัตโนมัติ)
               </p>
             </div>
@@ -1148,17 +1148,17 @@ function FacebookConnectBox() {
                 <code>FB_VERIFY_TOKEN</code> — ปุ่มเชื่อมจะใช้ไม่ได้ (mock ใส่ token ขึ้นต้น mock- ได้)
               </p>
             )}
-            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-gray-600 dark:text-gray-400">
+            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-muted">
               <li>
                 ใส่ Callback URL นี้ในหน้า Webhooks ของ Meta:
                 <div className="mt-1 flex items-center gap-2">
-                  <code className="flex-1 truncate rounded bg-white px-2 py-1 text-[11px] text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                  <code className="flex-1 truncate rounded bg-app px-2 py-1 text-[11px] text-fg">
                     {status?.webhookUrl ?? "…"}
                   </code>
                   <button
                     type="button"
                     onClick={() => copy(status?.webhookUrl ?? "", "wh")}
-                    className="shrink-0 rounded border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                    className="shrink-0 rounded border border-line px-2 py-1 text-[11px] font-medium text-muted hover:bg-surface2"
                   >
                     {copied === "wh" ? "คัดลอกแล้ว ✓" : "คัดลอก"}
                   </button>
@@ -1167,14 +1167,14 @@ function FacebookConnectBox() {
               <li>
                 เพิ่ม Redirect URI นี้ใน Facebook Login → Valid OAuth Redirect URIs:
                 <div className="mt-1">
-                  <code className="block truncate rounded bg-white px-2 py-1 text-[11px] text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                  <code className="block truncate rounded bg-app px-2 py-1 text-[11px] text-fg">
                     {(status?.webhookUrl ?? "").replace("/webhook", "/oauth/callback") || "…"}
                   </code>
                 </div>
               </li>
             </ol>
-            <div className="mt-2 space-y-2 border-t border-gray-200 pt-2 dark:border-gray-700">
-              <p className="text-gray-600 dark:text-gray-400">วาง Page Access Token เอง (หรือ mock- เพื่อทดลอง):</p>
+            <div className="mt-2 space-y-2 border-t border-line pt-2">
+              <p className="text-muted">วาง Page Access Token เอง (หรือ mock- เพื่อทดลอง):</p>
               <input
                 type="text"
                 value={token}
@@ -1262,22 +1262,22 @@ function TiktokConnectBox() {
   const connected = status?.connected;
 
   return (
-    <div className="mt-6 rounded-xl border border-gray-300 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/40">
+    <div className="mt-6 rounded-xl border border-line bg-surface2 p-4">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+        <span className="text-sm font-semibold text-fg">
           🎵 เชื่อมแชต TikTok{" "}
           {status?.mock && (
-            <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
+            <span className="text-xs font-normal text-muted">
               (โหมดทดลอง)
             </span>
           )}
         </span>
         {connected ? (
-          <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
+          <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-contrast">
             เชื่อมแล้ว
           </span>
         ) : (
-          <span className="rounded-full bg-gray-400 px-2 py-0.5 text-xs font-semibold text-white dark:bg-gray-600">
+          <span className="rounded-full bg-surface2 px-2 py-0.5 text-xs font-semibold text-muted">
             ยังไม่เชื่อม
           </span>
         )}
@@ -1286,19 +1286,19 @@ function TiktokConnectBox() {
       {connected ? (
         <div className="mt-3 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-gray-700 dark:text-gray-200">
+            <span className="text-sm text-fg">
               ร้าน: <b>{status?.accountName || "—"}</b>
             </span>
             <button
               type="button"
               onClick={disconnect}
               disabled={busy}
-              className="ml-auto rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+              className="ml-auto rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium text-fg transition hover:bg-surface2 disabled:opacity-50"
             >
               ยกเลิกการเชื่อมต่อ
             </button>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+          <p className="text-xs text-muted">
             ตั้งค่า “ให้ AI ตอบเองอัตโนมัติ” ได้ที่หน้า <b>กล่องแชต</b> (สวิตช์ข้างไอคอน TikTok)
           </p>
         </div>
@@ -1309,24 +1309,24 @@ function TiktokConnectBox() {
             ตอนนี้ใส่ token ขึ้นต้น <code>mock-</code> เพื่อทดลองก่อนได้ พอได้สิทธิ์จริงค่อยใส่ token จริง
           </p>
 
-          <details className="rounded-lg border border-gray-300 bg-white/60 p-2 text-xs dark:border-gray-700 dark:bg-gray-800/40">
-            <summary className="cursor-pointer font-medium text-gray-800 dark:text-gray-200">
+          <details className="rounded-lg border border-line bg-surface2 p-2 text-xs">
+            <summary className="cursor-pointer font-medium text-fg">
               ตั้งค่าระดับแอป (ทำครั้งเดียว)
             </summary>
-            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-gray-600 dark:text-gray-400">
+            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-muted">
               <li>
                 ตั้ง env <code>TIKTOK_CHAT_SECRET</code> (ใช้ verify webhook)
               </li>
               <li>
                 ใส่ Webhook URL นี้ในตั้งค่าแอป TikTok:
                 <div className="mt-1 flex items-center gap-2">
-                  <code className="flex-1 truncate rounded bg-white px-2 py-1 text-[11px] text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                  <code className="flex-1 truncate rounded bg-app px-2 py-1 text-[11px] text-fg">
                     {status?.webhookUrl ?? "…"}
                   </code>
                   <button
                     type="button"
                     onClick={copyWebhook}
-                    className="shrink-0 rounded border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                    className="shrink-0 rounded border border-line px-2 py-1 text-[11px] font-medium text-muted hover:bg-surface2"
                   >
                     {copied ? "คัดลอกแล้ว ✓" : "คัดลอก"}
                   </button>
@@ -1347,7 +1347,7 @@ function TiktokConnectBox() {
             type="button"
             onClick={connect}
             disabled={busy || !token.trim()}
-            className="rounded-lg bg-gray-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-50 dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-white"
+            className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-contrast transition hover:opacity-90 disabled:opacity-50"
           >
             {busy ? "กำลังเชื่อม…" : "เชื่อม TikTok"}
           </button>
@@ -1421,22 +1421,22 @@ function LazadaConnectBox() {
   const connected = status?.connected;
 
   return (
-    <div className="mt-6 rounded-xl border border-gray-300 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/40">
+    <div className="mt-6 rounded-xl border border-line bg-surface2 p-4">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+        <span className="text-sm font-semibold text-fg">
           🛍️ เชื่อมแชต Lazada{" "}
           {status?.mock && (
-            <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
+            <span className="text-xs font-normal text-muted">
               (โหมดทดลอง)
             </span>
           )}
         </span>
         {connected ? (
-          <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
+          <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-contrast">
             เชื่อมแล้ว
           </span>
         ) : (
-          <span className="rounded-full bg-gray-400 px-2 py-0.5 text-xs font-semibold text-white dark:bg-gray-600">
+          <span className="rounded-full bg-surface2 px-2 py-0.5 text-xs font-semibold text-muted">
             ยังไม่เชื่อม
           </span>
         )}
@@ -1445,19 +1445,19 @@ function LazadaConnectBox() {
       {connected ? (
         <div className="mt-3 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-gray-700 dark:text-gray-200">
+            <span className="text-sm text-fg">
               ร้าน: <b>{status?.accountName || "—"}</b>
             </span>
             <button
               type="button"
               onClick={disconnect}
               disabled={busy}
-              className="ml-auto rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+              className="ml-auto rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium text-fg transition hover:bg-surface2 disabled:opacity-50"
             >
               ยกเลิกการเชื่อมต่อ
             </button>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+          <p className="text-xs text-muted">
             ตั้งค่า “ให้ AI ตอบเองอัตโนมัติ” ได้ที่หน้า <b>กล่องแชต</b> (สวิตช์ข้างไอคอน Lazada)
           </p>
         </div>
@@ -1475,24 +1475,24 @@ function LazadaConnectBox() {
             <code>mock-</code> ด้านล่างเพื่อทดลองได้
           </p>
 
-          <details className="rounded-lg border border-gray-300 bg-white/60 p-2 text-xs dark:border-gray-700 dark:bg-gray-800/40">
-            <summary className="cursor-pointer font-medium text-gray-800 dark:text-gray-200">
+          <details className="rounded-lg border border-line bg-surface2 p-2 text-xs">
+            <summary className="cursor-pointer font-medium text-fg">
               ตั้งค่าระดับแอป (ทำครั้งเดียว)
             </summary>
-            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-gray-600 dark:text-gray-400">
+            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-muted">
               <li>
                 ตั้ง env <code>LAZADA_CHAT_SECRET</code> (ใช้ verify webhook)
               </li>
               <li>
                 ใส่ Webhook URL นี้ในตั้งค่า Push Notification ของแอป Lazada:
                 <div className="mt-1 flex items-center gap-2">
-                  <code className="flex-1 truncate rounded bg-white px-2 py-1 text-[11px] text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                  <code className="flex-1 truncate rounded bg-app px-2 py-1 text-[11px] text-fg">
                     {status?.webhookUrl ?? "…"}
                   </code>
                   <button
                     type="button"
                     onClick={copyWebhook}
-                    className="shrink-0 rounded border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                    className="shrink-0 rounded border border-line px-2 py-1 text-[11px] font-medium text-muted hover:bg-surface2"
                   >
                     {copied ? "คัดลอกแล้ว ✓" : "คัดลอก"}
                   </button>
@@ -1589,22 +1589,22 @@ function ShopeeConnectBox() {
   const connected = status?.connected;
 
   return (
-    <div className="mt-6 rounded-xl border border-gray-300 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/40">
+    <div className="mt-6 rounded-xl border border-line bg-surface2 p-4">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+        <span className="text-sm font-semibold text-fg">
           🛒 เชื่อมแชต Shopee{" "}
           {status?.mock && (
-            <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
+            <span className="text-xs font-normal text-muted">
               (โหมดทดลอง)
             </span>
           )}
         </span>
         {connected ? (
-          <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
+          <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-contrast">
             เชื่อมแล้ว
           </span>
         ) : (
-          <span className="rounded-full bg-gray-400 px-2 py-0.5 text-xs font-semibold text-white dark:bg-gray-600">
+          <span className="rounded-full bg-surface2 px-2 py-0.5 text-xs font-semibold text-muted">
             ยังไม่เชื่อม
           </span>
         )}
@@ -1613,47 +1613,47 @@ function ShopeeConnectBox() {
       {connected ? (
         <div className="mt-3 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-gray-700 dark:text-gray-200">
+            <span className="text-sm text-fg">
               ร้าน: <b>{status?.accountName || "—"}</b>
             </span>
             <button
               type="button"
               onClick={disconnect}
               disabled={busy}
-              className="ml-auto rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+              className="ml-auto rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium text-fg transition hover:bg-surface2 disabled:opacity-50"
             >
               ยกเลิกการเชื่อมต่อ
             </button>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+          <p className="text-xs text-muted">
             ตั้งค่า “ให้ AI ตอบเองอัตโนมัติ” ได้ที่หน้า <b>กล่องแชต</b> (สวิตช์ข้างไอคอน Shopee)
           </p>
         </div>
       ) : (
         <div className="mt-3 space-y-3">
-          <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+          <p className="rounded-lg bg-accent/10 px-3 py-2 text-xs text-accent">
             ✅ Shopee เปิด Chat API กว้างที่สุดในสาม marketplace — ใช้ Access Token + Shop ID จากการเชื่อม Shopee
             (โหมดทดลองใส่ token ขึ้นต้น <code>mock-</code> ได้เลย ไม่ต้องใส่ Shop ID)
           </p>
 
-          <details className="rounded-lg border border-gray-300 bg-white/60 p-2 text-xs dark:border-gray-700 dark:bg-gray-800/40">
-            <summary className="cursor-pointer font-medium text-gray-800 dark:text-gray-200">
+          <details className="rounded-lg border border-line bg-surface2 p-2 text-xs">
+            <summary className="cursor-pointer font-medium text-fg">
               ตั้งค่าระดับแอป (ทำครั้งเดียว)
             </summary>
-            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-gray-600 dark:text-gray-400">
+            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-muted">
               <li>
                 ตั้ง env <code>SHOPEE_PARTNER_ID</code> + <code>SHOPEE_PARTNER_KEY</code> (ใช้เซ็น + verify webhook)
               </li>
               <li>
                 ใส่ Push URL นี้ในตั้งค่า Shopee Open Platform (Push Mechanism):
                 <div className="mt-1 flex items-center gap-2">
-                  <code className="flex-1 truncate rounded bg-white px-2 py-1 text-[11px] text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                  <code className="flex-1 truncate rounded bg-app px-2 py-1 text-[11px] text-fg">
                     {status?.webhookUrl ?? "…"}
                   </code>
                   <button
                     type="button"
                     onClick={copyWebhook}
-                    className="shrink-0 rounded border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                    className="shrink-0 rounded border border-line px-2 py-1 text-[11px] font-medium text-muted hover:bg-surface2"
                   >
                     {copied ? "คัดลอกแล้ว ✓" : "คัดลอก"}
                   </button>
@@ -1732,9 +1732,9 @@ function CatalogView({
   }, []);
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+    <section className="rounded-2xl border border-line bg-surface p-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+        <h2 className="text-base font-semibold text-fg">
           คลังสินค้า
         </h2>
         <SaveButton save={save} onSave={onSave} />
@@ -1759,16 +1759,16 @@ function CatalogView({
       <ImportBox onImport={onImport} />
 
       {/* แถบซิงค์สต็อก — ดึงจำนวนคงเหลือล่าสุดจาก marketplace ที่เชื่อมไว้ */}
-      <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-2 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+      <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2">
         <button
           type="button"
           onClick={() => void onSync()}
           disabled={syncing}
-          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+          className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-contrast transition hover:opacity-90 disabled:opacity-50"
         >
           {syncing ? "กำลังซิงค์…" : "🔄 ซิงค์สต็อก"}
         </button>
-        <span className="text-xs text-gray-600 dark:text-gray-400">
+        <span className="text-xs text-muted">
           {lastSync
             ? `ซิงค์ล่าสุด ${new Date(lastSync).toLocaleTimeString("th-TH")}`
             : "ดึงจำนวนคงเหลือล่าสุดจาก marketplace ที่เชื่อมไว้"}{" "}
@@ -1776,19 +1776,19 @@ function CatalogView({
         </span>
       </div>
 
-      <div className="mt-4 rounded-xl border border-gray-200 p-3 dark:border-gray-800">
+      <div className="mt-4 rounded-xl border border-line p-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">รายการสินค้า</h3>
+          <h3 className="text-sm font-semibold text-fg">รายการสินค้า</h3>
           <button type="button" onClick={addProduct} className={secondaryBtnClass}>
             + เพิ่มสินค้า
           </button>
         </div>
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-1 text-xs text-muted">
           AI ใช้สินค้าเหล่านี้ตอบลูกค้าและแนะนำสินค้าที่เข้ากัน
         </p>
 
         {products.length === 0 ? (
-          <p className="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
+          <p className="mt-3 rounded-lg border border-dashed border-line bg-surface2 px-3 py-6 text-center text-sm text-muted">
             ยังไม่มีสินค้า — กด “+ เพิ่มสินค้า” หรือดึงจาก marketplace ด้านบน
           </p>
         ) : (
@@ -1827,7 +1827,7 @@ function EnableToggle({
       aria-label={label}
       onClick={onToggle}
       className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition ${
-        enabled ? "bg-emerald-500" : "bg-gray-300 dark:bg-gray-600"
+        enabled ? "bg-accent" : "border border-line bg-surface2"
       }`}
     >
       <span
@@ -1879,15 +1879,15 @@ function ProductRow({
     <div
       className={`rounded-lg border p-3 transition ${
         enabled
-          ? "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50"
-          : "border-gray-200 bg-gray-100 opacity-60 dark:border-gray-800 dark:bg-gray-900/40"
+          ? "border-line bg-surface2"
+          : "border-line bg-surface opacity-60"
       }`}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="flex flex-wrap items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+        <span className="flex flex-wrap items-center gap-2 text-xs font-medium text-muted">
           สินค้า #{index + 1}
           {!enabled && (
-            <span className="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+            <span className="rounded bg-surface2 px-1.5 py-0.5 text-[10px] font-semibold text-muted">
               ปิดอยู่
             </span>
           )}
@@ -1914,7 +1914,7 @@ function ProductRow({
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-800"
+          className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-app"
           aria-label={`รูปสินค้าที่ ${index + 1}`}
         >
           {product.image ? (
@@ -1925,7 +1925,7 @@ function ProductRow({
               className="h-full w-full object-cover"
             />
           ) : (
-            <span className="text-[10px] text-gray-400">＋ รูป</span>
+            <span className="text-[10px] text-muted">＋ รูป</span>
           )}
         </button>
         <div className="flex flex-col gap-1">
@@ -1933,7 +1933,7 @@ function ProductRow({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={imgBusy}
-            className="rounded border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+            className="rounded border border-line px-2 py-1 text-[11px] font-medium text-muted transition hover:bg-surface2 disabled:opacity-50"
           >
             {imgBusy ? "กำลังย่อรูป…" : product.image ? "เปลี่ยนรูป" : "อัปโหลดรูป"}
           </button>
@@ -1979,7 +1979,7 @@ function ProductRow({
         {stocksDiffer ? (
           // สต็อกแต่ละเจ้าไม่ตรงกัน → แทนกล่องคงเหลือ ด้วยรายการ ชื่อเจ้า · จำนวนชิ้น
           <Field label="คงเหลือ (แต่ละเจ้าไม่ตรงกัน)" compact>
-            <div className="flex min-h-[38px] flex-wrap items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800/60">
+            <div className="flex min-h-[38px] flex-wrap items-center gap-1.5 rounded-lg border border-line bg-app px-3 py-2">
               {perPlatform.map(({ s, n }) =>
                 PLATFORM_BADGE[s] ? (
                   <span key={s} className={PLATFORM_BADGE[s].cls}>
@@ -2021,7 +2021,7 @@ function ProductRow({
 
       {/* ที่มาแพลตฟอร์ม (โชว์ใต้สินค้า) — จำนวนสต็อกย้ายไปอยู่ช่อง "คงเหลือ" แล้ว */}
       {sources.length > 0 && (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-line pt-2 text-xs text-muted">
           <span>ดึงจาก:</span>
           {sources.map((s) =>
             PLATFORM_BADGE[s] ? (
@@ -2052,8 +2052,8 @@ function SaveButton({ save, onSave }: { save: SaveState; onSave: () => void }) {
       disabled={save === "saving"}
       className={`rounded-md px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
         save === "error"
-          ? "border border-red-300 bg-white text-red-600 hover:bg-red-50 dark:border-red-800 dark:bg-transparent dark:text-red-400 dark:hover:bg-red-950/40"
-          : "bg-emerald-600 text-white hover:bg-emerald-700"
+          ? "border border-red-500/30 bg-red-500/10 text-red-500 hover:bg-red-500/20"
+          : "bg-accent text-accent-contrast hover:opacity-90"
       }`}
     >
       {label}
@@ -2095,10 +2095,10 @@ const MARKETPLACES: MktConfig[] = [
     platform: "tiktok",
     label: "TikTok Shop",
     emoji: "🎵",
-    box: "border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/40",
-    title: "text-gray-900 dark:text-gray-100",
-    mockText: "text-gray-500 dark:text-gray-400",
-    btn: "bg-gray-900 hover:bg-black dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-white",
+    box: "border-line bg-surface2",
+    title: "text-fg",
+    mockText: "text-muted",
+    btn: "bg-accent text-accent-contrast hover:opacity-90",
   },
 ];
 
@@ -2114,7 +2114,7 @@ const PLATFORM_BADGE: Record<string, { label: string; cls: string }> = {
   },
   tiktok: {
     label: "TikTok",
-    cls: "rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-800 dark:bg-gray-700 dark:text-gray-200",
+    cls: "rounded bg-surface2 px-1.5 py-0.5 text-[10px] font-semibold text-fg",
   },
 };
 
@@ -2185,11 +2185,11 @@ function MarketplaceBox({
           )}
         </span>
         {connected ? (
-          <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
+          <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-contrast">
             เชื่อมต่อแล้ว
           </span>
         ) : (
-          <span className="rounded-full bg-gray-400 px-2 py-0.5 text-xs font-semibold text-white dark:bg-gray-600">
+          <span className="rounded-full bg-surface2 px-2 py-0.5 text-xs font-semibold text-muted">
             ยังไม่เชื่อมต่อ
           </span>
         )}
@@ -2203,7 +2203,7 @@ function MarketplaceBox({
           >
             เชื่อมต่อ {cfg.label}
           </a>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-xs text-muted">
             เชื่อมแล้วดึงสินค้าจากร้าน {cfg.label} เข้าคลังได้อัตโนมัติ
           </p>
         </div>
@@ -2221,12 +2221,12 @@ function MarketplaceBox({
             type="button"
             onClick={disconnect}
             disabled={busy}
-            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            className="rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium text-fg transition hover:bg-surface2 disabled:opacity-50"
           >
             ยกเลิกการเชื่อมต่อ
           </button>
           {msg && (
-            <span className="text-xs text-emerald-700 dark:text-emerald-400">{msg}</span>
+            <span className="text-xs text-accent">{msg}</span>
           )}
         </div>
       )}
@@ -2306,7 +2306,7 @@ function ImportUrlBox({
               {msg}
             </span>
           )}
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+          <p className="text-xs text-muted">
             รองรับลิงก์ Lazada / Shopee / TikTok และเว็บร้านทั่วไป — ดึงแล้วเพิ่มต่อท้าย ตรวจ/แก้ได้ก่อนใช้จริง
           </p>
         </div>
@@ -2346,16 +2346,16 @@ function ImportBox({
   }
 
   return (
-    <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 dark:border-emerald-900 dark:bg-emerald-950/20">
+    <div className="mt-4 rounded-xl border border-accent/30 bg-accent/10 p-3">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between text-left"
       >
-        <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+        <span className="text-sm font-semibold text-accent">
           ✨ นำเข้าอัตโนมัติ — วางข้อความ AI แยกเป็นรายการสินค้าให้เอง
         </span>
-        <span className="text-emerald-700 dark:text-emerald-400">{open ? "▲" : "▼"}</span>
+        <span className="text-accent">{open ? "▲" : "▼"}</span>
       </button>
 
       {open && (
@@ -2374,19 +2374,19 @@ function ImportBox({
               type="button"
               onClick={run}
               disabled={!text.trim() || status === "loading"}
-              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-contrast transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {status === "loading" ? "กำลังแยกข้อมูล…" : "แยกและเพิ่มอัตโนมัติ"}
             </button>
             {msg && (
               <span
-                className={`text-xs ${status === "error" ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}
+                className={`text-xs ${status === "error" ? "text-red-600 dark:text-red-400" : "text-accent"}`}
               >
                 {msg}
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+          <p className="text-xs text-muted">
             แยกแล้วจะเพิ่มต่อท้ายรายการด้านล่าง ตรวจ/แก้ได้ก่อนใช้งานจริง
           </p>
         </div>
@@ -2409,7 +2409,7 @@ function Field({
   return (
     <label className="block">
       <span
-        className={`mb-1 block font-medium text-gray-700 dark:text-gray-300 ${compact ? "text-xs" : "text-sm"}`}
+        className={`mb-1 block font-medium text-fg ${compact ? "text-xs" : "text-sm"}`}
       >
         {label}
       </span>
@@ -2419,7 +2419,7 @@ function Field({
 }
 
 const inputClass =
-  "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500";
+  "w-full rounded-lg border border-line bg-app px-3 py-2 text-sm text-fg placeholder-muted/60 transition focus:border-accent focus:outline-none";
 
 const secondaryBtnClass =
-  "rounded-md border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-700 dark:bg-transparent dark:text-emerald-400 dark:hover:bg-emerald-950/40";
+  "rounded-lg border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-fg transition hover:bg-surface2";

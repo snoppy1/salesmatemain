@@ -20,15 +20,35 @@ export type ShipmentTrace = {
 };
 
 const API_BASE = process.env.LAZADA_API_BASE || "https://api.lazada.co.th/rest";
-// NOTE: ยืนยัน endpoint + สิทธิ์ Order/Logistics ใน Lazada console ก่อนใช้จริง
+// Lazada Open Platform — กลุ่ม Order Information (Active): GetOrder + GetOrderItems
+// (Lazada ไม่มี endpoint trace พัสดุแยก — เลขพัสดุ/ขนส่ง/สถานะ มาจาก order items)
 const ORDER_PATH = "/order/get";
 const ITEMS_PATH = "/order/items/get";
-const TRACE_PATH = "/logistic/order/trace";
-const ORDERS_PATH = "/orders/get";
 
 function num(v: unknown): number | null {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+// Lazada created_at/updated_at อาจเป็น epoch ms หรือ string วันที่ ("2018-05-08 18:00:00 +07:00")
+function parseLazadaDate(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  const s = String(v).trim();
+  if (/^\d+$/.test(s)) return Number(s);
+  const t = Date.parse(s);
+  return Number.isFinite(t) ? t : null;
+}
+
+// Lazada คืน order item 1 แถวต่อ 1 ชิ้น → รวมตามชื่อ + นับจำนวน
+function aggregateItems(arr: unknown[]): OrderItem[] {
+  const map = new Map<string, number>();
+  for (const it of arr) {
+    const x = (it ?? {}) as Record<string, unknown>;
+    const name = String(x.name ?? "").trim();
+    if (!name) continue;
+    map.set(name, (map.get(name) ?? 0) + (Number(x.quantity ?? 1) || 1));
+  }
+  return [...map].map(([name, quantity]) => ({ name, quantity }));
 }
 
 const STATUS_TEXT: Record<string, string> = {
@@ -55,7 +75,7 @@ export function parseOrder(raw: Record<string, unknown>): OrderSummary | null {
     orderId: String(id),
     status,
     statusText: STATUS_TEXT[status] ?? status ?? "",
-    createdAt: num(raw.created_at),
+    createdAt: parseLazadaDate(raw.created_at),
     items,
   };
 }
@@ -117,15 +137,11 @@ export async function getOrder(accessToken: string, orderId: string): Promise<Or
   if (isMock(accessToken)) return mockOrder(orderId);
   try {
     const data = await signedGet(ORDER_PATH, accessToken, { order_id: orderId });
-    const order = (data.data ?? data) as Record<string, unknown>;
-    const parsed = parseOrder(order);
+    if (String(data.code ?? "0") !== "0") return null; // Lazada code != "0" = error
+    const parsed = parseOrder((data.data ?? {}) as Record<string, unknown>);
     if (!parsed) return null;
     const itemsData = await signedGet(ITEMS_PATH, accessToken, { order_id: orderId });
-    const itemList = ((itemsData.data as unknown[]) ?? []).map((it) => {
-      const x = (it ?? {}) as Record<string, unknown>;
-      return { name: String(x.name ?? "").trim(), quantity: Number(x.quantity ?? 1) || 1 };
-    });
-    if (itemList.length) parsed.items = itemList;
+    parsed.items = aggregateItems((itemsData.data as unknown[]) ?? []);
     return parsed;
   } catch {
     return null;
@@ -145,8 +161,21 @@ export async function traceShipment(accessToken: string, orderId: string): Promi
     };
   }
   try {
-    const data = await signedGet(TRACE_PATH, accessToken, { order_id: orderId });
-    return parseTrace((data.data ?? data) as Record<string, unknown>);
+    // เลขพัสดุ/ขนส่ง/สถานะ มาจาก order items (Lazada ไม่มี trace endpoint แยก)
+    const itemsData = await signedGet(ITEMS_PATH, accessToken, { order_id: orderId });
+    if (String(itemsData.code ?? "0") !== "0") return null;
+    const items = (itemsData.data as Record<string, unknown>[]) ?? [];
+    if (!items.length) return null;
+    const first = items[0] ?? {};
+    const status = String(first.status ?? "").trim();
+    return {
+      orderId,
+      status,
+      statusText: STATUS_TEXT[status] ?? status,
+      trackingNumber: String(first.tracking_code ?? "").trim(),
+      carrier: String(first.shipment_provider ?? "").trim(),
+      lastUpdate: parseLazadaDate(first.updated_at),
+    };
   } catch {
     return null;
   }
@@ -154,11 +183,7 @@ export async function traceShipment(accessToken: string, orderId: string): Promi
 
 export async function getOrdersByBuyer(accessToken: string, buyerId: string): Promise<OrderSummary[]> {
   if (isMock(accessToken)) return [mockOrder("MOCK-" + buyerId.slice(0, 6))];
-  try {
-    const data = await signedGet(ORDERS_PATH, accessToken, { buyer_id: buyerId, limit: "5" });
-    const list = ((data.data as Record<string, unknown>)?.orders as unknown[]) ?? [];
-    return list.map((o) => parseOrder(o as Record<string, unknown>)).filter((o): o is OrderSummary => o !== null);
-  } catch {
-    return [];
-  }
+  // Lazada GetOrders กรองได้แค่ตามวันที่/สถานะ ไม่มีตัวกรองตาม buyer
+  // → คืน [] แล้วให้ AI ขอเลขออเดอร์จากลูกค้าแทน (ใช้ได้จริงทุกช่องทาง)
+  return [];
 }

@@ -17,6 +17,7 @@ import type {
 } from "@/lib/types";
 import ThemeToggle from "@/components/ThemeToggle";
 import InboxView from "./InboxView";
+import UpsellMetric from "@/components/UpsellMetric";
 import { sourceList, unifyStock } from "@/lib/stock";
 
 function genId(): string {
@@ -378,7 +379,12 @@ export default function Dashboard({
             view === "catalog" || view === "inbox" ? "max-w-6xl" : "max-w-3xl"
           }`}
         >
-          {view === "inbox" && <InboxView mockSettings={mockSettings} />}
+          {view === "inbox" && (
+            <>
+              <UpsellMetric />
+              <InboxView mockSettings={mockSettings} />
+            </>
+          )}
           {view === "settings" && (
             <SettingsView
               shop={shop}

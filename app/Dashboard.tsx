@@ -108,6 +108,20 @@ export default function Dashboard({
     });
   }
 
+  // เปิด/ปิดข้อมูลทดลองทั้งหมด (ทุกแพลตฟอร์ม ทั้งแชต+สินค้า) ทีเดียว
+  function setAllMock(on: boolean) {
+    const next: MockSettings = {};
+    for (const p of MOCK_PLATFORMS) {
+      next[p.id] = { chat: on, catalog: p.catalog ? on : false };
+    }
+    setMockSettings(next);
+    void fetch("/api/mock-settings", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ settings: next }),
+    }).catch(() => {});
+  }
+
   function markDirty() {
     editSeqRef.current += 1;
     setDirty(true);
@@ -372,6 +386,7 @@ export default function Dashboard({
         onClose={() => setMockModalOpen(false)}
         settings={mockSettings}
         onToggle={toggleMock}
+        onToggleAll={setAllMock}
       />
       <main className="pl-16">
         <div
@@ -533,13 +548,19 @@ function MockSettingsModal({
   onClose,
   settings,
   onToggle,
+  onToggleAll,
 }: {
   open: boolean;
   onClose: () => void;
   settings: MockSettings;
   onToggle: (platform: string, kind: "chat" | "catalog") => void;
+  onToggleAll: (on: boolean) => void;
 }) {
   if (!open) return null;
+  // ทุกแพลตฟอร์มเปิดครบหมดไหม (แชต + สินค้าเฉพาะเจ้าที่มี)
+  const allOn = MOCK_PLATFORMS.every(
+    (p) => settings[p.id]?.chat === true && (!p.catalog || settings[p.id]?.catalog === true),
+  );
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
@@ -562,9 +583,19 @@ function MockSettingsModal({
             ✕
           </button>
         </div>
-        <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
           เปิด = โชว์ข้อมูลตัวอย่างให้ลองเล่น · ปิด = ใช้ของจริงล้วน (แยกแชต / สินค้า)
         </p>
+        <div className="mb-4 flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800/60">
+          <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+            เปิด/ปิดทั้งหมด
+          </span>
+          <EnableToggle
+            enabled={allOn}
+            onToggle={() => onToggleAll(!allOn)}
+            label="เปิด/ปิดข้อมูลทดลองทั้งหมด"
+          />
+        </div>
         <div className="grid grid-cols-[1fr_auto_auto] items-center gap-x-5 gap-y-3">
           <span className="text-[11px] font-medium text-gray-400">แพลตฟอร์ม</span>
           <span className="w-12 text-center text-[11px] font-medium text-gray-400">

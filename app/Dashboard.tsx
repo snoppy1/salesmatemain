@@ -442,7 +442,7 @@ function Sidebar({
 
   return (
     <aside className="group fixed inset-y-0 left-0 z-40 flex w-16 flex-col overflow-hidden border-r border-gray-200 bg-white shadow-sm transition-[width] duration-200 ease-out hover:w-64 dark:border-gray-800 dark:bg-gray-900">
-      {/* โลโก้มุมซ้ายบน — ข้อความ พ่วง เลื่อนออกมาตอน hover */}
+      {/* โลโก้มุมซ้ายบน — ข้อความ SalesMate เลื่อนออกมาตอน hover */}
       <div className="flex h-16 items-center gap-3 px-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img

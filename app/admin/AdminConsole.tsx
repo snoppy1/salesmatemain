@@ -112,7 +112,7 @@ export default function AdminConsole({
       <header className="mb-6 flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">พ่วง</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">SalesMate</h1>
             <span className="rounded-full bg-gray-900 px-2 py-0.5 text-xs font-semibold text-white dark:bg-gray-700">
               ผู้ดูแลระบบ
             </span>

@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { getCurrentAdmin } from "@/lib/auth";
-import { getConversation } from "@/lib/inboxRepo";
+import { getConversation, getSendTarget } from "@/lib/inboxRepo";
 import { getShopData } from "@/lib/shopRepo";
-import { generateReply, ClaudeError } from "@/lib/claude";
+import { generateReply, generateReplyWithTools, ClaudeError, type ReplyResult } from "@/lib/claude";
 import { buildConversationContext } from "@/lib/prompt";
 import { listPromotions } from "@/lib/promotionsRepo";
 import { validNowPromotions } from "@/lib/promotions";
+import { isOrderTopic, needsHumanForOrderTopic } from "@/lib/orderIntent";
+import { getValidAccessToken } from "@/lib/connectionRepo";
 
 export const runtime = "nodejs";
 
@@ -46,16 +48,31 @@ export async function POST(request: Request) {
     convo.messages,
   );
 
+  const lastCustomerText =
+    [...convo.messages].reverse().find((m) => m.sender === "customer")?.text ?? "";
+  const baseReq = {
+    shopName: shopData.shop.name,
+    shopVoice: shopData.shop.voice,
+    shopMemory: shopData.shop.memory,
+    products: shopData.products,
+    promotions,
+    customerMsg: ctx.text,
+    imageUrls: ctx.imageUrls,
+  };
+
   try {
-    const result = await generateReply({
-      shopName: shopData.shop.name,
-      shopVoice: shopData.shop.voice,
-      shopMemory: shopData.shop.memory,
-      products: shopData.products,
-      promotions,
-      customerMsg: ctx.text,
-      imageUrls: ctx.imageUrls,
-    });
+    let result: ReplyResult;
+    if (isOrderTopic(lastCustomerText)) {
+      const target = await getSendTarget(admin.shopId, body.conversationId);
+      const token = (await getValidAccessToken(admin.shopId, "lazada")) ?? "mock-lazada";
+      const buyerId = convo.channel === "lazada" ? target?.lineUserId ?? null : null;
+      result = await generateReplyWithTools(baseReq, { token, buyerId, channel: convo.channel });
+    } else {
+      result = await generateReply(baseReq);
+    }
+    if (needsHumanForOrderTopic(lastCustomerText)) {
+      result = { ...result, needsHuman: true };
+    }
     return NextResponse.json(result);
   } catch (e) {
     const err = e as ClaudeError;

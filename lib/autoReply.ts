@@ -7,10 +7,12 @@ import {
 } from "./inboxRepo";
 import { getShopData } from "./shopRepo";
 import { getChannelLevel } from "./inboxAppsRepo";
-import { generateReply } from "./claude";
+import { generateReply, generateReplyWithTools, type ReplyResult } from "./claude";
 import { buildConversationContext } from "./prompt";
 import { listPromotions } from "./promotionsRepo";
 import { validNowPromotions } from "./promotions";
+import { isOrderTopic, needsHumanForOrderTopic } from "./orderIntent";
+import { getValidAccessToken } from "./connectionRepo";
 import { replyMessage, pushMessage } from "./lineClient";
 import { sendMessage as fbSendMessage } from "./facebookClient";
 import { sendMessage as ttSendMessage } from "./tiktokClient";
@@ -46,7 +48,12 @@ export async function processAutoReply(
       convo.messages,
     );
     const promotions = validNowPromotions(await listPromotions(shopId), Date.now());
-    const result = await generateReply({
+
+    // ข้อความล่าสุดของลูกค้า (ใช้เช็คว่าเป็นคำถามออเดอร์ไหม)
+    const lastCustomerText =
+      [...convo.messages].reverse().find((m) => m.sender === "customer")?.text ?? "";
+
+    const baseReq = {
       shopName: shopData.shop.name,
       shopVoice: shopData.shop.voice,
       shopMemory: shopData.shop.memory,
@@ -54,7 +61,22 @@ export async function processAutoReply(
       promotions,
       customerMsg: ctx.text,
       imageUrls: ctx.imageUrls,
-    });
+    };
+
+    let result: ReplyResult;
+    if (isOrderTopic(lastCustomerText)) {
+      const target = await getSendTarget(shopId, conversationId);
+      const token = (await getValidAccessToken(shopId, "lazada")) ?? "mock-lazada";
+      const buyerId = convo.channel === "lazada" ? target?.lineUserId ?? null : null;
+      result = await generateReplyWithTools(baseReq, { token, buyerId, channel: convo.channel });
+    } else {
+      result = await generateReply(baseReq);
+    }
+
+    // เคลม/ยกเลิก/คืนเงิน → บังคับส่งให้คนตอบเสมอ (แม้ full auto)
+    if (needsHumanForOrderTopic(lastCustomerText)) {
+      result = { ...result, needsHuman: true };
+    }
     // ตอบไม่ออกจริงๆ (ข้อความว่าง) → รอคนเสมอ แม้ full auto (กันส่งข้อความเปล่า)
     if (!result.message.trim()) {
       await setPendingHuman(conversationId, true);

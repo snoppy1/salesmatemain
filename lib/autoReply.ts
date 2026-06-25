@@ -13,6 +13,7 @@ import { listPromotions } from "./promotionsRepo";
 import { validNowPromotions } from "./promotions";
 import { isOrderTopic, needsHumanForOrderTopic } from "./orderIntent";
 import { getValidAccessToken } from "./connectionRepo";
+import { recordUpsell } from "./upsellRepo";
 import { replyMessage, pushMessage } from "./lineClient";
 import { sendMessage as fbSendMessage } from "./facebookClient";
 import { sendMessage as ttSendMessage } from "./tiktokClient";
@@ -120,6 +121,17 @@ export async function processAutoReply(
     }
 
     await addAdminMessage(shopId, conversationId, result.message); // เคลียร์ pending ด้วย
+
+    // วัดยอดพ่วง: บันทึกเมื่อ AI เสนอพ่วงและส่งถึงลูกค้าแล้ว (best-effort ห้ามทำให้ตอบแชตพัง)
+    if (result.shouldUpsell && result.estAddedValue != null) {
+      await recordUpsell({
+        shopId,
+        conversationId,
+        channel: convo.channel,
+        product: result.upsellProduct,
+        estValue: result.estAddedValue,
+      }).catch(() => {});
+    }
 
     // Full auto + AI ไม่มั่นใจ: ส่งข้อความ "ขอเช็คแอดมิน" ให้ลูกค้าแล้ว แต่ AI ยังตอบจริงไม่ได้
     // → ตั้ง "รอตอบ" กลับ เพื่อให้แอดมินเห็นว่าต้องตามตอบต่อ (กันลูกค้ารอเก้อ)

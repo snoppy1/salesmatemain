@@ -486,9 +486,9 @@ export default function InboxView({
           <button
             type="button"
             onClick={() => setSelectedPlatform(null)}
-            className="mb-2 flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-muted transition hover:bg-surface2 hover:text-fg"
+            className="mb-3 flex w-fit items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-fg"
           >
-            ‹ กล่องแชต
+            <span className="text-base leading-none">‹</span> กล่องแชต
           </button>
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">

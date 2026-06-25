@@ -13,12 +13,16 @@ export async function POST() {
   if (!admin) {
     return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
   }
-  const token = (await getValidAccessToken(admin.shopId, "lazada")) ?? "mock-lazada";
-  await attributeUpsells(admin.shopId, token).catch(() => {});
+  // เชื่อม Lazada จริงไหม — ถ้าไม่ (ไม่มี token / เป็น mock) ยอดขาย+พ่วงขายได้โชว์ 0 (ไม่ปลอม)
+  const token = await getValidAccessToken(admin.shopId, "lazada");
+  const hasRealLazada = !!token && !token.startsWith("mock");
+  if (hasRealLazada) await attributeUpsells(admin.shopId, token!).catch(() => {});
 
   const since = monthStart(Date.now());
   const [sales, offered, sold] = await Promise.all([
-    salesSince(token, since),
+    hasRealLazada
+      ? salesSince(token!, since)
+      : Promise.resolve({ orderCount: 0, totalRevenue: 0 }),
     upsellSummary(admin.shopId, since),
     soldSummary(admin.shopId, since),
   ]);

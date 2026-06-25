@@ -90,7 +90,14 @@ function LazadaGlyph({ small }: { small?: boolean }) {
       fill="currentColor"
       aria-hidden="true"
     >
-      <path d="M6 7h12l-.9 12.1A2 2 0 0 1 15.1 21H8.9a2 2 0 0 1-2-1.9L6 7zm3 0a3 3 0 0 1 6 0h-2a1 1 0 0 0-2 0H9z" />
+      <path d="M5.8 8.5h12.4a1 1 0 0 1 1 1.08l-.72 9.2A2.4 2.4 0 0 1 16.1 21H7.9a2.4 2.4 0 0 1-2.38-2.22L4.8 9.58a1 1 0 0 1 1-1.08z" />
+      <path
+        d="M8.8 8.5a3.2 3.2 0 0 1 6.4 0"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

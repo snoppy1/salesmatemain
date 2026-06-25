@@ -30,7 +30,7 @@ export default function ThemeToggle() {
       onClick={toggle}
       aria-label={dark ? "สลับเป็นโหมดสว่าง" : "สลับเป็นโหมดมืด"}
       title={dark ? "โหมดสว่าง" : "โหมดมืด"}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-surface text-muted transition hover:bg-surface2 hover:text-fg"
     >
       {/* กัน hydration mismatch: โชว์ไอคอนหลัง mount */}
       {mounted ? (dark ? <SunIcon /> : <MoonIcon />) : <span className="h-4 w-4" />}

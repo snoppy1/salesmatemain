@@ -444,7 +444,7 @@ function Sidebar({
   ];
 
   return (
-    <aside className="group fixed inset-y-0 left-0 z-40 flex w-16 flex-col overflow-hidden border-r border-gray-200 bg-white shadow-sm transition-[width] duration-200 ease-out hover:w-64 dark:border-gray-800 dark:bg-gray-900">
+    <aside className="group fixed inset-y-0 left-0 z-40 flex w-16 flex-col overflow-hidden border-r border-line bg-surface transition-[width] duration-200 ease-out hover:w-64">
       {/* โลโก้มุมซ้ายบน — ข้อความ SalesMate เลื่อนออกมาตอน hover */}
       <div className="flex h-16 items-center gap-3 px-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -453,7 +453,7 @@ function Sidebar({
           alt="SalesMate"
           className="h-10 w-10 shrink-0 object-contain"
         />
-        <span className="whitespace-nowrap text-lg font-bold tracking-tight text-gray-900 opacity-0 transition-opacity duration-200 group-hover:opacity-100 dark:text-white">
+        <span className="whitespace-nowrap text-lg font-bold tracking-tight text-fg opacity-0 transition-opacity duration-200 group-hover:opacity-100">
           SalesMate
         </span>
       </div>
@@ -470,8 +470,8 @@ function Sidebar({
               title={it.label}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition ${
                 active
-                  ? "bg-emerald-600 text-white"
-                  : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                  ? "bg-accent/15 text-accent"
+                  : "text-muted hover:bg-surface2 hover:text-fg"
               }`}
             >
               <span className="shrink-0">{it.icon}</span>
@@ -484,19 +484,19 @@ function Sidebar({
       </nav>
 
       {/* ซ้ายล่าง: ปุ่ม Setting (ฟันเฟือง) + บัญชี + ออกจากระบบ + ธีม */}
-      <div className="border-t border-gray-200 p-2 dark:border-gray-800">
+      <div className="border-t border-line p-2">
         <button
           type="button"
           onClick={onOpenSettings}
           title="Setting"
-          className="mb-1 flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left text-gray-600 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+          className="mb-1 flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left text-muted transition hover:bg-surface2 hover:text-fg"
         >
           <IconGear />
           <span className="whitespace-nowrap text-sm font-semibold opacity-0 transition-opacity duration-200 group-hover:opacity-100">
             Setting
           </span>
         </button>
-        <div className="flex items-center gap-3 rounded-lg px-3 py-1 text-gray-500 dark:text-gray-400">
+        <div className="flex items-center gap-3 rounded-lg px-3 py-1 text-muted">
           <span className="truncate whitespace-nowrap text-xs opacity-0 transition-opacity duration-200 group-hover:opacity-100">
             @{username}
           </span>
@@ -505,7 +505,7 @@ function Sidebar({
           <button
             type="button"
             onClick={onLogout}
-            className="whitespace-nowrap rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            className="whitespace-nowrap rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium text-fg transition hover:bg-surface2"
           >
             ออกจากระบบ
           </button>

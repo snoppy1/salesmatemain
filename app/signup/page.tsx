@@ -2,13 +2,25 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { AuthShell, FormField, btnClass } from "../login/page";
+import {
+  AuthShell,
+  Field,
+  PasswordField,
+  GoogleButton,
+  Divider,
+  ErrorMsg,
+  SubmitButton,
+  BottomLink,
+} from "../login/page";
+
+function isEmail(s: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+}
 
 export default function SignupPage() {
   const router = useRouter();
   const [shopName, setShopName] = useState("");
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,12 +29,24 @@ export default function SignupPage() {
     e.preventDefault();
     if (loading) return;
     setError("");
+    if (!shopName.trim()) {
+      setError("กรุณาใส่ชื่อร้าน");
+      return;
+    }
+    if (!isEmail(email.trim())) {
+      setError("อีเมลไม่ถูกต้อง");
+      return;
+    }
+    if (password.length < 6) {
+      setError("รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ shopName, username, password }),
+        body: JSON.stringify({ shopName, email, password }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -39,43 +63,35 @@ export default function SignupPage() {
   }
 
   return (
-    <AuthShell title="สมัครเปิดร้านใหม่" subtitle="สร้างบัญชีแอดมินสำหรับร้านของคุณ">
-      <form onSubmit={submit} className="space-y-4">
-        <FormField
+    <AuthShell title="สมัครใช้ฟรี" subtitle="สร้างบัญชีร้านของคุณ ใช้เวลาไม่ถึงนาที">
+      <GoogleButton label="สมัครด้วย Google" />
+      <Divider />
+      <form onSubmit={submit} className="space-y-4" noValidate>
+        <Field
           label="ชื่อร้าน"
           value={shopName}
           onChange={setShopName}
           placeholder="เช่น ร้านสวยใส บิวตี้"
         />
-        <FormField
-          label="ชื่อผู้ใช้ (สำหรับเข้าสู่ระบบ)"
-          value={username}
-          onChange={setUsername}
-          autoComplete="username"
-          placeholder="อย่างน้อย 3 ตัวอักษร"
+        <Field
+          label="อีเมล"
+          type="email"
+          value={email}
+          onChange={setEmail}
+          autoComplete="email"
+          placeholder="you@example.com"
         />
-        <FormField
+        <PasswordField
           label="รหัสผ่าน"
           value={password}
           onChange={setPassword}
-          type="password"
           autoComplete="new-password"
-          placeholder="อย่างน้อย 6 ตัวอักษร"
+          hint="อย่างน้อย 6 ตัวอักษร"
         />
-        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-        <button type="submit" disabled={loading} className={btnClass}>
-          {loading ? "กำลังสมัคร…" : "สมัครและเริ่มใช้งาน"}
-        </button>
+        {error && <ErrorMsg>{error}</ErrorMsg>}
+        <SubmitButton loading={loading} idle="สมัครและเริ่มใช้งาน" busy="กำลังสมัคร…" />
       </form>
-      <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
-        มีร้านอยู่แล้ว?{" "}
-        <Link
-          href="/login"
-          className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
-        >
-          เข้าสู่ระบบ
-        </Link>
-      </p>
+      <BottomLink text="มีบัญชีอยู่แล้ว?" href="/login" cta="เข้าสู่ระบบ" />
     </AuthShell>
   );
 }

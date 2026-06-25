@@ -26,7 +26,8 @@ export function proxy(req: NextRequest) {
   }
 
   // ----- โซนร้าน -----
-  const isShopAuthPage = pathname === "/login" || pathname === "/signup";
+  const isShopAuthPage =
+    pathname === "/login" || pathname === "/signup" || pathname === "/forgot";
   if (!hasShop && !isShopAuthPage) return redirectTo(req, "/login");
   if (hasShop && isShopAuthPage) return redirectTo(req, "/");
   return NextResponse.next();
@@ -39,6 +40,8 @@ function redirectTo(req: NextRequest, path: string) {
 }
 
 export const config = {
-  // เฉพาะหน้าแอป — เว้น API, ไฟล์ static, รูป
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  // เฉพาะหน้าแอป — เว้น API, ไฟล์ static, รูป (รวมไฟล์ใน /public เช่น .svg/.png)
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)).*)",
+  ],
 };

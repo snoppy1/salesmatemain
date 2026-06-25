@@ -1,7 +1,7 @@
 import "server-only";
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { query, queryOne } from "./db";
+import { query, queryOne, withTx } from "./db";
 import type { Admin } from "./types";
 
 export const SESSION_COOKIE = "phuang_session";
@@ -70,14 +70,19 @@ export async function getCurrentAdmin(): Promise<Admin | null> {
 
 /* ---------- cookie helpers ---------- */
 
-export async function setSessionCookie(token: string, expiresAt: number): Promise<void> {
+export async function setSessionCookie(
+  token: string,
+  expiresAt: number,
+  remember = true,
+): Promise<void> {
   const store = await cookies();
   store.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    expires: new Date(expiresAt),
+    // remember = ค้าง session ถึงวันหมดอายุ; ไม่ remember = หายเมื่อปิดเบราว์เซอร์
+    ...(remember ? { expires: new Date(expiresAt) } : {}),
   });
 }
 
@@ -90,4 +95,80 @@ export async function clearSessionCookie(): Promise<void> {
 
 export function newId(): string {
   return randomUUID();
+}
+
+/* ---------- บัญชี (อีเมล + Google) ---------- */
+
+export function isValidEmail(s: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+}
+
+type NewAccount = {
+  shopName: string;
+  username: string; // ตัวระบุสำหรับล็อกอิน (สมัครด้วยอีเมล = อีเมล lowercase)
+  email?: string | null;
+  passwordHash?: string | null;
+  googleId?: string | null;
+};
+
+/** สร้างร้าน + แอดมิน (ใช้ทั้งสมัครด้วยอีเมล และ Google sign-in) → คืน adminId */
+export async function createAccount(a: NewAccount): Promise<string> {
+  const shopId = newId();
+  const adminId = newId();
+  const now = Date.now();
+  // บัญชี Google ไม่มีรหัสผ่าน → เก็บค่าที่ verifyPassword จะปฏิเสธเสมอ (ไม่ใช่ scrypt$)
+  const pwd = a.passwordHash ?? `oauth$${randomBytes(16).toString("hex")}`;
+  await withTx(async (client) => {
+    await client.query(
+      "INSERT INTO shops (id, name, voice, created_at) VALUES ($1, $2, '', $3)",
+      [shopId, a.shopName, now],
+    );
+    await client.query(
+      "INSERT INTO admins (id, shop_id, username, password_hash, email, google_id, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)",
+      [adminId, shopId, a.username, pwd, a.email ?? null, a.googleId ?? null, now],
+    );
+  });
+  return adminId;
+}
+
+/** ตัวระบุ (อีเมล/username) ถูกใช้ไปแล้วไหม */
+export async function identifierTaken(id: string): Promise<boolean> {
+  const r = await queryOne(
+    "SELECT 1 AS ok FROM admins WHERE lower(username) = $1 OR lower(email) = $1",
+    [id.toLowerCase()],
+  );
+  return Boolean(r);
+}
+
+/** หาแอดมินสำหรับล็อกอินด้วยอีเมลหรือ username (รับรหัสผ่าน) */
+export async function findAdminForLogin(
+  identifier: string,
+): Promise<{ id: string; password_hash: string } | null> {
+  return (
+    (await queryOne<{ id: string; password_hash: string }>(
+      "SELECT id, password_hash FROM admins WHERE lower(username) = $1 OR lower(email) = $1 LIMIT 1",
+      [identifier.toLowerCase()],
+    )) ?? null
+  );
+}
+
+/** หาแอดมินจาก Google (ตาม google_id หรืออีเมลที่ตรงกัน) */
+export async function findAdminByGoogle(
+  googleId: string,
+  email: string,
+): Promise<{ id: string } | null> {
+  return (
+    (await queryOne<{ id: string }>(
+      "SELECT id FROM admins WHERE google_id = $1 OR lower(email) = $2 LIMIT 1",
+      [googleId, email.toLowerCase()],
+    )) ?? null
+  );
+}
+
+/** ผูก google_id เข้ากับบัญชีที่มีอยู่ (เผื่อสมัครอีเมลไว้ก่อนแล้วมาเข้าด้วย Google) */
+export async function linkGoogleId(adminId: string, googleId: string): Promise<void> {
+  await query("UPDATE admins SET google_id = COALESCE(google_id, $1) WHERE id = $2", [
+    googleId,
+    adminId,
+  ]);
 }

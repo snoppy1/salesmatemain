@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AuthShell, FormField, btnClass } from "../../login/page";
+import {
+  AuthShell,
+  Field,
+  PasswordField,
+  ErrorMsg,
+  SubmitButton,
+} from "../../login/page";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -42,25 +48,25 @@ export default function AdminLoginPage() {
       subtitle="เฉพาะเจ้าของระบบ — ดู/แก้ข้อมูลได้ทุกร้าน"
     >
       <form onSubmit={submit} className="space-y-4">
-        <FormField
+        <Field
           label="ชื่อผู้ใช้ผู้ดูแล"
           value={username}
           onChange={setUsername}
           autoComplete="username"
           placeholder="username ผู้ดูแล"
         />
-        <FormField
+        <PasswordField
           label="รหัสผ่าน"
           value={password}
           onChange={setPassword}
-          type="password"
           autoComplete="current-password"
-          placeholder="••••••••"
         />
-        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-        <button type="submit" disabled={loading} className={btnClass}>
-          {loading ? "กำลังเข้าสู่ระบบ…" : "เข้าสู่ระบบผู้ดูแล"}
-        </button>
+        {error && <ErrorMsg>{error}</ErrorMsg>}
+        <SubmitButton
+          loading={loading}
+          idle="เข้าสู่ระบบผู้ดูแล"
+          busy="กำลังเข้าสู่ระบบ…"
+        />
       </form>
     </AuthShell>
   );

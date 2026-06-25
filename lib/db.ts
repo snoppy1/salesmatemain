@@ -114,6 +114,11 @@ async function ensureSchema(): Promise<void> {
     ALTER TABLE shops ADD COLUMN IF NOT EXISTS mock_settings JSONB;
     -- "สิ่งที่ AI ควรจำ": ข้อมูล/นโยบายร้าน (ค่าส่ง/จ่ายเงิน/รับประกัน ฯลฯ) ให้ AI ตอบเองได้
     ALTER TABLE shops ADD COLUMN IF NOT EXISTS ai_memory TEXT NOT NULL DEFAULT '';
+    -- บัญชีแอดมิน: อีเมล (ใช้ล็อกอิน/รีเซ็ตรหัส) + Google sign-in (sub id)
+    ALTER TABLE admins ADD COLUMN IF NOT EXISTS email TEXT;
+    ALTER TABLE admins ADD COLUMN IF NOT EXISTS google_id TEXT;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_admins_email ON admins(email) WHERE email IS NOT NULL;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_admins_google ON admins(google_id) WHERE google_id IS NOT NULL;
     ALTER TABLE conversations ADD COLUMN IF NOT EXISTS pending_human BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE messages ADD COLUMN IF NOT EXISTS ext_id TEXT;
     -- ชนิดข้อความ + รูป (เก็บลิงก์ CDN ของแพลตฟอร์ม หรือ blob ที่เราโฮสต์เอง)

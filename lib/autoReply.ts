@@ -9,6 +9,8 @@ import { getShopData } from "./shopRepo";
 import { getChannelLevel } from "./inboxAppsRepo";
 import { generateReply } from "./claude";
 import { buildConversationContext } from "./prompt";
+import { listPromotions } from "./promotionsRepo";
+import { validNowPromotions } from "./promotions";
 import { replyMessage, pushMessage } from "./lineClient";
 import { sendMessage as fbSendMessage } from "./facebookClient";
 import { sendMessage as ttSendMessage } from "./tiktokClient";
@@ -43,11 +45,13 @@ export async function processAutoReply(
       convo.channel,
       convo.messages,
     );
+    const promotions = validNowPromotions(await listPromotions(shopId), Date.now());
     const result = await generateReply({
       shopName: shopData.shop.name,
       shopVoice: shopData.shop.voice,
       shopMemory: shopData.shop.memory,
       products: shopData.products,
+      promotions,
       customerMsg: ctx.text,
       imageUrls: ctx.imageUrls,
     });

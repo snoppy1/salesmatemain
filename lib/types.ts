@@ -94,6 +94,7 @@ export type GenerateRequest = {
   shopVoice: string;
   shopMemory: string; // ข้อมูล/นโยบายร้านที่ร้านอยากให้ AI จำ (ดู Shop.memory)
   products: Product[];
+  promotions?: Promotion[]; // โปรโมชั่นที่ใช้ได้ตอนนี้ (กรองแล้ว) ให้ AI แนะนำ
   customerMsg: string; // ข้อความ + บริบทจากลูกค้า รวมในช่องเดียว
   imageUrls?: string[]; // ลิงก์รูปจากลูกค้า (ส่งเข้า Claude ให้ดูภาพ) — มีเฉพาะตอนแชตมีรูป
 };

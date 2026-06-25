@@ -4,6 +4,8 @@ import { getConversation } from "@/lib/inboxRepo";
 import { getShopData } from "@/lib/shopRepo";
 import { generateReply, ClaudeError } from "@/lib/claude";
 import { buildConversationContext } from "@/lib/prompt";
+import { listPromotions } from "@/lib/promotionsRepo";
+import { validNowPromotions } from "@/lib/promotions";
 
 export const runtime = "nodejs";
 
@@ -36,6 +38,7 @@ export async function POST(request: Request) {
   }
 
   const shopData = await getShopData(admin.shopId);
+  const promotions = validNowPromotions(await listPromotions(admin.shopId), Date.now());
 
   const ctx = buildConversationContext(
     convo.customerName,
@@ -49,6 +52,7 @@ export async function POST(request: Request) {
       shopVoice: shopData.shop.voice,
       shopMemory: shopData.shop.memory,
       products: shopData.products,
+      promotions,
       customerMsg: ctx.text,
       imageUrls: ctx.imageUrls,
     });

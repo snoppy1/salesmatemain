@@ -18,6 +18,12 @@ export async function saveChannel(
   c: { pageId: string; accessToken: string; pageName: string },
 ): Promise<void> {
   const now = Date.now();
+  // เพจนี้เคยผูกกับร้านอื่นไหม → ปลดออกก่อน (1 เพจผูกได้ร้านเดียว; ย้ายมาร้านที่กำลังเชื่อม)
+  // กันชนกฎ unique ของ page_id ตอน insert/update
+  await query("DELETE FROM facebook_channels WHERE page_id = $1 AND shop_id <> $2", [
+    c.pageId,
+    shopId,
+  ]);
   await query(
     `INSERT INTO facebook_channels
        (id, shop_id, page_id, access_token, page_name, created_at, updated_at)

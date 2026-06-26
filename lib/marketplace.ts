@@ -126,6 +126,22 @@ function mockTokens(): TokenSet {
 
 /* ---------- catalog ---------- */
 
+/** แปลง HTML จาก Lazada เป็นข้อความล้วน (ตัด tag + decode entity + ตัดความยาว) */
+export function htmlToText(html: string): string {
+  const text = html
+    .replace(/<\s*(br|\/p|\/div|\/li|\/h[1-6]|\/tr)\s*\/?>/gi, " ") // จบบรรทัด → เว้นวรรค
+    .replace(/<[^>]*>/g, " ") // ตัด tag ที่เหลือ
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#3[49];/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > 500 ? text.slice(0, 500).trim() + "…" : text;
+}
+
 export async function fetchCatalog(accessToken: string): Promise<CatalogItem[]> {
   if (!isLazadaConfigured() || accessToken.startsWith("mock-")) {
     return withLiveStock(MOCK_CATALOG);
@@ -145,7 +161,7 @@ export async function fetchCatalog(accessToken: string): Promise<CatalogItem[]> 
     const qty = skus[0]?.quantity ?? skus[0]?.Available ?? skus[0]?.SellableQuantity;
     return {
       name: String(attrs.name ?? ""),
-      description: String(attrs.short_description ?? attrs.description ?? ""),
+      description: htmlToText(String(attrs.short_description ?? attrs.description ?? "")),
       price: String(skus[0]?.price ?? ""),
       externalId: String(x.item_id ?? ""),
       image: String(images[0] ?? skus[0]?.Images ?? ""),

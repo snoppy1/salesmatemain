@@ -6,6 +6,7 @@ import {
   setPendingHuman,
 } from "@/lib/inboxRepo";
 import { getChannelByPageId } from "@/lib/facebookChannelRepo";
+import { isBlobConfigured, putImage } from "@/lib/blobStore";
 import { processAutoReply } from "@/lib/autoReply";
 
 export const runtime = "nodejs";
@@ -63,10 +64,28 @@ export async function POST(request: Request) {
       if (ev.message?.is_echo) continue; // ข้อความที่เพจส่งเอง — ข้าม
       const psid = ev.sender?.id ?? "";
       if (!psid) continue;
-      const imageUrl = ev.message?.attachments?.find((a) => a.type === "image")
+      const fbImageUrl = ev.message?.attachments?.find((a) => a.type === "image")
         ?.payload?.url;
       const text = (ev.message?.text ?? "").trim(); // เก็บคำถามที่มากับรูปด้วย (เดิมทิ้ง)
-      if (!imageUrl && !text) continue;
+      if (!fbImageUrl && !text) continue;
+
+      // โหลดรูปจาก FB มาเก็บที่ Blob ของเรา → Claude อ่านรูปได้ (FB CDN url ดึงไม่ได้ → 400)
+      let imageUrl = fbImageUrl;
+      let blobKey: string | undefined;
+      if (fbImageUrl && isBlobConfigured()) {
+        try {
+          const r = await fetch(fbImageUrl);
+          if (r.ok) {
+            const contentType = r.headers.get("content-type") ?? "image/jpeg";
+            const buffer = Buffer.from(await r.arrayBuffer());
+            const up = await putImage(buffer, contentType);
+            imageUrl = up.url;
+            blobKey = up.key;
+          }
+        } catch {
+          /* ใช้ FB url เดิม (โชว์บนเว็บได้ แต่ AI อาจอ่านรูปไม่ได้) */
+        }
+      }
 
       const displayName = await fetchUserName(channel.access_token, psid);
       const conversationId = await ingestCustomerMessage(shopId, {
@@ -75,14 +94,15 @@ export async function POST(request: Request) {
         displayName,
         text,
         extId: ev.message?.mid,
-        kind: imageUrl ? "image" : "text",
+        kind: fbImageUrl ? "image" : "text",
         imageUrl,
+        blobKey,
       });
       if (!conversationId) continue; // ซ้ำ (retry) — ข้าม
 
       const mode = await getConversationMode(conversationId);
       if (mode === "auto") {
-        if (imageUrl && !text) {
+        if (fbImageUrl && !text) {
           // รูปล้วน (ยังไม่มีคำถาม) → รอลูกค้าพิมพ์คำถามก่อน ขึ้น "รอตอบ"
           await setPendingHuman(conversationId, true);
         } else {

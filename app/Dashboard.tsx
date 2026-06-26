@@ -1475,24 +1475,28 @@ function LazadaConnectBox() {
             href="/api/lazada/connect/start"
             className="inline-flex items-center gap-2 rounded-lg bg-[#0F146E] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0a0e52]"
           >
-            🛍️ เข้าสู่ระบบ Lazada เพื่อเชื่อมแชต
+            🛍️ เชื่อม Lazada (เข้าสู่ระบบ)
           </a>
-          <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-            ℹ️ กดปุ่มด้านบนเพื่อล็อกอิน Lazada → ระบบจะดึง Access Token ของแอปแชต (IM) มาให้เอง
-            (ต้องตั้ง env <code>LAZADA_IM_APP_KEY/SECRET</code> ก่อน). ยังไม่ได้สิทธิ์จริง? ใส่ token ขึ้นต้น{" "}
-            <code>mock-</code> ด้านล่างเพื่อทดลองได้
-          </p>
+          <ol className="list-decimal space-y-1 pl-5 text-xs text-muted">
+            <li>กดปุ่มด้านบน → ล็อกอินบัญชี <b>Lazada Seller</b> ของร้าน</li>
+            <li>
+              กด <b>อนุญาต (Authorize)</b> ให้ระบบเข้าถึงแชตของร้าน
+            </li>
+            <li>ระบบดึง Token ให้เอง — เสร็จเลย ไม่ต้องคัดลอกอะไร</li>
+          </ol>
 
           <details className="rounded-lg border border-line bg-surface2 p-2 text-xs">
             <summary className="cursor-pointer font-medium text-fg">
-              ตั้งค่าระดับแอป (ทำครั้งเดียว)
+              ขั้นสูง (สำหรับผู้ดูแลระบบ)
             </summary>
-            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-muted">
-              <li>
-                ตั้ง env <code>LAZADA_CHAT_SECRET</code> (ใช้ verify webhook)
-              </li>
-              <li>
-                ใส่ Webhook URL นี้ในตั้งค่า Push Notification ของแอป Lazada:
+            <div className="mt-2 space-y-2 text-muted">
+              <p>
+                ตั้งครั้งเดียวระดับแอป: env <code>LAZADA_IM_APP_KEY</code> /{" "}
+                <code>LAZADA_IM_APP_SECRET</code> (เชื่อมแชต) + <code>LAZADA_CHAT_SECRET</code>{" "}
+                (verify webhook)
+              </p>
+              <div>
+                Webhook URL (ใส่ในตั้งค่า Push Notification ของแอป Lazada):
                 <div className="mt-1 flex items-center gap-2">
                   <code className="flex-1 truncate rounded bg-app px-2 py-1 text-[11px] text-fg">
                     {status?.webhookUrl ?? "…"}
@@ -1505,26 +1509,30 @@ function LazadaConnectBox() {
                     {copied ? "คัดลอกแล้ว ✓" : "คัดลอก"}
                   </button>
                 </div>
-              </li>
-            </ol>
+              </div>
+              <div>
+                หรือใส่ Access Token เอง (หรือ <code>mock-…</code> เพื่อทดลอง):
+                <div className="mt-1 flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    placeholder="Access Token (หรือ mock-…)"
+                    className={inputClass}
+                  />
+                  <button
+                    type="button"
+                    onClick={connect}
+                    disabled={busy || !token.trim()}
+                    className="shrink-0 rounded-lg bg-[#0F146E] px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-[#0a0e52] disabled:opacity-50"
+                  >
+                    {busy ? "…" : "เชื่อม"}
+                  </button>
+                </div>
+              </div>
+              {err && <p className="text-red-500">{err}</p>}
+            </div>
           </details>
-
-          <input
-            type="text"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="Access Token (หรือ mock-… เพื่อทดลอง)"
-            className={inputClass}
-          />
-          {err && <p className="text-xs text-red-600 dark:text-red-400">{err}</p>}
-          <button
-            type="button"
-            onClick={connect}
-            disabled={busy || !token.trim()}
-            className="rounded-lg bg-[#0F146E] px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-[#0a0e52] disabled:opacity-50"
-          >
-            {busy ? "กำลังเชื่อม…" : "เชื่อม Lazada"}
-          </button>
         </div>
       )}
     </div>

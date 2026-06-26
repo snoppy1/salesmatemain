@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getCurrentAdmin } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-// ตรวจว่าตั้ง env Lazada ครบไหม + ลิงก์ authorize ที่ระบบสร้าง (ปิดบังค่าลับ) — แอดมินเท่านั้น
+// ตรวจว่าตั้ง env Lazada ครบไหม + ลิงก์ authorize ที่ระบบสร้าง (ปิดบังค่าลับ ไม่โชว์ความลับ)
+// หมายเหตุ: เปิดสาธารณะชั่วคราวเพื่อ debug — ไม่มีการเปิดเผยค่าลับ (โชว์แค่มี/ไม่มี + client_id ปิดบัง)
 function mask(v: string): string {
   if (!v) return "❌ ไม่ได้ตั้ง";
   if (v.length <= 6) return `✅ ตั้งแล้ว (${v.length} ตัว)`;
@@ -19,11 +19,6 @@ function originOf(req: Request): string {
 }
 
 export async function GET(request: Request) {
-  const admin = await getCurrentAdmin();
-  if (!admin) {
-    return NextResponse.json({ error: "กรุณาเข้าสู่ระบบก่อน" }, { status: 401 });
-  }
-
   const origin = originOf(request);
   const appKey = process.env.LAZADA_APP_KEY ?? "";
   const appSecret = process.env.LAZADA_APP_SECRET ?? "";

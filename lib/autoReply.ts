@@ -79,12 +79,6 @@ export async function processAutoReply(
       await setPendingHuman(conversationId, true);
       return;
     }
-    // ไม่มั่นใจ → รอคนตอบเสมอ (เรื่องที่ตอบไม่ได้ห้ามเดา/สมมุติข้อมูลขึ้นเอง)
-    if (result.needsHuman) {
-      await setPendingHuman(conversationId, true);
-      return;
-    }
-
     const target = await getSendTarget(shopId, conversationId);
     const extUserId = target?.lineUserId ?? "";
 
@@ -118,8 +112,8 @@ export async function processAutoReply(
 
     await addAdminMessage(shopId, conversationId, result.message); // เคลียร์ pending ด้วย
 
-    // วัดยอดพ่วง: บันทึกเมื่อ AI เสนอพ่วงและส่งถึงลูกค้าแล้ว (best-effort ห้ามทำให้ตอบแชตพัง)
-    if (result.shouldUpsell && result.estAddedValue != null) {
+    // วัดยอดพ่วง: บันทึกทุกครั้งที่ AI เสนอพ่วงและส่งถึงลูกค้าแล้ว (นับจำนวนแม้ไม่ได้ใส่ตัวเลขมูลค่า)
+    if (result.shouldUpsell) {
       await recordUpsell({
         shopId,
         conversationId,
@@ -127,6 +121,12 @@ export async function processAutoReply(
         product: result.upsellProduct,
         estValue: result.estAddedValue,
       }).catch(() => {});
+    }
+
+    // ต้องให้แอดมินช่วยต่อ → ส่งข้อความรับเรื่องให้ลูกค้าแล้ว + ตั้ง "รอตอบ" ให้แอดมินตามตอบ
+    // (addAdminMessage เคลียร์ pending ไป ต้องตั้งกลับ — กันลูกค้าถูกบอกให้รอแอดมินแต่แอดมินไม่เห็น)
+    if (result.needsHuman) {
+      await setPendingHuman(conversationId, true);
     }
   } catch {
     await setPendingHuman(conversationId, true).catch(() => {});

@@ -30,6 +30,8 @@ let activeIdCache: string | null = null;
 let selectedPlatformCache: string | null = null;
 let appsCache: InboxApp[] = [];
 const detailCache = new Map<string, ConversationDetail>();
+// เก็บข้อมูลการพ่วงของร่างล่าสุดต่อบทสนทนา → ใช้นับยอดพ่วงตอนแอดมินกดส่ง
+const draftUpsellCache = new Map<string, { product: string; estValue: number | null }>();
 
 /** แอปที่ร้านเพิ่มในกล่องแชต + โหมด AI ของแอปนั้น */
 type InboxApp = { channel: string; level: AutoLevel };
@@ -363,6 +365,9 @@ export default function InboxView({
         message?: string;
         reason?: string;
         needsHuman?: boolean;
+        shouldUpsell?: boolean;
+        estAddedValue?: number | null;
+        upsellProduct?: string;
         error?: string;
       };
       if (!r.ok) {
@@ -370,6 +375,15 @@ export default function InboxView({
         return;
       }
       setDraftFor(id, d.message || "");
+      // ร่างนี้มีการเสนอพ่วงไหม → เก็บไว้ ถ้าแอดมินกดส่งจะได้นับยอดพ่วง
+      if (d.shouldUpsell) {
+        draftUpsellCache.set(id, {
+          product: d.upsellProduct ?? "",
+          estValue: d.estAddedValue ?? null,
+        });
+      } else {
+        draftUpsellCache.delete(id);
+      }
       setReasonFor(
         id,
         d.needsHuman
@@ -423,6 +437,16 @@ export default function InboxView({
         body: JSON.stringify({ conversationId: id, text }),
       });
       if (r.ok) {
+        // โหมดร่าง: ถ้าร่างนี้มีการเสนอพ่วง → นับยอดพ่วง (best-effort)
+        const up = draftUpsellCache.get(id);
+        if (up) {
+          draftUpsellCache.delete(id);
+          void fetch("/api/metrics/upsell/record", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ conversationId: id, product: up.product, estValue: up.estValue }),
+          }).catch(() => {});
+        }
         setDraftFor(id, "");
         setReasonFor(id, "");
         await loadDetail(id);

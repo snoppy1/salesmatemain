@@ -46,6 +46,12 @@ export async function GET(request: Request) {
         LAZADA_CHAT_SECRET: chatSecret ? "✅ ตั้งแล้ว" : "❌ ไม่ได้ตั้ง (จำเป็นตอนรับข้อความ)",
       },
       client_id_ที่ใช้เชื่อมแชต: effKey ? mask(effKey) : "(ว่าง — ปัญหาอยู่ตรงนี้)",
+      appKey_ดึงข้อมูล_เทียบ_imKey_แชต:
+        appKey && imKey
+          ? appKey === imKey
+            ? "✅ เป็นแอปเดียวกัน (สิทธิ์ที่ apply บนแอปนี้ใช้ได้ทั้งแชต+ดึงข้อมูล)"
+            : "⚠️ คนละแอป! ต้อง apply สิทธิ์ Product/Order บนแอปของ LAZADA_APP_KEY ด้วย"
+          : "(ตั้งคีย์ไม่ครบ)",
       redirect_uri_ต้องตั้งใน_lazada_console: callback,
       ลิงก์authที่ระบบสร้าง: authUrl,
     },

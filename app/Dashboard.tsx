@@ -1747,6 +1747,18 @@ function CatalogView({
     return () => clearInterval(id);
   }, []);
 
+  // ค้นหาสินค้า (กรองตามชื่อ/คำอธิบาย แต่คงเลขลำดับเดิมไว้)
+  const [q, setQ] = useState("");
+  const ql = q.trim().toLowerCase();
+  const shown = products
+    .map((product, i) => ({ product, i }))
+    .filter(
+      ({ product }) =>
+        !ql ||
+        product.name.toLowerCase().includes(ql) ||
+        product.description.toLowerCase().includes(ql),
+    );
+
   return (
     <section className="rounded-2xl border border-line bg-surface p-5">
       <div className="flex items-center justify-between">
@@ -1794,7 +1806,10 @@ function CatalogView({
 
       <div className="mt-4 rounded-xl border border-line p-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-fg">รายการสินค้า</h3>
+          <h3 className="text-sm font-semibold text-fg">
+            รายการสินค้า{" "}
+            <span className="text-xs font-normal text-muted">({products.length})</span>
+          </h3>
           <button type="button" onClick={addProduct} className={secondaryBtnClass}>
             + เพิ่มสินค้า
           </button>
@@ -1803,13 +1818,34 @@ function CatalogView({
           AI ใช้สินค้าเหล่านี้ตอบลูกค้าและแนะนำสินค้าที่เข้ากัน
         </p>
 
+        {products.length > 0 && (
+          <div className="mt-3">
+            <input
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="ค้นหาสินค้า… (ชื่อ หรือ คำอธิบาย)"
+              className={inputClass}
+            />
+            {ql && (
+              <p className="mt-1 text-xs text-muted">
+                พบ {shown.length} จาก {products.length} รายการ
+              </p>
+            )}
+          </div>
+        )}
+
         {products.length === 0 ? (
           <p className="mt-3 rounded-lg border border-dashed border-line bg-surface2 px-3 py-6 text-center text-sm text-muted">
             ยังไม่มีสินค้า — กด “+ เพิ่มสินค้า” หรือดึงจาก marketplace ด้านบน
           </p>
+        ) : shown.length === 0 ? (
+          <p className="mt-3 rounded-lg border border-dashed border-line bg-surface2 px-3 py-6 text-center text-sm text-muted">
+            ไม่พบสินค้าที่ตรงกับ “{q}”
+          </p>
         ) : (
           <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-            {products.map((product, i) => (
+            {shown.map(({ product, i }) => (
               <ProductRow
                 key={product.id}
                 index={i}

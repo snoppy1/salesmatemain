@@ -73,7 +73,15 @@ export const ORDER_REPLY_SYSTEM_PROMPT = `คุณคือแอดมิน�
 ตอบกลับสุดท้ายเป็น JSON เท่านั้น (หลังเรียก tool เสร็จ):
 {"needs_human": true/false, "message": "ข้อความตอบลูกค้าพร้อมส่ง (ห้ามว่าง)", "reason_for_admin": "บริบทสั้นๆ ให้แอดมิน"}`;
 
-export function buildUserContent(req: GenerateRequest): string {
+/**
+ * แยก user content เป็น 2 ส่วนเพื่อทำ prompt caching:
+ * - stable: ร้าน + ความรู้ร้าน + คลังสินค้า + โปรฯ (ซ้ำทุกข้อความของร้านเดิม → แคชได้)
+ * - customer: ข้อความลูกค้า (เปลี่ยนทุกครั้ง → ไม่แคช)
+ */
+export function buildUserContentParts(req: GenerateRequest): {
+  stable: string;
+  customer: string;
+} {
   const productLines = (req.products ?? [])
     .filter((p) => p.enabled !== false && p.name.trim())
     .map((p) => {
@@ -103,7 +111,7 @@ export function buildUserContent(req: GenerateRequest): string {
     .join("\n");
   const promoBlock = promoLines || "- (ตอนนี้ไม่มีโปรโมชั่น)";
 
-  return `[ร้าน] ${req.shopName.trim() || "ไม่ระบุชื่อร้าน"}
+  const stable = `[ร้าน] ${req.shopName.trim() || "ไม่ระบุชื่อร้าน"}
 
 [โทนการพูดของร้าน]
 ${req.shopVoice.trim() || "ไม่ระบุ"}
@@ -115,13 +123,20 @@ ${(req.shopMemory ?? "").trim() || "ไม่ระบุ"}
 ${productsBlock}
 
 [โปรโมชั่นที่ใช้ได้ตอนนี้ (แนะนำได้เฉพาะที่ตรงเงื่อนไข + ใช้กับสินค้าที่ลูกค้าสนใจ ห้ามแต่งเอง)]
-${promoBlock}
+${promoBlock}`;
 
-[ข้อความ/บริบทจากลูกค้า]
+  const customer = `[ข้อความ/บริบทจากลูกค้า]
 ${req.customerMsg.trim()}
 (ในนี้อาจมีทั้งข้อความล่าสุดของลูกค้าและบริบท เช่น งบ/ของขวัญ/รีบ — ตีความเอง แล้วแอดมินกำลังจะตอบ)
 
 วิเคราะห์แล้วตอบเป็น JSON ตามรูปแบบที่กำหนด`;
+
+  return { stable, customer };
+}
+
+export function buildUserContent(req: GenerateRequest): string {
+  const { stable, customer } = buildUserContentParts(req);
+  return `${stable}\n\n${customer}`;
 }
 
 /** ประกอบประวัติแชตเป็น customerMsg ให้ AI (เน้นข้อความล่าสุดของลูกค้า) — ใช้ทั้ง draft/choices/auto */

@@ -5,6 +5,7 @@ import {
   CHOICES_SYSTEM_PROMPT,
   ORDER_REPLY_SYSTEM_PROMPT,
   buildUserContent,
+  buildUserContentParts,
   parseModelJson,
 } from "./prompt";
 import { getOrder, traceShipment, getOrdersByBuyer } from "./lazadaOrders";
@@ -54,16 +55,15 @@ async function callClaudeRaw(
     throw new ClaudeError("ยังไม่ได้ตั้งค่า ANTHROPIC_API_KEY ฝั่งเซิร์ฟเวอร์", 500);
   }
 
-  const userContent = buildUserContent(req);
+  const { stable, customer } = buildUserContentParts(req);
   const imgs = req.imageUrls ?? [];
-  // มีรูป → ส่งเป็น content blocks (text + image url) ให้ Claude ดูภาพ; ไม่มีรูป → string เดิม (ไม่มีต้นทุนรูปเพิ่ม)
-  const content =
-    imgs.length === 0
-      ? userContent
-      : [
-          { type: "text", text: userContent },
-          ...imgs.map((url) => ({ type: "image", source: { type: "url", url } })),
-        ];
+  // Prompt caching: ระบบ prompt + (ร้าน+คลังสินค้า) ซ้ำทุกข้อความของร้านเดิม → ใส่ cache_control
+  // อ่านซ้ำใน 5 นาทีจ่ายแค่ ~10% (คำตอบเหมือนเดิม แคชแค่ลดต้นทุน token ส่วนที่ซ้ำ); รูปต่อท้าย customer
+  const content = [
+    { type: "text", text: stable, cache_control: { type: "ephemeral" } },
+    { type: "text", text: customer },
+    ...imgs.map((url) => ({ type: "image", source: { type: "url", url } })),
+  ];
 
   let res: Response;
   try {
@@ -77,7 +77,9 @@ async function callClaudeRaw(
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 900,
-        system: systemPrompt,
+        system: [
+          { type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } },
+        ],
         messages: [{ role: "user", content }],
       }),
     });

@@ -10,7 +10,7 @@ import {
 import { getOrder, traceShipment, getOrdersByBuyer } from "./lazadaOrders";
 import { runToolLoop, type ModelTurn } from "./toolLoop";
 
-const MODEL = "claude-sonnet-4-6";
+const MODEL = "claude-opus-4-8"; // ตอบแชตลูกค้า — Opus 4.8 ฉลาด+ชั่งน้ำหนัก ตอบ/รอตอบ ดีกว่า Sonnet
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 
 export class ClaudeError extends Error {

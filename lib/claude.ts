@@ -10,8 +10,8 @@ import {
 } from "./prompt";
 import { getOrder, traceShipment, getOrdersByBuyer } from "./lazadaOrders";
 import { runToolLoop, type ModelTurn } from "./toolLoop";
+import { pickChatModel, CHAT_OPUS } from "./modelRouter";
 
-const MODEL = "claude-opus-4-8"; // ตอบแชตลูกค้า — Opus 4.8 ฉลาด+ชั่งน้ำหนัก ตอบ/รอตอบ ดีกว่า Sonnet
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 
 export class ClaudeError extends Error {
@@ -49,6 +49,7 @@ export function parseReplyResult(obj: Record<string, unknown>): ReplyResult {
 async function callClaudeRaw(
   systemPrompt: string,
   req: GenerateRequest,
+  model: string,
 ): Promise<Record<string, unknown>> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -75,7 +76,7 @@ async function callClaudeRaw(
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: MODEL,
+        model,
         max_tokens: 900,
         system: [
           { type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } },
@@ -105,13 +106,15 @@ async function callClaudeRaw(
 
 /** กล่องแชต: ตอบลูกค้าเสมอ + ประเมิน needs_human (ใช้ทั้ง draft และ auto) */
 export async function generateReply(req: GenerateRequest): Promise<ReplyResult> {
-  const obj = await callClaudeRaw(REPLY_SYSTEM_PROMPT, req);
+  const { model } = pickChatModel(req); // router: Sonnet ทั่วไป / Opus เคสเสี่ยง
+  const obj = await callClaudeRaw(REPLY_SYSTEM_PROMPT, req, model);
   return parseReplyResult(obj);
 }
 
 /** โหมด manual: เสนอ 2-3 คำตอบให้แอดมินเลือก */
 export async function generateChoices(req: GenerateRequest): Promise<string[]> {
-  const obj = await callClaudeRaw(CHOICES_SYSTEM_PROMPT, req);
+  const { model } = pickChatModel(req);
+  const obj = await callClaudeRaw(CHOICES_SYSTEM_PROMPT, req, model);
   const arr = Array.isArray(obj.choices) ? obj.choices : [];
   return arr
     .map((c) => (typeof c === "string" ? c.trim() : ""))
@@ -197,7 +200,7 @@ export async function generateReplyWithTools(
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
-          model: MODEL,
+          model: CHAT_OPUS, // ออเดอร์/จัดส่ง = เดิมพันสูง (เงิน/ที่อยู่/tool) → คง Opus
           max_tokens: 900,
           system: ORDER_REPLY_SYSTEM_PROMPT,
           tools,

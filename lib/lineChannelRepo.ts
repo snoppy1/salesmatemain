@@ -27,6 +27,11 @@ export async function saveChannel(
   },
 ): Promise<void> {
   const now = Date.now();
+  // ปลดผูก OA นี้ออกจากร้านอื่นก่อน (1 OA = 1 ร้าน; กัน unique bot_user_id ชนตอนย้ายร้าน)
+  await query(
+    "DELETE FROM line_channels WHERE bot_user_id = $1 AND shop_id <> $2",
+    [c.botUserId, shopId],
+  );
   await query(
     `INSERT INTO line_channels
        (id, shop_id, channel_secret, access_token, bot_user_id, bot_basic_id, display_name, created_at, updated_at)

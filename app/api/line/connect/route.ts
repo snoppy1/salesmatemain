@@ -28,25 +28,34 @@ export async function POST(request: Request) {
     );
   }
 
-  const info = await fetchBotInfo(accessToken);
-  if (!info) {
+  try {
+    const info = await fetchBotInfo(accessToken);
+    if (!info) {
+      return NextResponse.json(
+        { error: "Channel access token ใช้ไม่ได้ — เช็คว่าคัดลอกครบ ไม่หมดอายุ และเป็นของ OA นี้" },
+        { status: 400 },
+      );
+    }
+
+    await saveChannel(admin.shopId, {
+      channelSecret,
+      accessToken,
+      botUserId: info.userId,
+      botBasicId: info.basicId,
+      displayName: info.displayName,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      displayName: info.displayName,
+      basicId: info.basicId,
+    });
+  } catch (e) {
+    // ตอบเป็น JSON เสมอ (ไม่ให้ throw เป็น 500 ลอยๆ) → หน้าเว็บจะได้โชว์เหตุผลจริง
+    const msg = e instanceof Error ? e.message : "ข้อผิดพลาดภายใน";
     return NextResponse.json(
-      { error: "Token ใช้ไม่ได้ — ตรวจ Channel access token อีกครั้ง" },
-      { status: 400 },
+      { error: `เชื่อม LINE ไม่สำเร็จ: ${msg}` },
+      { status: 500 },
     );
   }
-
-  await saveChannel(admin.shopId, {
-    channelSecret,
-    accessToken,
-    botUserId: info.userId,
-    botBasicId: info.basicId,
-    displayName: info.displayName,
-  });
-
-  return NextResponse.json({
-    ok: true,
-    displayName: info.displayName,
-    basicId: info.basicId,
-  });
 }

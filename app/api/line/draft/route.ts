@@ -8,6 +8,7 @@ import { listPromotions } from "@/lib/promotionsRepo";
 import { validNowPromotions } from "@/lib/promotions";
 import { isOrderTopic, needsHumanForOrderTopic } from "@/lib/orderIntent";
 import { getValidAccessToken } from "@/lib/connectionRepo";
+import { recordUpsell } from "@/lib/upsellRepo";
 
 export const runtime = "nodejs";
 
@@ -72,6 +73,16 @@ export async function POST(request: Request) {
     }
     if (needsHumanForOrderTopic(lastCustomerText)) {
       result = { ...result, needsHuman: true };
+    }
+    // นับ "AI เสนอพ่วง" ตอน AI ร่างคำตอบที่มีพ่วง (โหมดกดส่งเอง) — recordUpsell กันนับซ้ำให้แล้ว
+    if (result.shouldUpsell) {
+      await recordUpsell({
+        shopId: admin.shopId,
+        conversationId: body.conversationId,
+        channel: convo.channel,
+        product: result.upsellProduct,
+        estValue: result.estAddedValue,
+      }).catch(() => {});
     }
     return NextResponse.json(result);
   } catch (e) {

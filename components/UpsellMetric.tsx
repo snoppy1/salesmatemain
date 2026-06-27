@@ -32,7 +32,7 @@ export default function UpsellMetric() {
   return (
     <div className="grid grid-cols-1 gap-2">
       <Stat label="ยอดขาย Lazada (เดือนนี้)" value={baht(m.sales.totalRevenue)} hint={`${m.sales.orderCount} ออเดอร์`} />
-      <Stat label="AI เสนอพ่วง (ส่งแล้ว)" value={baht(m.offered.totalEstValue)} hint={`${m.offered.count} ครั้ง`} />
+      <Stat label="AI เสนอพ่วง" value={baht(m.offered.totalEstValue)} hint={`${m.offered.count} ครั้ง`} />
       <Stat label="พ่วงขายได้จริง" value={baht(m.sold.totalSoldValue)} hint={`${m.sold.count} ครั้ง`} highlight />
     </div>
   );

@@ -9,7 +9,7 @@ export function monthStart(now: number, tzOffsetHours = 7): number {
   return localMonthStart - tzOffsetHours * 3600_000;
 }
 
-/** บันทึก 1 เหตุการณ์การพ่วงที่ส่งถึงลูกค้าแล้ว */
+/** บันทึก 1 เหตุการณ์การพ่วง (กันนับซ้ำ: บทสนทนา+สินค้าเดียวกัน นับครั้งเดียว) */
 export async function recordUpsell(e: {
   shopId: string;
   conversationId: string;
@@ -17,6 +17,12 @@ export async function recordUpsell(e: {
   product: string;
   estValue: number | null;
 }): Promise<void> {
+  const dup = await queryOne<{ id: string }>(
+    `SELECT id FROM upsell_events
+       WHERE shop_id = $1 AND conversation_id = $2 AND product = $3 LIMIT 1`,
+    [e.shopId, e.conversationId, e.product],
+  );
+  if (dup) return; // เคยนับพ่วงตัวนี้ในบทสนทนานี้แล้ว → ไม่นับซ้ำ
   await query(
     `INSERT INTO upsell_events (id, shop_id, conversation_id, channel, product, est_value, created_at)
      VALUES ($1,$2,$3,$4,$5,$6,$7)`,

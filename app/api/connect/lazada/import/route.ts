@@ -3,8 +3,10 @@ import { getCurrentAdmin } from "@/lib/auth";
 import { getValidAccessToken } from "@/lib/connectionRepo";
 import { fetchCatalog } from "@/lib/marketplace";
 import { getMockSettings, isMockEnabled } from "@/lib/shopRepo";
+import { compressDescriptions } from "@/lib/descCompress";
 
 export const runtime = "nodejs";
+export const maxDuration = 60; // ย่อคำอธิบายหลายตัวด้วย AI อาจใช้เวลาหลายวินาที
 
 // ดึงแคตตาล็อกสินค้าจาก Lazada → คืนเป็นรายการสินค้า (ฝั่ง client เอาไปเพิ่มในคลัง)
 export async function POST() {
@@ -31,17 +33,18 @@ export async function POST() {
     return NextResponse.json({ error: "ดึงข้อมูลสินค้าไม่สำเร็จ" }, { status: 502 });
   }
 
-  const products = items
-    .filter((it) => it.name.trim())
-    .map((it) => ({
-      name: it.name,
-      price: it.price,
-      description: it.description,
-      image: it.image,
-      source: "lazada",
-      externalId: it.externalId,
-      stock: it.stock,
-    }));
+  const named = items.filter((it) => it.name.trim());
+  // ย่อคำอธิบายตอนดึงเข้า: เก็บสเปก ตัดน้ำ (ลด token ตอน AI ตอบ) — best-effort ไม่ทำให้ import พัง
+  const shortDescs = await compressDescriptions(named.map((it) => it.description));
+  const products = named.map((it, idx) => ({
+    name: it.name,
+    price: it.price,
+    description: shortDescs[idx],
+    image: it.image,
+    source: "lazada",
+    externalId: it.externalId,
+    stock: it.stock,
+  }));
 
   return NextResponse.json({ products });
 }

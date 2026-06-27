@@ -1,8 +1,11 @@
-import type { GenerateRequest } from "./types";
+import type { GenerateRequest, Product } from "./types";
+import { selectRelevantProducts } from "./catalogRetrieval";
 
 /** สำหรับกล่องแชต: ต้อง "ตอบลูกค้าเสมอ" (message ห้ามว่าง) + แนะนำสินค้าเสริมถ้าเหมาะ */
 export const REPLY_SYSTEM_PROMPT = `คุณคือแอดมินร้านที่กำลังตอบแชตลูกค้า ไม่ใช่ AI — ตอบเหมือนคนจริงที่รู้จักสินค้าดีและปิดการขายเก่ง
 หน้าที่: อ่านประวัติแชต แล้วร่าง "ข้อความตอบลูกค้า" ที่แอดมินก๊อปส่งได้ทันที
+
+โครงสร้างข้อมูลสินค้า (อ่านให้เข้าใจก่อน): บางครั้งคลังจะถูกแบ่งเป็น 2 ส่วน — [รายการสินค้าทั้งหมดในคลัง] คือชื่อ+ราคา+สต็อกของ "ทุกชิ้น" ที่ร้านมี (ใช้ดูว่ามีอะไรขาย ของหมดไหม และหาของที่เข้าคู่เพื่อเสนอพ่วง) ส่วน [รายละเอียด/สเปกของสินค้าที่เกี่ยวกับคำถามล่าสุด] คือสเปกเต็มเฉพาะของที่เกี่ยวกับคำถามนี้ (ใช้ตอบเชิงลึก) — ถ้าต้องการสเปกของสินค้าที่ไม่ได้อยู่ในส่วนรายละเอียด ให้ใช้เท่าที่อ่านได้จากชื่อสินค้า ถ้าข้อมูลไม่พอจริงๆ ให้ถามลูกค้าเพิ่มหรือขอเช็คให้ อย่าเดาสเปกเอง
 
 หลักการ:
 1. ตอบให้ตรงคำถาม/ความต้องการล่าสุดของลูกค้าก่อนเสมอ ใช้ได้เฉพาะสินค้า/ราคา/โปรที่อยู่ในข้อมูลที่ให้เท่านั้น ห้ามแต่งราคา/สเปก/รุ่นขึ้นเอง ถ้าไม่รู้ให้ตอบกลางๆ หรือชวนถามต่อ
@@ -75,31 +78,60 @@ export const ORDER_REPLY_SYSTEM_PROMPT = `คุณคือแอดมิน�
 ตอบกลับสุดท้ายเป็น JSON เท่านั้น (หลังเรียก tool เสร็จ):
 {"needs_human": true/false, "message": "ข้อความตอบลูกค้าพร้อมส่ง (ห้ามว่าง)", "reason_for_admin": "บริบทสั้นๆ ให้แอดมิน"}`;
 
+/** บรรทัดสินค้าแบบเต็ม (ชื่อ+ราคา+สต็อก+คำอธิบาย) — ใช้ตอบเชิงลึก */
+function fullProductLine(p: Product): string {
+  const price = p.price.trim() ? ` (ราคา ${p.price.trim()} บาท)` : "";
+  const desc = p.description.trim() ? ` — ${p.description.trim()}` : "";
+  const stock = stockTag(p);
+  return `- ${p.name.trim()}${price}${stock}${desc}`;
+}
+
 /**
- * แยก user content เป็น 2 ส่วนเพื่อทำ prompt caching:
+ * ย่อชื่อสินค้าให้สั้นลงสำหรับ "ดัชนีย่อ" — ชื่อ Lazada มักยาวมาก (ยัด keyword/หางโฆษณาซ้ำๆ)
+ * สเปกหลักมักอยู่ช่วงต้น จึงตัดที่ ~70 ตัวอักษร (ขอบคำ) เก็บสเปก ตัดน้ำ
+ * ของที่ลูกค้าถามจะถูกดึงไป "บล็อกรายละเอียดเต็ม" (ชื่อเต็ม+คำอธิบาย) อยู่แล้ว ดัชนีจึงย่อได้ปลอดภัย
+ */
+function shortName(name: string, maxChars = 70): string {
+  const n = name.trim().replace(/\s+/g, " ");
+  if (n.length <= maxChars) return n;
+  const slice = n.slice(0, maxChars);
+  const lastSpace = slice.lastIndexOf(" ");
+  return (lastSpace > maxChars * 0.6 ? slice.slice(0, lastSpace) : slice).trimEnd() + "…";
+}
+
+/** บรรทัดสินค้าแบบย่อ (ชื่อย่อ+ราคา+สต็อก ไม่มีคำอธิบาย) — ใช้เป็นดัชนีว่ามีอะไรขาย/เสนอพ่วง */
+function briefProductLine(p: Product): string {
+  const price = p.price.trim() ? ` (ราคา ${p.price.trim()} บาท)` : "";
+  return `- ${shortName(p.name)}${price}${stockTag(p)}`;
+}
+
+function stockTag(p: Product): string {
+  if (typeof p.stock !== "number") return "";
+  return p.stock <= 0 ? " [สินค้าหมด]" : ` [คงเหลือ ${p.stock} ชิ้น]`;
+}
+
+/**
+ * แยก user content เป็น 2 ส่วนเพื่อทำ prompt caching + ลด token:
  * - stable: ร้าน + ความรู้ร้าน + คลังสินค้า + โปรฯ (ซ้ำทุกข้อความของร้านเดิม → แคชได้)
- * - customer: ข้อความลูกค้า (เปลี่ยนทุกครั้ง → ไม่แคช)
+ * - customer: (สเปกสินค้าที่เกี่ยวกับคำถาม) + ข้อความลูกค้า (เปลี่ยนทุกครั้ง → ไม่แคช)
+ *
+ * ร้านสินค้าเยอะ: stable ใส่ "ดัชนีย่อทั้งคลัง" (ชื่อ+ราคา+สต็อก) แทนคำอธิบายเต็มทุกชิ้น
+ * แล้วแนบ "สเปกเต็มเฉพาะสินค้าที่เกี่ยวกับคำถาม" ไว้ฝั่ง customer — AI ยังเห็นของครบ แต่ส่ง token น้อยลงมาก
  */
 export function buildUserContentParts(req: GenerateRequest): {
   stable: string;
   customer: string;
 } {
-  const productLines = (req.products ?? [])
-    .filter((p) => p.enabled !== false && p.name.trim())
-    .map((p) => {
-      const price = p.price.trim() ? ` (ราคา ${p.price.trim()} บาท)` : "";
-      const desc = p.description.trim() ? ` — ${p.description.trim()}` : "";
-      const stock =
-        typeof p.stock === "number"
-          ? p.stock <= 0
-            ? " [สินค้าหมด]"
-            : ` [คงเหลือ ${p.stock} ชิ้น]`
-          : "";
-      return `- ${p.name.trim()}${price}${stock}${desc}`;
-    })
-    .join("\n");
+  const enabled = (req.products ?? []).filter(
+    (p) => p.enabled !== false && p.name.trim(),
+  );
+  const { relevant, useRetrieval } = selectRelevantProducts(enabled, req.customerMsg);
 
-  const productsBlock = productLines || "- (ยังไม่มีข้อมูลสินค้า)";
+  const catalogHeader = useRetrieval
+    ? "[รายการสินค้าทั้งหมดในคลัง (ชื่อ+ราคา+สต็อก — ใช้ดูว่ามีอะไรขาย/แนะนำของที่เข้าคู่เพื่อเสนอพ่วง; สเปกละเอียดดูที่ส่วน 'รายละเอียดสินค้าที่เกี่ยวข้อง')]"
+    : "[คลังสินค้า (ใช้ตอบคำถาม + แนะนำสินค้าที่เข้ากัน)]";
+  const catalogLines = (useRetrieval ? enabled.map(briefProductLine) : enabled.map(fullProductLine)).join("\n");
+  const productsBlock = catalogLines || "- (ยังไม่มีข้อมูลสินค้า)";
 
   const promoLines = (req.promotions ?? [])
     .filter((p) => p.title.trim())
@@ -121,13 +153,22 @@ ${req.shopVoice.trim() || "ไม่ระบุ"}
 [สิ่งที่ร้านอยากให้ AI จำ (ข้อมูล/นโยบายร้าน — ใช้ตอบลูกค้าได้เลยถ้าตรงคำถาม)]
 ${(req.shopMemory ?? "").trim() || "ไม่ระบุ"}
 
-[คลังสินค้า (ใช้ตอบคำถาม + แนะนำสินค้าที่เข้ากัน)]
+${catalogHeader}
 ${productsBlock}
 
 [โปรโมชั่นที่ใช้ได้ตอนนี้ (แนะนำได้เฉพาะที่ตรงเงื่อนไข + ใช้กับสินค้าที่ลูกค้าสนใจ ห้ามแต่งเอง)]
 ${promoBlock}`;
 
-  const customer = `[ข้อความ/บริบทจากลูกค้า]
+  // สเปกเต็มเฉพาะสินค้าที่เกี่ยวกับคำถามนี้ (ฝั่ง customer = ไม่แคช เพราะเปลี่ยนตามคำถาม)
+  const detailsBlock =
+    useRetrieval && relevant.length
+      ? `[รายละเอียด/สเปกของสินค้าที่เกี่ยวกับคำถามล่าสุด (ใช้ตอบเชิงลึกได้เลย)]
+${relevant.map(fullProductLine).join("\n")}
+
+`
+      : "";
+
+  const customer = `${detailsBlock}[ข้อความ/บริบทจากลูกค้า]
 ${req.customerMsg.trim()}
 (ในนี้อาจมีทั้งข้อความล่าสุดของลูกค้าและบริบท เช่น งบ/ของขวัญ/รีบ — ตีความเอง แล้วแอดมินกำลังจะตอบ)
 

@@ -80,15 +80,27 @@ function shortName(name: string, maxChars = 70): string {
   return (lastSpace > maxChars * 0.6 ? slice.slice(0, lastSpace) : slice).trimEnd() + "…";
 }
 
-/** บรรทัดสินค้าแบบย่อ (ชื่อย่อ+ราคา+สต็อก ไม่มีคำอธิบาย) — ใช้เป็นดัชนีว่ามีอะไรขาย/เสนอพ่วง */
+/** บรรทัดสินค้าแบบย่อ (ชื่อย่อ+ราคา+มี/หมด ไม่มีคำอธิบาย) — ใช้เป็นดัชนีว่ามีอะไรขาย/เสนอพ่วง */
 function briefProductLine(p: Product): string {
   const price = p.price.trim() ? ` (ราคา ${p.price.trim()} บาท)` : "";
-  return `- ${shortName(p.name)}${price}${stockTag(p)}`;
+  return `- ${shortName(p.name)}${price}${briefStockTag(p)}`;
 }
 
+/** สต็อกแบบมีตัวเลข (ตอบ "เหลือกี่ชิ้น") — ใช้ใน "สเปกเต็มของที่เกี่ยวกับคำถาม" (ฝั่งไม่แคช) */
 function stockTag(p: Product): string {
   if (typeof p.stock !== "number") return "";
   return p.stock <= 0 ? " [สินค้าหมด]" : ` [คงเหลือ ${p.stock} ชิ้น]`;
+}
+
+/**
+ * สต็อกแบบ "มี/หมด" (ไม่บอกจำนวน) — ใช้ใน "ดัชนีย่อ" ที่อยู่ในก้อนแคช
+ * เหตุผล: ถ้าใส่จำนวนเป๊ะ พอขายของได้ 1 ชิ้น ตัวเลขเปลี่ยน → byte เปลี่ยน → แคชพังทั้งก้อน
+ * (ร้านขายดีจะแคชพังทุกออเดอร์ = จ่ายเต็มตลอด). "มี/หมด" เปลี่ยนเฉพาะตอนข้าม 0 → แคชอยู่รอด
+ * ส่วนจำนวนเป๊ะยังมีใน [รายละเอียด/สเปกของสินค้าที่เกี่ยวกับคำถาม] (ฝั่งไม่แคช) ตอบ "เหลือกี่ชิ้น" ได้
+ */
+function briefStockTag(p: Product): string {
+  if (typeof p.stock !== "number") return "";
+  return p.stock <= 0 ? " [สินค้าหมด]" : " [มีสต็อก]";
 }
 
 /**

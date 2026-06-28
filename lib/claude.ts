@@ -61,7 +61,7 @@ async function callClaudeRaw(
   // Prompt caching: ระบบ prompt + (ร้าน+คลังสินค้า) ซ้ำทุกข้อความของร้านเดิม → ใส่ cache_control
   // อ่านซ้ำใน 5 นาทีจ่ายแค่ ~10% (คำตอบเหมือนเดิม แคชแค่ลดต้นทุน token ส่วนที่ซ้ำ); รูปต่อท้าย customer
   const content = [
-    { type: "text", text: stable, cache_control: { type: "ephemeral" } },
+    { type: "text", text: stable, cache_control: { type: "ephemeral", ttl: "1h" } },
     { type: "text", text: customer },
     ...imgs.map((url) => ({ type: "image", source: { type: "url", url } })),
   ];
@@ -79,7 +79,7 @@ async function callClaudeRaw(
         model,
         max_tokens: 900,
         system: [
-          { type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } },
+          { type: "text", text: systemPrompt, cache_control: { type: "ephemeral", ttl: "1h" } },
         ],
         messages: [{ role: "user", content }],
       }),

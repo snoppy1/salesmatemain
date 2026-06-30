@@ -90,7 +90,8 @@ export async function processAutoReply(
       await ttSendMessage(tt?.access_token ?? "", extUserId, result.message);
     } else if (convo.channel === "lazada") {
       const lz = await getLzChannel(shopId);
-      await lzSendMessage(lz?.access_token ?? "", extUserId, result.message);
+      // Lazada ส่งด้วย IM session_id จริง (ไม่ใช่ buyer_id)
+      await lzSendMessage(lz?.access_token ?? "", target?.sessionId ?? "", result.message);
     } else if (convo.channel === "shopee") {
       const sp = await getSpChannel(shopId);
       await spSendMessage(

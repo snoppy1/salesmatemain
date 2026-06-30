@@ -173,12 +173,14 @@ export async function POST(request: Request) {
   if (d.from_account_type !== 1 || d.auto_reply) return NextResponse.json({ ok: true });
 
   const userId = String(d.from_user_id ?? "");
+  const sessionId = String(d.session_id ?? "");
   if (!userId) return NextResponse.json({ ok: true });
 
   const { text, imageUrl } = parseImContent(d.content);
   if (!text.trim() && !imageUrl) return NextResponse.json({ ok: true });
 
-  const displayName = await fetchUserName(channel.access_token, userId);
+  // ชื่อ = title ของ session (อาจถูก mask); เก็บ session_id ไว้ใช้ส่งข้อความกลับ
+  const displayName = await fetchUserName(channel.access_token, sessionId);
   const conversationId = await ingestCustomerMessage(shopId, {
     channel: "lazada",
     lineUserId: userId,
@@ -187,6 +189,7 @@ export async function POST(request: Request) {
     extId: d.message_id ? String(d.message_id) : undefined,
     kind: imageUrl ? "image" : "text",
     imageUrl,
+    sessionId,
   });
   if (conversationId) {
     const mode = await getConversationMode(conversationId);

@@ -15,6 +15,7 @@ export async function upsertCustomer(
   channel: string,
   lineUserId: string,
   displayName: string,
+  sessionId?: string, // Lazada IM session_id ที่ใช้ส่งข้อความกลับ (ช่องอื่นไม่ต้องมี)
 ): Promise<string> {
   const existing = await queryOne<{ id: string }>(
     "SELECT id FROM customers WHERE shop_id = $1 AND channel = $2 AND line_user_id = $3",
@@ -27,13 +28,19 @@ export async function upsertCustomer(
         existing.id,
       ]);
     }
+    if (sessionId) {
+      await query("UPDATE customers SET ext_session_id = $1 WHERE id = $2", [
+        sessionId,
+        existing.id,
+      ]);
+    }
     return existing.id;
   }
   const id = newId();
   await query(
-    `INSERT INTO customers (id, shop_id, channel, line_user_id, display_name, created_at)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [id, shopId, channel, lineUserId, displayName, Date.now()],
+    `INSERT INTO customers (id, shop_id, channel, line_user_id, display_name, created_at, ext_session_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [id, shopId, channel, lineUserId, displayName, Date.now(), sessionId ?? null],
   );
   return id;
 }
@@ -113,6 +120,7 @@ export async function ingestCustomerMessage(
     kind?: "text" | "image";
     imageUrl?: string;
     blobKey?: string;
+    sessionId?: string; // Lazada IM session_id (เก็บไว้ส่งกลับ)
   },
 ): Promise<string | null> {
   if (opts.extId) {
@@ -127,6 +135,7 @@ export async function ingestCustomerMessage(
     opts.channel,
     opts.lineUserId,
     opts.displayName,
+    opts.sessionId,
   );
   const conversationId = await ensureConversation(shopId, customerId, opts.channel);
   await addMessage(conversationId, "customer", opts.text, opts.extId, {
@@ -274,16 +283,20 @@ export async function getConversation(
 export async function getSendTarget(
   shopId: string,
   conversationId: string,
-): Promise<{ channel: string; lineUserId: string | null } | null> {
-  const row = await queryOne<{ channel: string; line_user_id: string | null }>(
-    `SELECT c.channel, cu.line_user_id
+): Promise<{ channel: string; lineUserId: string | null; sessionId: string | null } | null> {
+  const row = await queryOne<{
+    channel: string;
+    line_user_id: string | null;
+    ext_session_id: string | null;
+  }>(
+    `SELECT c.channel, cu.line_user_id, cu.ext_session_id
      FROM conversations c
      JOIN customers cu ON cu.id = c.customer_id
      WHERE c.id = $1 AND c.shop_id = $2`,
     [conversationId, shopId],
   );
   if (!row) return null;
-  return { channel: row.channel, lineUserId: row.line_user_id };
+  return { channel: row.channel, lineUserId: row.line_user_id, sessionId: row.ext_session_id };
 }
 
 export async function setMode(

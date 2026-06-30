@@ -157,10 +157,11 @@ export async function sendMessage(
 ): Promise<boolean> {
   if (isMock(accessToken) || !sessionId || sessionId.startsWith("mock-")) return true;
   try {
+    // Lazada IM: ต้องมี template_id="1" (text) + ตัวข้อความใน field "txt" (ยืนยันจาก API จริง)
     const data = await signedCall(
       "/im/message/send",
       accessToken,
-      { session_id: sessionId, text },
+      { session_id: sessionId, template_id: "1", txt: text },
       "POST",
     );
     return Number(data.code ?? 0) === 0 || data.code === "0";
@@ -193,11 +194,21 @@ export async function fetchAccountInfo(
   }
 }
 
-/** ดึงชื่อลูกค้า — "" ถ้าไม่ได้/โหมดทดลอง (Lazada IM มักไม่ให้ชื่อจริง) */
+/**
+ * ดึงชื่อลูกค้า = title ของ session (จาก /im/session/get)
+ * หมายเหตุ: ถ้าแอปตั้ง Sensitive Data = Mask ชื่อจะถูกปิดบัง (เช่น "R****l") — ต้อง Apply Unmask ใน console ถึงได้ชื่อเต็ม
+ * คืน "" ถ้าไม่ได้/โหมดทดลอง → ผู้เรียก fallback เป็น "ลูกค้า"
+ */
 export async function fetchUserName(
   accessToken: string,
   sessionId: string,
 ): Promise<string> {
   if (isMock(accessToken) || !sessionId || sessionId.startsWith("mock-")) return "";
-  return "";
+  try {
+    const data = await signedCall("/im/session/get", accessToken, { session_id: sessionId });
+    const d = (data.data ?? {}) as Record<string, unknown>;
+    return typeof d.title === "string" ? d.title.trim() : "";
+  } catch {
+    return "";
+  }
 }

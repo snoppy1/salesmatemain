@@ -86,41 +86,49 @@ export async function GET(request: Request) {
   return NextResponse.json({ ok: true });
 }
 
-type LzMessage = {
-  message_id?: string;
-  msg_id?: string;
-  type?: string;
-  content?: { text?: string; url?: string } | string;
-  text?: string;
-  image_url?: string;
-  url?: string;
-  session_id?: string;
-  buyer_id?: string;
+/**
+ * รูปแบบจริงของ Lazada IM push (ยืนยันจาก event จริง):
+ * { seller_id, message_type, data:{...} }
+ *  - message_type 2  = ข้อความใหม่ (data มี content/from_user_id/message_id)
+ *  - message_type 19 = SESSION_UPDATE (แค่ unread_count — ไม่มีตัวข้อความ → ข้าม)
+ * data.content = JSON string เช่น {"txt":"..."} (text) ; from_account_type 1 = ลูกค้า, 2 = ร้าน
+ */
+type LzData = {
+  from_account_type?: number;
+  to_account_type?: number;
   from_user_id?: string;
-  user_id?: string;
+  message_id?: string;
+  type?: number;
+  content?: string;
+  auto_reply?: boolean;
+  session_id?: string;
 };
 type LzPayload = {
   seller_id?: string;
   shop_id?: string;
-  data?: {
-    seller_id?: string;
-    shop_id?: string;
-    messages?: LzMessage[];
-  } & LzMessage;
+  message_type?: number;
+  data?: LzData & { seller_id?: string; shop_id?: string };
 };
 
-function textOf(m: LzMessage): string {
-  if (typeof m.content === "string") return m.content;
-  return m.content?.text ?? m.text ?? "";
-}
-function userOf(m: LzMessage): string {
-  return m.session_id ?? m.buyer_id ?? m.from_user_id ?? m.user_id ?? "";
-}
-function imageOf(m: LzMessage): string | undefined {
-  const c = typeof m.content === "object" ? m.content : undefined;
-  if (m.type === "image") return c?.url ?? m.image_url ?? m.url ?? undefined;
-  if ((c?.url || m.image_url) && !textOf(m).trim()) return c?.url ?? m.image_url;
-  return undefined;
+/** แกะ content ของ Lazada IM (เป็น JSON string {"txt":"..."}) → {text, imageUrl} */
+function parseImContent(content: unknown): { text: string; imageUrl?: string } {
+  if (content == null) return { text: "" };
+  let c: unknown = content;
+  if (typeof content === "string") {
+    try {
+      c = JSON.parse(content);
+    } catch {
+      return { text: content }; // ไม่ใช่ JSON → ใช้ตามนั้น
+    }
+  }
+  if (typeof c === "string") return { text: c };
+  const o = (c ?? {}) as Record<string, unknown>;
+  const txt = o.txt ?? o.text ?? "";
+  const img = o.imgUrl ?? o.image_url ?? o.imageUrl ?? o.url ?? o.image;
+  return {
+    text: typeof txt === "string" ? txt : "",
+    imageUrl: typeof img === "string" && img ? img : undefined,
+  };
 }
 
 // POST: รับ event ข้อความจาก Lazada IM (routing ด้วย seller/account id)
@@ -158,46 +166,37 @@ export async function POST(request: Request) {
   if (!channel) return NextResponse.json({ ok: true });
   const shopId = channel.shop_id;
 
-  // รองรับทั้งข้อความเดี่ยวและแบบลิสต์
-  const msgs: LzMessage[] = payload.data?.messages ?? (payload.data ? [payload.data] : []);
+  // สนใจเฉพาะ event "ข้อความใหม่" (message_type 2) — 19 = session update ฯลฯ ข้าม
+  const d = payload.data;
+  if (payload.message_type !== 2 || !d) return NextResponse.json({ ok: true });
+  // เฉพาะข้อความ "จากลูกค้า" (from_account_type 1 = buyer) + ไม่ใช่ auto-reply — กัน echo ฝั่งร้าน/ตัวเอง
+  if (d.from_account_type !== 1 || d.auto_reply) return NextResponse.json({ ok: true });
 
-  const autoJobs: { conversationId: string }[] = [];
-  for (const m of msgs) {
-    const userId = userOf(m);
-    if (!userId) continue;
-    const imageUrl = imageOf(m);
-    const text = imageUrl ? "" : textOf(m);
-    if (!imageUrl && !text.trim()) continue;
+  const userId = String(d.from_user_id ?? "");
+  if (!userId) return NextResponse.json({ ok: true });
 
-    const displayName = await fetchUserName(channel.access_token, userId);
-    const conversationId = await ingestCustomerMessage(shopId, {
-      channel: "lazada",
-      lineUserId: userId,
-      displayName,
-      text,
-      extId: m.message_id ?? m.msg_id,
-      kind: imageUrl ? "image" : "text",
-      imageUrl,
-    });
-    if (!conversationId) continue;
+  const { text, imageUrl } = parseImContent(d.content);
+  if (!text.trim() && !imageUrl) return NextResponse.json({ ok: true });
 
+  const displayName = await fetchUserName(channel.access_token, userId);
+  const conversationId = await ingestCustomerMessage(shopId, {
+    channel: "lazada",
+    lineUserId: userId,
+    displayName,
+    text,
+    extId: d.message_id ? String(d.message_id) : undefined,
+    kind: imageUrl ? "image" : "text",
+    imageUrl,
+  });
+  if (conversationId) {
     const mode = await getConversationMode(conversationId);
     if (mode === "auto") {
-      if (imageUrl) {
-        // ได้รูป → ยังไม่ตอบ รอลูกค้าพิมพ์คำถามก่อน แต่ขึ้น "รอตอบ" ให้แอดมินเห็น
-        await setPendingHuman(conversationId, true);
-      } else {
-        autoJobs.push({ conversationId });
-      }
+      if (imageUrl) await setPendingHuman(conversationId, true);
+      else
+        after(async () => {
+          await processAutoReply(shopId, conversationId, "");
+        });
     }
-  }
-
-  if (autoJobs.length) {
-    after(async () => {
-      for (const j of autoJobs) {
-        await processAutoReply(shopId, j.conversationId, "");
-      }
-    });
   }
 
   return NextResponse.json({ ok: true });

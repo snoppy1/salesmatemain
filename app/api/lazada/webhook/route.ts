@@ -33,6 +33,7 @@ type LzData = {
   content?: string;
   auto_reply?: boolean;
   session_id?: string;
+  send_time?: number;
 };
 type LzPayload = {
   seller_id?: string;
@@ -119,6 +120,7 @@ export async function POST(request: Request) {
     kind: imageUrl ? "image" : "text",
     imageUrl,
     sessionId,
+    createdAt: Number(d.send_time) || undefined, // เวลาส่งจริง → เรียงตรงกับประวัติ
   });
   if (conversationId) {
     const mode = await getConversationMode(conversationId);

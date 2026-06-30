@@ -78,9 +78,10 @@ export async function addMessage(
   text: string,
   extId?: string,
   media?: { kind: "text" | "image"; imageUrl?: string; blobKey?: string },
+  createdAt?: number, // เวลาส่งจริง (เช่น Lazada send_time) — ไม่ระบุ = ตอนนี้; ใช้เรียงลำดับให้ตรง
 ): Promise<ChatMessage> {
   const id = newId();
-  const now = Date.now();
+  const now = createdAt && Number.isFinite(createdAt) ? createdAt : Date.now();
   const kind = media?.kind ?? "text";
   const imageUrl = media?.imageUrl ?? null;
   const blobKey = media?.blobKey ?? null;
@@ -165,6 +166,7 @@ export async function ingestCustomerMessage(
     imageUrl?: string;
     blobKey?: string;
     sessionId?: string; // Lazada IM session_id (เก็บไว้ส่งกลับ)
+    createdAt?: number; // เวลาส่งจริง (Lazada send_time) — เรียงลำดับให้ตรงกับประวัติ
   },
 ): Promise<string | null> {
   if (opts.extId) {
@@ -182,11 +184,14 @@ export async function ingestCustomerMessage(
     opts.sessionId,
   );
   const conversationId = await ensureConversation(shopId, customerId, opts.channel);
-  await addMessage(conversationId, "customer", opts.text, opts.extId, {
-    kind: opts.kind ?? "text",
-    imageUrl: opts.imageUrl,
-    blobKey: opts.blobKey,
-  });
+  await addMessage(
+    conversationId,
+    "customer",
+    opts.text,
+    opts.extId,
+    { kind: opts.kind ?? "text", imageUrl: opts.imageUrl, blobKey: opts.blobKey },
+    opts.createdAt,
+  );
   return conversationId;
 }
 

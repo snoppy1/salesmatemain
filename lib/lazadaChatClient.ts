@@ -213,18 +213,38 @@ export async function fetchUserName(
   }
 }
 
-/** แกะ content ของข้อความ Lazada IM → ข้อความอ่านได้ (txt / th=greeting / itemId=การ์ดสินค้า / ลิงก์) */
+/** แกะข้อความจาก object (รองรับ txt / th=greeting / itemId=การ์ดสินค้า) */
+function pickText(c: Record<string, unknown>): string | null {
+  if (typeof c.txt === "string") return c.txt;
+  if (typeof c.th === "string") return c.th;
+  if (typeof c.en === "string") return c.en;
+  if (c.itemId) return `[สินค้า] ${c.title ?? c.itemId}${c.price ? ` ${c.price}` : ""}`;
+  return null;
+}
+
+/**
+ * แกะ content ของข้อความ Lazada IM → ข้อความอ่านได้
+ * บางข้อความ (เช่น auto-greeting) txt เป็น JSON ซ้อน {"th":...,"en":...} → แกะอีกชั้น
+ */
 function histText(content: unknown): string {
   if (typeof content !== "string") return "";
+  let txt: string | null;
   try {
-    const c = JSON.parse(content) as Record<string, unknown>;
-    if (typeof c.txt === "string") return c.txt;
-    if (typeof c.th === "string") return c.th;
-    if (c.itemId) return `[สินค้า] ${c.title ?? c.itemId}${c.price ? ` ${c.price}` : ""}`;
-    return content;
+    txt = pickText(JSON.parse(content) as Record<string, unknown>);
   } catch {
     return content; // ไม่ใช่ JSON (เช่น ลิงก์) → ใช้ตามนั้น
   }
+  if (txt === null) return content;
+  // txt เป็น JSON ซ้อน ({"th":...}) → แกะชั้นใน
+  if (txt.trim().startsWith("{")) {
+    try {
+      const inner = pickText(JSON.parse(txt) as Record<string, unknown>);
+      if (inner !== null) return inner;
+    } catch {
+      /* คง txt เดิม */
+    }
+  }
+  return txt;
 }
 
 export type LzHistoryMsg = {

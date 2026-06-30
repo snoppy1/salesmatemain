@@ -1,5 +1,5 @@
 import { NextResponse, after } from "next/server";
-import { createHmac } from "node:crypto";
+import { createHmac, createHash } from "node:crypto";
 import { verifySignature, fetchUserName } from "@/lib/lazadaChatClient";
 import {
   ingestCustomerMessage,
@@ -25,11 +25,33 @@ async function logHit(
 ): Promise<void> {
   try {
     const sig = (signature ?? "").replace(/^sha256=/, "");
-    const hmac = (sec: string) =>
-      sec ? createHmac("sha256", sec).update(raw).digest("hex") : "";
-    const hChat = hmac(process.env.LAZADA_CHAT_SECRET ?? "");
-    const hIm = hmac(process.env.LAZADA_IM_APP_SECRET ?? "");
-    const hApp = hmac(process.env.LAZADA_APP_SECRET ?? "");
+    const sigLow = sig.toLowerCase();
+    // ลองหลายสูตร × secret 3 ตัว หาว่า Lazada เซ็นแบบไหน
+    const secrets: [string, string][] = [
+      ["chat", process.env.LAZADA_CHAT_SECRET ?? ""],
+      ["im", process.env.LAZADA_IM_APP_SECRET ?? ""],
+      ["app", process.env.LAZADA_APP_SECRET ?? ""],
+    ];
+    let matched = "NONE";
+    for (const [sn, s] of secrets) {
+      if (!s) continue;
+      const cands: [string, string][] = [
+        ["hmac256-hex", createHmac("sha256", s).update(raw).digest("hex")],
+        ["hmac256-b64", createHmac("sha256", s).update(raw).digest("base64")],
+        ["sha256(s+b+s)", createHash("sha256").update(s + raw + s).digest("hex")],
+        ["sha256(s+b)", createHash("sha256").update(s + raw).digest("hex")],
+        ["sha256(b+s)", createHash("sha256").update(raw + s).digest("hex")],
+        ["md5(s+b+s)", createHash("md5").update(s + raw + s).digest("hex")],
+        ["hmac256-app+b", createHmac("sha256", s).update((process.env.LAZADA_IM_APP_KEY ?? "") + raw).digest("hex")],
+      ];
+      for (const [an, v] of cands) {
+        if (sig && (v === sig || v.toLowerCase() === sigLow)) {
+          matched = `${sn}:${an}`;
+          break;
+        }
+      }
+      if (matched !== "NONE") break;
+    }
     await query(
       `INSERT INTO webhook_log (id, channel, method, at, headers, body, note)
        VALUES ($1,$2,$3,$4,$5,$6,$7)`,
@@ -46,11 +68,10 @@ async function logHit(
         raw.slice(0, 4000),
         JSON.stringify({
           sigGiven: sig.slice(0, 80),
-          matchChatSecret: !!sig && hChat === sig,
-          matchImSecret: !!sig && hIm === sig,
-          matchAppSecret: !!sig && hApp === sig,
-          hChat: hChat.slice(0, 24),
-          hIm: hIm.slice(0, 24),
+          MATCHED: matched,
+          haveChat: !!process.env.LAZADA_CHAT_SECRET,
+          haveIm: !!process.env.LAZADA_IM_APP_SECRET,
+          haveApp: !!process.env.LAZADA_APP_SECRET,
         }),
       ],
     );

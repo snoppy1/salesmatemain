@@ -55,7 +55,23 @@ function parseImContent(content: unknown): { text: string; imageUrl?: string } {
   }
   if (typeof c === "string") return { text: c };
   const o = (c ?? {}) as Record<string, unknown>;
-  const txt = o.txt ?? o.text ?? "";
+  // การ์ดสินค้า (ลูกค้าแชร์สินค้า) — ไม่มี txt มีแต่ itemId/title/price → ให้ AI อ่านรู้ว่าหมายถึงสินค้านี้
+  if (o.itemId) {
+    const title = typeof o.title === "string" && o.title ? o.title : `สินค้า ${o.itemId}`;
+    const price = typeof o.price === "string" && o.price ? ` ราคา ${o.price}` : "";
+    // เป็น text (ไม่ใช่ image) → AI อ่าน title แล้วตอบได้เลย ไม่เข้า path "รอคนตอบ"
+    return { text: `[ลูกค้าส่งการ์ดสินค้า] ${title}${price}` };
+  }
+  let txt = o.txt ?? o.text ?? "";
+  // txt เป็น JSON ซ้อน ({"th":...}) เช่น auto-greeting → แกะอีกชั้น
+  if (typeof txt === "string" && txt.trim().startsWith("{")) {
+    try {
+      const inner = JSON.parse(txt) as Record<string, unknown>;
+      txt = (inner.th ?? inner.txt ?? inner.en ?? txt) as string;
+    } catch {
+      /* คง txt เดิม */
+    }
+  }
   const img = o.imgUrl ?? o.image_url ?? o.imageUrl ?? o.url ?? o.image;
   return {
     text: typeof txt === "string" ? txt : "",

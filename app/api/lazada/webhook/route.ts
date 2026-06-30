@@ -1,4 +1,5 @@
 import { NextResponse, after } from "next/server";
+import { createHmac } from "node:crypto";
 import { verifySignature, fetchUserName } from "@/lib/lazadaChatClient";
 import {
   ingestCustomerMessage,
@@ -7,11 +8,60 @@ import {
 } from "@/lib/inboxRepo";
 import { getChannelByAccountId } from "@/lib/lazadaChannelRepo";
 import { processAutoReply } from "@/lib/autoReply";
+import { query } from "@/lib/db";
+import { newId } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-// บาง integration เรียก GET เพื่อ health-check — ตอบ ok ไว้
-export async function GET() {
+/**
+ * DIAGNOSTIC (ชั่วคราว): บันทึกทุก hit ที่ Lazada ยิงเข้ามา ลง webhook_log
+ * เพื่อหาเหตุ "แชตไม่เข้า" — ดูว่ามาถึงไหม + ลายเซ็นตรง secret ตัวไหน — ลบออกเมื่อแก้เสร็จ
+ */
+async function logHit(
+  method: string,
+  headers: Headers,
+  raw: string,
+  signature: string | null,
+): Promise<void> {
+  try {
+    const sig = (signature ?? "").replace(/^sha256=/, "");
+    const hmac = (sec: string) =>
+      sec ? createHmac("sha256", sec).update(raw).digest("hex") : "";
+    const hChat = hmac(process.env.LAZADA_CHAT_SECRET ?? "");
+    const hIm = hmac(process.env.LAZADA_IM_APP_SECRET ?? "");
+    const hApp = hmac(process.env.LAZADA_APP_SECRET ?? "");
+    await query(
+      `INSERT INTO webhook_log (id, channel, method, at, headers, body, note)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [
+        newId(),
+        "lazada",
+        method,
+        Date.now(),
+        JSON.stringify({
+          sig: signature,
+          "content-type": headers.get("content-type"),
+          "user-agent": headers.get("user-agent"),
+        }),
+        raw.slice(0, 4000),
+        JSON.stringify({
+          sigGiven: sig.slice(0, 80),
+          matchChatSecret: !!sig && hChat === sig,
+          matchImSecret: !!sig && hIm === sig,
+          matchAppSecret: !!sig && hApp === sig,
+          hChat: hChat.slice(0, 24),
+          hIm: hIm.slice(0, 24),
+        }),
+      ],
+    );
+  } catch {
+    /* best-effort: ห้ามทำ webhook ล้ม */
+  }
+}
+
+// บาง integration เรียก GET เพื่อ health-check / verify — ตอบ ok ไว้
+export async function GET(request: Request) {
+  await logHit("GET", request.headers, request.url, null);
   return NextResponse.json({ ok: true });
 }
 
@@ -57,6 +107,8 @@ export async function POST(request: Request) {
   const raw = await request.text();
   const signature =
     request.headers.get("x-lazada-signature") ?? request.headers.get("authorization");
+
+  await logHit("POST", request.headers, raw, signature); // DIAGNOSTIC (ชั่วคราว)
 
   // Lazada ยิงมา verify callback (และ retry) → ต้องตอบ 200 เสมอ ไม่งั้นขึ้น
   // "Unknown error, please check the availability of message receiving service"

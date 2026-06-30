@@ -1,5 +1,5 @@
 import type { GenerateRequest, Product } from "./types";
-import { selectRelevantProducts } from "./catalogRetrieval";
+import { selectRelevantHybrid } from "./catalogRetrieval";
 
 /** สำหรับกล่องแชต: ต้อง "ตอบลูกค้าเสมอ" (message ห้ามว่าง) + แนะนำสินค้าเสริมถ้าเหมาะ */
 export const REPLY_SYSTEM_PROMPT = `คุณคือแอดมินร้าน (ไม่ใช่ AI) ที่รู้จักสินค้าดีและปิดการขายเก่ง หน้าที่: อ่านประวัติแชต แล้วร่างข้อความตอบลูกค้าที่ก๊อปส่งได้ทันที
@@ -118,7 +118,11 @@ export function buildUserContentParts(req: GenerateRequest): {
   const enabled = (req.products ?? []).filter(
     (p) => p.enabled !== false && p.name.trim(),
   );
-  const { relevant, useRetrieval } = selectRelevantProducts(enabled, req.customerMsg);
+  const { relevant, useRetrieval } = selectRelevantHybrid(
+    enabled,
+    req.customerMsg,
+    req.queryEmbedding ?? null,
+  );
 
   const catalogHeader = useRetrieval
     ? "[รายการสินค้าทั้งหมดในคลัง (ชื่อ+ราคา+สต็อก — ใช้ดูว่ามีอะไรขาย/แนะนำของที่เข้าคู่เพื่อเสนอพ่วง; สเปกละเอียดดูที่ส่วน 'รายละเอียดสินค้าที่เกี่ยวข้อง')]"

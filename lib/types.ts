@@ -22,6 +22,7 @@ export type Product = {
   enabled?: boolean; // เปิดขายอยู่ไหม (false = หมดสต็อก, AI จะไม่เอาไปคิด)
   stock?: number; // จำนวนคงเหลือ (รวม/ที่ใช้ตอบลูกค้า) — ว่าง = ไม่ระบุ
   stockByPlatform?: Record<string, number>; // จำนวนคงเหลือแยกรายแพลตฟอร์ม เช่น { lazada: 12, shopee: 8 }
+  embedding?: number[]; // เวกเตอร์ความหมาย (Voyage) ใช้ทำ hybrid retrieval — โหลดเฉพาะตอนตอบแชต
 };
 
 /** โปรโมชั่นระดับร้าน (sync มาจาก Lazada หรือพิมพ์เอง) ที่ AI ใช้แนะนำลูกค้า */
@@ -97,6 +98,7 @@ export type GenerateRequest = {
   promotions?: Promotion[]; // โปรโมชั่นที่ใช้ได้ตอนนี้ (กรองแล้ว) ให้ AI แนะนำ
   customerMsg: string; // ข้อความ + บริบทจากลูกค้า รวมในช่องเดียว
   imageUrls?: string[]; // ลิงก์รูปจากลูกค้า (ส่งเข้า Claude ให้ดูภาพ) — มีเฉพาะตอนแชตมีรูป
+  queryEmbedding?: number[]; // เวกเตอร์ของคำถามลูกค้า (Voyage) ใช้ทำ hybrid retrieval — เซ็ตตอนตอบแชต
 };
 
 /** ผลลัพธ์การแยกข้อมูลอัตโนมัติจากข้อความดิบ (ยังไม่มี id) */

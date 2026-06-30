@@ -2,6 +2,7 @@ import "server-only";
 import { query, queryOne, withTx } from "./db";
 import { newId } from "./auth";
 import { sourceList, unifyStock } from "./stock";
+import { embedDocuments, embeddingsEnabled } from "./embeddings";
 import type {
   Product,
   Rule,
@@ -180,6 +181,20 @@ export async function getShopData(shopId: string): Promise<ShopData> {
   };
 }
 
+/** โหลดเวกเตอร์ความหมายของสินค้าตาม id (เฉพาะที่มี embedding) — ใช้ตอนตอบแชตทำ hybrid retrieval */
+export async function loadEmbeddingsByIds(
+  ids: string[],
+): Promise<Map<string, number[]>> {
+  const map = new Map<string, number[]>();
+  if (!ids.length) return map;
+  const rows = await query<{ id: string; embedding: number[] | null }>(
+    "SELECT id, embedding FROM products WHERE id = ANY($1) AND embedding IS NOT NULL",
+    [ids],
+  );
+  for (const r of rows) if (Array.isArray(r.embedding)) map.set(r.id, r.embedding);
+  return map;
+}
+
 /** บันทึกชื่อ/โทนร้าน + แทนที่รายการคู่พ่วงทั้งหมด (ทำใน transaction) */
 export async function saveShopData(shopId: string, data: ShopData): Promise<ShopData> {
   const clean = (r: Partial<Rule>): RuleRow => ({
@@ -219,6 +234,25 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
     ? data.products.map(cleanProduct)
     : [];
 
+  // embedding: DELETE+INSERT ทำให้ vector เดิมหาย → เก็บไว้โดยจับคู่ด้วยเนื้อหา (name+desc)
+  // ตัวที่เนื้อหาเปลี่ยน/เพิ่มใหม่ค่อย embed ใหม่ (best-effort; พลาด = null → retrieval fallback keyword)
+  const embForProduct: (number[] | null)[] = products.map(() => null);
+  if (embeddingsEnabled() && products.length) {
+    const sigOf = (n: string, d: string) => `${n}\n${d}`;
+    const oldRows = await query<{ name: string; description: string; embedding: number[] | null }>(
+      "SELECT name, COALESCE(description,'') AS description, embedding FROM products WHERE shop_id = $1 AND embedding IS NOT NULL",
+      [shopId],
+    );
+    const oldEmb = new Map<string, number[]>();
+    for (const r of oldRows) if (Array.isArray(r.embedding)) oldEmb.set(sigOf(r.name, r.description), r.embedding);
+    products.forEach((p, i) => { embForProduct[i] = oldEmb.get(sigOf(p.name, p.description)) ?? null; });
+    const todo = products.map((_, i) => i).filter((i) => !embForProduct[i]);
+    if (todo.length) {
+      const vecs = await embedDocuments(todo.map((i) => `${products[i].name}. ${products[i].description}`.trim()));
+      todo.forEach((i, k) => { if (vecs[k]) embForProduct[i] = vecs[k]; });
+    }
+  }
+
   await withTx(async (client) => {
     // memory: undefined = ผู้เรียกไม่ได้ส่งมา → คงค่าเดิม (COALESCE); "" = ตั้งใจล้างค่า
     const memoryParam =
@@ -245,13 +279,14 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
     for (let i = 0; i < products.length; i++) {
       const p = products[i];
       await client.query(
-        `INSERT INTO products (id, shop_id, name, description, price, image_url, source, external_id, enabled, stock, stock_by_platform, sort_order)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        `INSERT INTO products (id, shop_id, name, description, price, image_url, source, external_id, enabled, stock, stock_by_platform, sort_order, embedding)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb)`,
         [
           p.id, shopId, p.name, p.description, p.price, p.image_url, p.source,
           p.external_id, p.enabled, p.stock,
           p.stock_by_platform ? JSON.stringify(p.stock_by_platform) : null,
           i,
+          embForProduct[i] ? JSON.stringify(embForProduct[i]) : null,
         ],
       );
     }
@@ -321,9 +356,13 @@ export async function syncProductsStock(
       updated++;
     } else {
       const sbp = it.stock != null ? { [platform]: Number(it.stock) } : null;
+      // embed สินค้าใหม่ (best-effort; พลาด/ติด rate limit = null → retrieval fallback keyword)
+      const emb = embeddingsEnabled()
+        ? (await embedDocuments([`${it.name}. ${it.description}`.trim()]))[0]
+        : null;
       await query(
-        `INSERT INTO products (id, shop_id, name, description, price, image_url, source, external_id, enabled, stock, stock_by_platform, sort_order)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,$9,$10,$11)`,
+        `INSERT INTO products (id, shop_id, name, description, price, image_url, source, external_id, enabled, stock, stock_by_platform, sort_order, embedding)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,$9,$10,$11,$12::jsonb)`,
         [
           newId(),
           shopId,
@@ -336,6 +375,7 @@ export async function syncProductsStock(
           sbp ? (unifyStock(sbp) ?? null) : null,
           sbp ? JSON.stringify(sbp) : null,
           nextOrder++,
+          emb ? JSON.stringify(emb) : null,
         ],
       );
       added++;

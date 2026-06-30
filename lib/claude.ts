@@ -11,8 +11,31 @@ import {
 import { getOrder, traceShipment, getOrdersByBuyer } from "./lazadaOrders";
 import { runToolLoop, type ModelTurn } from "./toolLoop";
 import { pickChatModel, CHAT_OPUS } from "./modelRouter";
+import { embedQuery, embeddingsEnabled } from "./embeddings";
+import { loadEmbeddingsByIds } from "./shopRepo";
+import { RETRIEVAL_MIN_PRODUCTS } from "./catalogRetrieval";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
+
+/**
+ * เตรียม hybrid retrieval: embed คำถามลูกค้า + โหลดเวกเตอร์สินค้า ใส่ลง req
+ * best-effort — ถ้าไม่มีคีย์/พลาด/ติด rate limit จะไม่เซ็ต queryEmbedding → retrieval fallback ไป keyword ล้วน
+ */
+async function prepHybrid(req: GenerateRequest): Promise<void> {
+  if (!embeddingsEnabled()) return;
+  const products = req.products ?? [];
+  if (products.length <= RETRIEVAL_MIN_PRODUCTS) return; // ร้านเล็กส่งคลังเต็มอยู่แล้ว ไม่ต้องดึง
+  const qe = await embedQuery(req.customerMsg);
+  if (!qe) return;
+  req.queryEmbedding = qe;
+  if (products.some((p) => !p.embedding)) {
+    const map = await loadEmbeddingsByIds(products.map((p) => p.id));
+    for (const p of products) {
+      const v = map.get(p.id);
+      if (v) p.embedding = v;
+    }
+  }
+}
 
 export class ClaudeError extends Error {
   status: number;
@@ -106,6 +129,7 @@ async function callClaudeRaw(
 
 /** กล่องแชต: ตอบลูกค้าเสมอ + ประเมิน needs_human (ใช้ทั้ง draft และ auto) */
 export async function generateReply(req: GenerateRequest): Promise<ReplyResult> {
+  await prepHybrid(req); // embed คำถาม + โหลด vector สินค้า (best-effort)
   const { model } = pickChatModel(req); // router: Sonnet ทั่วไป / Opus เคสเสี่ยง
   const obj = await callClaudeRaw(REPLY_SYSTEM_PROMPT, req, model);
   return parseReplyResult(obj);
@@ -113,6 +137,7 @@ export async function generateReply(req: GenerateRequest): Promise<ReplyResult> 
 
 /** โหมด manual: เสนอ 2-3 คำตอบให้แอดมินเลือก */
 export async function generateChoices(req: GenerateRequest): Promise<string[]> {
+  await prepHybrid(req);
   const { model } = pickChatModel(req);
   const obj = await callClaudeRaw(CHOICES_SYSTEM_PROMPT, req, model);
   const arr = Array.isArray(obj.choices) ? obj.choices : [];
@@ -185,6 +210,7 @@ export async function generateReplyWithTools(
   if (!apiKey) {
     throw new ClaudeError("ยังไม่ได้ตั้งค่า ANTHROPIC_API_KEY ฝั่งเซิร์ฟเวอร์", 500);
   }
+  await prepHybrid(req);
   const tools = buildOrderTools(ctx.buyerId);
 
   const callModel = async (

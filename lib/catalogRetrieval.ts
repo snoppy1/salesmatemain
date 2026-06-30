@@ -89,3 +89,60 @@ export function selectRelevantProducts(
 
   return { relevant, useRetrieval: true };
 }
+
+/* ---------------- Hybrid retrieval (keyword + embeddings) ---------------- */
+
+/** จำนวนสินค้าที่ส่งสเปกเต็มแบบ hybrid — น้อยกว่า keyword ล้วนได้ เพราะดึงแม่นกว่า */
+export const HYBRID_MAX_RELEVANT = 6;
+/** cosine ต่ำกว่านี้ถือว่า "ไม่เกี่ยว" — กันดึงสินค้ามั่วตอนทักทาย/ถามลอยๆ */
+const COS_FLOOR = 0.45;
+/** ถ่วงน้ำหนัก cosine ให้เทียบเท่าคะแนน keyword (strong = 3) ตอนจัดอันดับ */
+const EMB_WEIGHT = 5;
+
+/** cosine similarity (pure) */
+export function cosineSim(a: number[], b: number[]): number {
+  let dot = 0, na = 0, nb = 0;
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  if (na === 0 || nb === 0) return 0;
+  return dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
+
+/**
+ * เลือกสินค้าที่เกี่ยวข้องแบบ hybrid: keyword (จับเลข/รุ่นเป๊ะ) + embeddings (จับความหมาย/คำพ้อง)
+ * ดึงแม่นกว่า keyword ล้วน → ส่งสินค้าน้อยลงได้อย่างปลอดภัย
+ * ถ้าไม่มี queryEmbedding (ไม่มีคีย์/พลาด/rate limit) → fallback ไป keyword ล้วน (selectRelevantProducts)
+ */
+export function selectRelevantHybrid(
+  products: Product[],
+  customerText: string,
+  queryEmbedding: number[] | null,
+): { relevant: Product[]; useRetrieval: boolean } {
+  const enabled = products.filter((p) => p.enabled !== false && p.name.trim());
+  if (enabled.length <= RETRIEVAL_MIN_PRODUCTS) {
+    return { relevant: enabled, useRetrieval: false };
+  }
+  if (!queryEmbedding) return selectRelevantProducts(enabled, customerText);
+
+  const { weak, strong } = extractSignals(customerText);
+  const scored = enabled.map((p) => {
+    const hay = `${p.name} ${p.description}`.toLowerCase();
+    let kw = 0;
+    for (const s of strong) if (hay.includes(s)) kw += 3;
+    for (const w of weak) if (hay.includes(w)) kw += 1;
+    const cos = Array.isArray(p.embedding) ? cosineSim(queryEmbedding, p.embedding) : 0;
+    return { p, kw, cos };
+  });
+
+  const relevant = scored
+    .filter((s) => s.kw > 0 || s.cos >= COS_FLOOR) // เกี่ยวจริง: keyword ตรง หรือ ความหมายใกล้พอ
+    .sort((a, b) => b.kw + b.cos * EMB_WEIGHT - (a.kw + a.cos * EMB_WEIGHT))
+    .slice(0, HYBRID_MAX_RELEVANT)
+    .map((s) => s.p);
+
+  return { relevant, useRetrieval: true };
+}

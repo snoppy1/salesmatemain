@@ -33,14 +33,18 @@ export function isLazadaChatConfigured(): boolean {
   return Boolean(process.env.LAZADA_CHAT_SECRET);
 }
 
-/** verify ลายเซ็น webhook (HMAC-SHA256 hex ของ raw body ด้วย secret ระดับแอป) */
+/**
+ * verify ลายเซ็น webhook ของ Lazada IM push
+ * สูตรจริง (ยืนยันจาก push จริง): HMAC-SHA256(secret = app_secret, message = app_key + rawBody) → hex
+ */
 export function verifySignature(
   rawBody: string,
   signature: string | null,
   secret: string,
+  appKey = "",
 ): boolean {
   if (!secret || !signature) return false;
-  const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
+  const expected = createHmac("sha256", secret).update(appKey + rawBody).digest("hex");
   try {
     const a = Buffer.from(expected);
     const b = Buffer.from(signature.replace(/^sha256=/, ""));

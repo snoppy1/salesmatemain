@@ -5,7 +5,7 @@ import "server-only";
  * คืน null เสมอเมื่อไม่มีคีย์/พลาด → ผู้เรียก fallback ไป keyword-only (ระบบไม่ล้ม)
  */
 const VOYAGE_URL = "https://api.voyageai.com/v1/embeddings";
-const MODEL = "voyage-3.5-lite"; // multilingual (ไทยโอเค) + ถูก; vector 1024 มิติ
+const MODEL = "voyage-4"; // รุ่นเต็มล่าสุด คุณภาพสูงสุด (multilingual/ไทย); vector 1024 มิติ
 export const EMBED_DIM = 1024;
 
 function apiKey(): string | null {

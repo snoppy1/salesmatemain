@@ -195,6 +195,15 @@ export async function loadEmbeddingsByIds(
   return map;
 }
 
+/** ร้านที่มีแชตเคลื่อนไหวตั้งแต่ since (ms) — ใช้ pre-warm เฉพาะร้านที่ใช้งานจริง */
+export async function listActiveShopIds(since: number): Promise<string[]> {
+  const rows = await query<{ shop_id: string }>(
+    "SELECT DISTINCT shop_id FROM conversations WHERE last_message_at > $1",
+    [since],
+  );
+  return rows.map((r) => r.shop_id);
+}
+
 /** บันทึกชื่อ/โทนร้าน + แทนที่รายการคู่พ่วงทั้งหมด (ทำใน transaction) */
 export async function saveShopData(shopId: string, data: ShopData): Promise<ShopData> {
   const clean = (r: Partial<Rule>): RuleRow => ({

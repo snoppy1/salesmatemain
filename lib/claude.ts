@@ -10,7 +10,7 @@ import {
 } from "./prompt";
 import { getOrder, traceShipment, getOrdersByBuyer } from "./lazadaOrders";
 import { runToolLoop, type ModelTurn } from "./toolLoop";
-import { pickChatModel, CHAT_OPUS } from "./modelRouter";
+import { pickChatModel, CHAT_OPUS, CHAT_SONNET } from "./modelRouter";
 import { embedQuery, embeddingsEnabled } from "./embeddings";
 import { loadEmbeddingsByIds } from "./shopRepo";
 import { RETRIEVAL_MIN_PRODUCTS } from "./catalogRetrieval";
@@ -133,6 +133,46 @@ export async function generateReply(req: GenerateRequest): Promise<ReplyResult> 
   const { model } = pickChatModel(req); // router: Sonnet ทั่วไป / Opus เคสเสี่ยง
   const obj = await callClaudeRaw(REPLY_SYSTEM_PROMPT, req, model);
   return parseReplyResult(obj);
+}
+
+/**
+ * อุ่นแคช (system prompt + ดัชนีคลังของร้าน) ด้วยคำขอจิ๋ว max_tokens=1
+ * เป้าหมาย: ให้ข้อความแรกของลูกค้าเป็น cache-read (ถูก) แทน cache-write (แพง ~฿2)
+ * best-effort — ใช้ Sonnet (โมเดลหลัก) เพราะแคชแยกตามโมเดล
+ */
+export async function prewarmShop(req: GenerateRequest): Promise<boolean> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return false;
+  const { stable } = buildUserContentParts(req);
+  try {
+    const res = await fetch(ANTHROPIC_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: CHAT_SONNET,
+        max_tokens: 1,
+        system: [
+          { type: "text", text: REPLY_SYSTEM_PROMPT, cache_control: { type: "ephemeral", ttl: "1h" } },
+        ],
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: stable, cache_control: { type: "ephemeral", ttl: "1h" } },
+              { type: "text", text: "." },
+            ],
+          },
+        ],
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 /** โหมด manual: เสนอ 2-3 คำตอบให้แอดมินเลือก */

@@ -1,10 +1,12 @@
 import { NextResponse, after } from "next/server";
 import { createHmac, createHash } from "node:crypto";
-import { verifySignature, fetchUserName } from "@/lib/lazadaChatClient";
+import { verifySignature, fetchUserName, fetchHistory } from "@/lib/lazadaChatClient";
 import {
   ingestCustomerMessage,
   getConversationMode,
   setPendingHuman,
+  claimHistorySync,
+  backfillMessages,
 } from "@/lib/inboxRepo";
 import { getChannelByAccountId } from "@/lib/lazadaChannelRepo";
 import { processAutoReply } from "@/lib/autoReply";
@@ -193,13 +195,17 @@ export async function POST(request: Request) {
   });
   if (conversationId) {
     const mode = await getConversationMode(conversationId);
-    if (mode === "auto") {
-      if (imageUrl) await setPendingHuman(conversationId, true);
-      else
-        after(async () => {
-          await processAutoReply(shopId, conversationId, "");
-        });
-    }
+    if (mode === "auto" && imageUrl) await setPendingHuman(conversationId, true);
+    const cid = conversationId;
+    const token = channel.access_token;
+    after(async () => {
+      // ดึงประวัติแชตเก่าเข้า inbox ครั้งแรกของบทสนทนานี้ (ครั้งเดียว)
+      if (sessionId && (await claimHistorySync(cid))) {
+        const hist = await fetchHistory(token, sessionId);
+        if (hist.length) await backfillMessages(cid, hist);
+      }
+      if (mode === "auto" && !imageUrl) await processAutoReply(shopId, cid, "");
+    });
   }
 
   return NextResponse.json({ ok: true });

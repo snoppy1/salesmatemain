@@ -212,3 +212,69 @@ export async function fetchUserName(
     return "";
   }
 }
+
+/** แกะ content ของข้อความ Lazada IM → ข้อความอ่านได้ (txt / th=greeting / itemId=การ์ดสินค้า / ลิงก์) */
+function histText(content: unknown): string {
+  if (typeof content !== "string") return "";
+  try {
+    const c = JSON.parse(content) as Record<string, unknown>;
+    if (typeof c.txt === "string") return c.txt;
+    if (typeof c.th === "string") return c.th;
+    if (c.itemId) return `[สินค้า] ${c.title ?? c.itemId}${c.price ? ` ${c.price}` : ""}`;
+    return content;
+  } catch {
+    return content; // ไม่ใช่ JSON (เช่น ลิงก์) → ใช้ตามนั้น
+  }
+}
+
+export type LzHistoryMsg = {
+  sender: "customer" | "admin";
+  text: string;
+  extId: string;
+  createdAt: number;
+};
+
+/**
+ * ดึงประวัติแชตทั้งหมดของ session (เรียงเก่า→ใหม่)
+ * Lazada IM: /im/message/list คืนข้อความ "ย้อนหลังจาก start_time" (start_time=now ไล่ลง, page_size≤20)
+ */
+export async function fetchHistory(
+  accessToken: string,
+  sessionId: string,
+): Promise<LzHistoryMsg[]> {
+  if (isMock(accessToken) || !sessionId || sessionId.startsWith("mock-")) return [];
+  const out: LzHistoryMsg[] = [];
+  let start = String(Date.now());
+  for (let i = 0; i < 30; i++) {
+    let data: Record<string, unknown>;
+    try {
+      data = await signedCall("/im/message/list", accessToken, {
+        session_id: sessionId,
+        start_time: start,
+        page_size: "20",
+      });
+    } catch {
+      break;
+    }
+    const d = (data.data ?? {}) as {
+      message_list?: Record<string, unknown>[];
+      has_more?: boolean;
+      next_start_time?: number;
+    };
+    const ml = Array.isArray(d.message_list) ? d.message_list : [];
+    for (const m of ml) {
+      const text = histText(m.content);
+      const extId = String(m.message_id ?? "");
+      if (!text.trim() || !extId) continue;
+      out.push({
+        sender: Number(m.from_account_type) === 1 ? "customer" : "admin",
+        text,
+        extId,
+        createdAt: Number(m.send_time) || Date.now(),
+      });
+    }
+    if (!d.has_more || !ml.length || !d.next_start_time) break;
+    start = String(d.next_start_time);
+  }
+  return out.sort((a, b) => a.createdAt - b.createdAt);
+}

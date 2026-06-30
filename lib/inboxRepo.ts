@@ -105,6 +105,50 @@ export async function addMessage(
   };
 }
 
+/** เคลมสิทธิ์ดึงประวัติ (atomic): คืน true ครั้งแรกครั้งเดียว → กันดึงซ้ำทุกข้อความ */
+export async function claimHistorySync(conversationId: string): Promise<boolean> {
+  const row = await queryOne<{ id: string }>(
+    "UPDATE conversations SET history_synced = true WHERE id = $1 AND history_synced = false RETURNING id",
+    [conversationId],
+  );
+  return Boolean(row);
+}
+
+/**
+ * ใส่ข้อความย้อนหลัง (history จาก IM API) ที่ยังไม่มีในบทสนทนา — dedup ด้วย ext_id, created_at ตามจริง
+ * คืนจำนวนที่เพิ่ม; ไม่ trim (ให้ getConversation/รอบ retention จัดการ)
+ */
+export async function backfillMessages(
+  conversationId: string,
+  msgs: { sender: "customer" | "admin"; text: string; extId: string; createdAt: number }[],
+): Promise<number> {
+  let added = 0;
+  for (const m of msgs) {
+    if (m.extId) {
+      const dup = await queryOne<{ id: string }>(
+        "SELECT id FROM messages WHERE ext_id = $1",
+        [m.extId],
+      );
+      if (dup) continue;
+    }
+    await query(
+      `INSERT INTO messages (id, conversation_id, sender, text, created_at, ext_id, kind)
+       VALUES ($1, $2, $3, $4, $5, $6, 'text')`,
+      [newId(), conversationId, m.sender, m.text, m.createdAt, m.extId || null],
+    );
+    added++;
+  }
+  if (added) {
+    await query(
+      `UPDATE conversations SET last_message_at = GREATEST(last_message_at,
+         (SELECT COALESCE(MAX(created_at), 0) FROM messages WHERE conversation_id = $1))
+       WHERE id = $1`,
+      [conversationId],
+    );
+  }
+  return added;
+}
+
 /**
  * ลูกค้าทักเข้ามา (ใช้ทั้ง webhook จริงและแชทจำลอง)
  * คืน conversationId หรือ null ถ้า extId ซ้ำ (ประมวลผลไปแล้ว — กัน LINE retry)

@@ -104,7 +104,40 @@ export type ImTokenResult = {
   refreshToken: string;
   accountId: string;
   name: string;
+  expiresAt: number | null; // epoch ms ที่ access token หมดอายุ
 };
+
+/** ต่ออายุ access token ด้วย refresh token (Lazada /auth/token/refresh) */
+export async function refreshImToken(
+  refreshToken: string,
+): Promise<{ ok: boolean; accessToken: string; refreshToken: string; expiresAt: number | null }> {
+  const { appKey, appSecret } = imAppCreds();
+  const fail = { ok: false, accessToken: "", refreshToken: "", expiresAt: null };
+  if (!appKey || !appSecret || !refreshToken) return fail;
+  const path = "/auth/token/refresh";
+  const params: Record<string, string> = {
+    app_key: appKey,
+    sign_method: "sha256",
+    timestamp: String(Date.now()),
+    refresh_token: refreshToken,
+  };
+  params.sign = sign(path, params, appSecret);
+  try {
+    const res = await fetch(`${API_BASE}${path}?${new URLSearchParams(params)}`);
+    const data = (await res.json()) as Record<string, unknown>;
+    const accessToken = String(data.access_token ?? "");
+    if (!accessToken) return fail;
+    const expiresIn = Number(data.expires_in ?? 0);
+    return {
+      ok: true,
+      accessToken,
+      refreshToken: String(data.refresh_token ?? refreshToken),
+      expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : null,
+    };
+  } catch {
+    return fail;
+  }
+}
 
 /** แลก authorization code → access token ของแอปแชต + ดึง seller id จาก response */
 export async function exchangeImCode(code: string): Promise<ImTokenResult> {
@@ -114,6 +147,7 @@ export async function exchangeImCode(code: string): Promise<ImTokenResult> {
     refreshToken: "",
     accountId: "",
     name: "",
+    expiresAt: null,
   };
   const { appKey, appSecret } = imAppCreds();
   if (!appKey || !appSecret || !code) return empty;
@@ -137,12 +171,14 @@ export async function exchangeImCode(code: string): Promise<ImTokenResult> {
       : undefined;
     const accountId = String(cui?.seller_id ?? cui?.short_code ?? data.account ?? "");
     const name = String(data.account ?? cui?.seller_id ?? "");
+    const expiresIn = Number(data.expires_in ?? 0);
     return {
       ok: true,
       accessToken,
       refreshToken: String(data.refresh_token ?? ""),
       accountId,
       name,
+      expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : null,
     };
   } catch {
     return empty;
@@ -228,6 +264,7 @@ function pickText(c: Record<string, unknown>): string | null {
  */
 function histText(content: unknown): string {
   if (typeof content !== "string") return "";
+  if (/<img[^>]*\bsrc=/i.test(content)) return "[รูปภาพ]"; // รูปส่งมาเป็น HTML <img>
   let txt: string | null;
   try {
     txt = pickText(JSON.parse(content) as Record<string, unknown>);

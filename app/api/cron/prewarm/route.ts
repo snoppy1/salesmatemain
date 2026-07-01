@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { listActiveShopIds, getShopData } from "@/lib/shopRepo";
 import { prewarmShop } from "@/lib/claude";
+import { listAllChannels, updateChannelTokens } from "@/lib/lazadaChannelRepo";
+import { refreshImToken } from "@/lib/lazadaChatClient";
 
 export const runtime = "nodejs";
 
@@ -35,5 +37,23 @@ export async function GET(request: Request) {
       /* best-effort ต่อร้าน */
     }
   }
-  return NextResponse.json({ warmed, total: ids.length });
+
+  // ต่ออายุ Lazada IM token ที่ใกล้หมด (<12 ชม.) — กัน connection ตายทุก 24 ชม. (push+API หยุด)
+  let refreshedTokens = 0;
+  for (const ch of await listAllChannels()) {
+    const exp = ch.expires_at ? Number(ch.expires_at) : 0;
+    const nearExpiry = !exp || exp - Date.now() < 12 * 60 * 60 * 1000;
+    if (!nearExpiry || !ch.refresh_token) continue;
+    try {
+      const r = await refreshImToken(ch.refresh_token);
+      if (r.ok) {
+        await updateChannelTokens(ch.shop_id, r.accessToken, r.refreshToken, r.expiresAt);
+        refreshedTokens++;
+      }
+    } catch {
+      /* best-effort ต่อ channel */
+    }
+  }
+
+  return NextResponse.json({ warmed, total: ids.length, refreshedTokens });
 }

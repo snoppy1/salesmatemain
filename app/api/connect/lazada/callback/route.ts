@@ -47,6 +47,8 @@ export async function GET(request: Request) {
         accountId,
         accessToken: t.accessToken,
         accountName: name,
+        refreshToken: t.refreshToken,
+        expiresAt: t.expiresAt,
       });
       return NextResponse.redirect(new URL("/?connected=lazada-chat", origin));
     } catch {

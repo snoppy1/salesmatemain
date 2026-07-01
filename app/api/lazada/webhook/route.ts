@@ -47,6 +47,9 @@ function parseImContent(content: unknown): { text: string; imageUrl?: string } {
   if (content == null) return { text: "" };
   let c: unknown = content;
   if (typeof content === "string") {
+    // รูปบางแบบส่งมาเป็น HTML <img src="..."> → แกะ src เป็นรูป (ไม่ใช่โชว์ tag ดิบ)
+    const img = content.match(/<img[^>]*\bsrc=["']([^"']+)["']/i);
+    if (img) return { text: "", imageUrl: img[1] };
     try {
       c = JSON.parse(content);
     } catch {

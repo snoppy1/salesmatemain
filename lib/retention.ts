@@ -2,10 +2,10 @@ import "server-only";
 import { query } from "./db";
 import { delBlobs } from "./blobStore";
 
-/** ค่าปรับได้ที่เดียว — กัน database/Blob บวม */
+/** ค่าปรับได้ที่เดียว — กัน database/Blob บวม + ตามนโยบาย Lazada (ลบข้อมูลภายใน 3 เดือน) */
 export const RETENTION = {
   keepMessagesPerConversation: 50,
-  purgeConversationsAfterDays: 365,
+  purgeConversationsAfterDays: 90, // 3 เดือน — Lazada: หลังจบออเดอร์เก็บได้ไม่เกิน 3 เดือน แล้วต้องลบถาวร
   deleteHostedImagesAfterDays: 60,
 };
 

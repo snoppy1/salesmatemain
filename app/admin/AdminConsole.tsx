@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Product, Rule, Shop, ShopData, ShopSummary } from "@/lib/types";
 import ThemeToggle from "@/components/ThemeToggle";
+import HomeTab from "./HomeTab";
+import AllowlistTab from "./AllowlistTab";
 
 function genId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -43,6 +45,7 @@ export default function AdminConsole({
   const [rules, setRules] = useState<Rule[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [save, setSave] = useState<SaveState>("idle");
+  const [tab, setTab] = useState<"home" | "shops" | "allowlist">("home");
 
   const selected = list.find((s) => s.id === selectedId) ?? null;
 
@@ -134,110 +137,146 @@ export default function AdminConsole({
         </div>
       </header>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[18rem_1fr]">
-        {/* รายชื่อร้าน */}
-        <aside className="rounded-2xl border border-line bg-surface p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-fg">
-              ร้านทั้งหมด ({list.length})
-            </h2>
-            <button
-              type="button"
-              onClick={() => router.refresh()}
-              className="text-xs font-medium text-accent hover:underline"
-            >
-              รีเฟรช
-            </button>
-          </div>
+      <nav className="mb-6 flex gap-2">
+        {(
+          [
+            ["home", "หน้าแรก"],
+            ["shops", "ร้านค้า"],
+            ["allowlist", "อีเมลที่อนุญาต"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTab(key)}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+              tab === key
+                ? "bg-fg text-surface"
+                : "border border-line bg-surface text-muted hover:bg-surface2"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
 
-          {list.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-line bg-surface2 px-3 py-6 text-center text-sm text-muted">
-              ยังไม่มีร้านในระบบ
-            </p>
-          ) : (
-            <ul className="space-y-1.5">
-              {list.map((s) => {
-                const active = s.id === selectedId;
-                return (
-                  <li key={s.id}>
-                    <button
-                      type="button"
-                      onClick={() => selectShop(s.id)}
-                      className={`w-full rounded-lg border px-3 py-2 text-left transition ${
-                        active
-                          ? "border-accent/50 bg-accent/12"
-                          : "border-line bg-surface hover:bg-surface2"
-                      }`}
-                    >
-                      <div className="truncate text-sm font-semibold text-fg">
-                        {s.name || "(ยังไม่ตั้งชื่อร้าน)"}
-                      </div>
-                      <div className="mt-0.5 flex items-center justify-between text-xs text-muted">
-                        <span className="truncate">@{s.username}</span>
-                        <span className="shrink-0">{s.ruleCount} คู่พ่วง</span>
-                      </div>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </aside>
+      {tab === "home" && (
+        <HomeTab
+          onOpenShop={(id) => {
+            setTab("shops");
+            void selectShop(id);
+          }}
+        />
+      )}
 
-        {/* ตัวแก้ไขร้านที่เลือก */}
-        <section className="rounded-2xl border border-line bg-surface p-5">
-          {!selected ? (
-            <div className="flex min-h-[12rem] items-center justify-center text-sm text-muted">
-              เลือกร้านจากรายการด้านซ้ายเพื่อดู/แก้ข้อมูล
+      {tab === "allowlist" && <AllowlistTab />}
+
+      {tab === "shops" && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[18rem_1fr]">
+          {/* รายชื่อร้าน */}
+          <aside className="rounded-2xl border border-line bg-surface p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-fg">
+                ร้านทั้งหมด ({list.length})
+              </h2>
+              <button
+                type="button"
+                onClick={() => router.refresh()}
+                className="text-xs font-medium text-accent hover:underline"
+              >
+                รีเฟรช
+              </button>
             </div>
-          ) : load.kind === "loading" ? (
-            <div className="flex min-h-[12rem] items-center justify-center text-sm text-muted">
-              กำลังโหลดข้อมูลร้าน…
-            </div>
-          ) : load.kind === "error" ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
-              {load.message}
-            </div>
-          ) : (
-            <ShopEditor
-              selected={selected}
-              shop={shop}
-              setShop={(patch) => {
-                setShop((s) => ({ ...s, ...patch }));
-                markDirty();
-              }}
-              rules={rules}
-              addRule={() => {
-                setRules((p) => [...p, newRule()]);
-                markDirty();
-              }}
-              updateRule={(id, patch) => {
-                setRules((p) => p.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-                markDirty();
-              }}
-              removeRule={(id) => {
-                setRules((p) => p.filter((r) => r.id !== id));
-                markDirty();
-              }}
-              products={products}
-              addProduct={() => {
-                setProducts((p) => [...p, newProduct()]);
-                markDirty();
-              }}
-              updateProduct={(id, patch) => {
-                setProducts((p) => p.map((x) => (x.id === id ? { ...x, ...patch } : x)));
-                markDirty();
-              }}
-              removeProduct={(id) => {
-                setProducts((p) => p.filter((x) => x.id !== id));
-                markDirty();
-              }}
-              save={save}
-              onSave={handleSave}
-            />
-          )}
-        </section>
-      </div>
+
+            {list.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-line bg-surface2 px-3 py-6 text-center text-sm text-muted">
+                ยังไม่มีร้านในระบบ
+              </p>
+            ) : (
+              <ul className="space-y-1.5">
+                {list.map((s) => {
+                  const active = s.id === selectedId;
+                  return (
+                    <li key={s.id}>
+                      <button
+                        type="button"
+                        onClick={() => selectShop(s.id)}
+                        className={`w-full rounded-lg border px-3 py-2 text-left transition ${
+                          active
+                            ? "border-accent/50 bg-accent/12"
+                            : "border-line bg-surface hover:bg-surface2"
+                        }`}
+                      >
+                        <div className="truncate text-sm font-semibold text-fg">
+                          {s.name || "(ยังไม่ตั้งชื่อร้าน)"}
+                        </div>
+                        <div className="mt-0.5 flex items-center justify-between text-xs text-muted">
+                          <span className="truncate">@{s.username}</span>
+                          <span className="shrink-0">{s.ruleCount} คู่พ่วง</span>
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </aside>
+
+          {/* ตัวแก้ไขร้านที่เลือก */}
+          <section className="rounded-2xl border border-line bg-surface p-5">
+            {!selected ? (
+              <div className="flex min-h-[12rem] items-center justify-center text-sm text-muted">
+                เลือกร้านจากรายการด้านซ้ายเพื่อดู/แก้ข้อมูล
+              </div>
+            ) : load.kind === "loading" ? (
+              <div className="flex min-h-[12rem] items-center justify-center text-sm text-muted">
+                กำลังโหลดข้อมูลร้าน…
+              </div>
+            ) : load.kind === "error" ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+                {load.message}
+              </div>
+            ) : (
+              <ShopEditor
+                selected={selected}
+                shop={shop}
+                setShop={(patch) => {
+                  setShop((s) => ({ ...s, ...patch }));
+                  markDirty();
+                }}
+                rules={rules}
+                addRule={() => {
+                  setRules((p) => [...p, newRule()]);
+                  markDirty();
+                }}
+                updateRule={(id, patch) => {
+                  setRules((p) => p.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+                  markDirty();
+                }}
+                removeRule={(id) => {
+                  setRules((p) => p.filter((r) => r.id !== id));
+                  markDirty();
+                }}
+                products={products}
+                addProduct={() => {
+                  setProducts((p) => [...p, newProduct()]);
+                  markDirty();
+                }}
+                updateProduct={(id, patch) => {
+                  setProducts((p) => p.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+                  markDirty();
+                }}
+                removeProduct={(id) => {
+                  setProducts((p) => p.filter((x) => x.id !== id));
+                  markDirty();
+                }}
+                save={save}
+                onSave={handleSave}
+              />
+            )}
+          </section>
+        </div>
+      )}
     </main>
   );
 }

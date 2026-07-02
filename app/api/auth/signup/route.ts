@@ -29,13 +29,6 @@ export async function POST(request: Request) {
   if (!isValidEmail(email)) {
     return NextResponse.json({ error: "อีเมลไม่ถูกต้อง" }, { status: 400 });
   }
-  // beta gate: เฉพาะอีเมลที่ได้รับอนุญาตเท่านั้นที่สมัครได้
-  if (!(await isEmailAllowed(email))) {
-    return NextResponse.json(
-      { error: "อีเมลนี้ยังไม่ได้รับสิทธิ์ทดลองใช้ กรุณาติดต่อทีมงาน" },
-      { status: 403 },
-    );
-  }
   if (password.length < 6) {
     return NextResponse.json(
       { error: "รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร" },
@@ -47,6 +40,14 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "อีเมลนี้ถูกใช้แล้ว ลองเข้าสู่ระบบแทน" },
       { status: 409 },
+    );
+  }
+
+  // beta gate: เฉพาะอีเมลที่ได้รับอนุญาตเท่านั้นที่สมัครได้
+  if (!(await isEmailAllowed(email))) {
+    return NextResponse.json(
+      { error: "อีเมลนี้ยังไม่ได้รับสิทธิ์ทดลองใช้ กรุณาติดต่อทีมงาน" },
+      { status: 403 },
     );
   }
 

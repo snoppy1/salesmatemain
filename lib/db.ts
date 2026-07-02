@@ -81,6 +81,12 @@ async function ensureSchema(): Promise<void> {
       expires_at BIGINT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS allowed_emails (
+      email      TEXT PRIMARY KEY,
+      note       TEXT NOT NULL DEFAULT '',
+      created_at BIGINT NOT NULL
+    );
+
     -- การเชื่อมต่อ marketplace (Lazada/Shopee) ต่อร้าน
     CREATE TABLE IF NOT EXISTS connections (
       id            TEXT PRIMARY KEY,

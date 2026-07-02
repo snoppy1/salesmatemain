@@ -46,17 +46,26 @@ export default function AllowlistTab() {
   }
 
   async function remove(target: string) {
+    if (busy) return;
     if (!confirm(`ลบ ${target} ออกจากรายการอนุญาต?`)) return;
+    setBusy(true);
+    setError("");
     try {
       const res = await fetch("/api/admin/allowlist", {
         method: "DELETE",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email: target }),
       });
-      const data = (await res.json()) as { emails?: AllowedEmailRow[] };
-      if (res.ok && data.emails) setEmails(data.emails);
+      const data = (await res.json()) as { emails?: AllowedEmailRow[]; error?: string };
+      if (!res.ok || !data.emails) {
+        setError(data.error ?? "ลบไม่สำเร็จ ลองใหม่");
+        return;
+      }
+      setEmails(data.emails);
     } catch {
       setError("ลบไม่สำเร็จ ลองใหม่");
+    } finally {
+      setBusy(false);
     }
   }
 

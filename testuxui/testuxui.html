@@ -68,8 +68,8 @@
     border: 1px solid transparent; white-space: nowrap;
     transition: transform .2s var(--ease), box-shadow .2s var(--ease), background .2s var(--ease), border-color .2s var(--ease);
   }
-  .btn-primary { background: var(--primary); color: var(--primary-ink); box-shadow: 0 10px 26px -12px rgba(52,211,153,.9); }
-  .btn-primary:hover { transform: translateY(-2px); background: #4ADEAA; box-shadow: 0 16px 34px -12px rgba(52,211,153,.8); }
+  .btn-primary { background: var(--primary); color: var(--primary-ink); box-shadow: 0 10px 26px -12px rgba(52,211,153,.5); }
+  .btn-primary:hover { transform: translateY(-2px); background: #4ADEAA; box-shadow: 0 16px 34px -12px rgba(52,211,153,.55); }
   .btn-ghost { background: transparent; color: var(--text); border-color: var(--border-strong); }
   .btn-ghost:hover { transform: translateY(-2px); border-color: var(--primary); background: var(--primary-soft); }
   .btn-sm { height: 42px; padding: 0 16px; font-size: 15px; }
@@ -135,8 +135,6 @@
   .shot .bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--border-strong); }
   .shot .bar i.r { background: #FF5F57; } .shot .bar i.y { background: #FEBC2E; } .shot .bar i.g { background: #28C840; }
   .shot .body { flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 9px; min-height: 0; }
-  .shot .ln { height: 11px; border-radius: 6px; background: var(--surface-2); }
-  .shot .ln.s { width: 54%; } .shot .ln.m { width: 76%; }
   .shot .bub { max-width: 82%; padding: 8px 11px; border-radius: 12px; font-size: 12.5px; line-height: 1.35; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); }
   .shot .bub.ai { align-self: flex-end; color: var(--primary-ink); background: var(--primary); border-color: transparent; font-weight: 600; }
   .shot .big { font-family: "Chakra Petch", "Anuphan", sans-serif; font-variant-numeric: tabular-nums; font-size: 30px; font-weight: 700; color: var(--primary); letter-spacing: 0; }
@@ -220,7 +218,7 @@
   .cc.in .cc-text  { opacity: 1; transform: none; transition: opacity .7s var(--ease), transform .7s var(--ease); }
   .cc.in .cc-phone { opacity: 1; transform: none; transition: opacity .85s var(--ease) .08s, transform .85s var(--ease) .08s; }
   .cc.in .msg, .cc.in .ph-close { opacity: 1; transform: none;
-    transition: opacity .45s var(--ease), transform .5s cubic-bezier(.34,1.4,.64,1);
+    transition: opacity .45s var(--ease), transform .5s cubic-bezier(.22,1,.36,1); /* ease-out-quint: นุ่มแต่ไม่เด้งเกิน */
     transition-delay: calc(var(--m) * .16s + .55s); }
 
   @media (max-width: 880px) {

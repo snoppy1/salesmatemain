@@ -207,13 +207,44 @@ async function ownsConversation(
   return Boolean(row);
 }
 
+/**
+ * ข้อความฝั่งร้านที่มาจากแพลตฟอร์ม (เช่น แอดมินตอบจากแอป Lazada เอง / auto-greeting ของร้าน)
+ * หา conversation จาก session_id แล้วบันทึกเป็น admin — dedup ด้วย extId (กัน echo ของที่เราส่งเอง)
+ * คืน conversationId หรือ null ถ้าซ้ำ/ยังไม่มีบทสนทนา (history sync จะเก็บให้ตอนลูกค้าทักครั้งหน้า)
+ */
+export async function ingestExternalAdminMessage(
+  channel: string,
+  sessionId: string,
+  opts: { text: string; extId?: string; createdAt?: number },
+): Promise<string | null> {
+  if (opts.extId) {
+    const dup = await queryOne<{ id: string }>(
+      "SELECT id FROM messages WHERE ext_id = $1",
+      [opts.extId],
+    );
+    if (dup) return null;
+  }
+  const row = await queryOne<{ id: string }>(
+    `SELECT co.id FROM conversations co
+     JOIN customers cu ON cu.id = co.customer_id
+     WHERE co.channel = $1 AND cu.ext_session_id = $2`,
+    [channel, sessionId],
+  );
+  if (!row) return null;
+  await addMessage(row.id, "admin", opts.text, opts.extId, undefined, opts.createdAt);
+  // ร้านตอบเองแล้ว = ไม่ต้องรอคนตอบ
+  await query("UPDATE conversations SET pending_human = false WHERE id = $1", [row.id]);
+  return row.id;
+}
+
 export async function addAdminMessage(
   shopId: string,
   conversationId: string,
   text: string,
+  extId?: string, // id ฝั่งแพลตฟอร์ม (เช่น Lazada message_id) — ให้ webhook echo dedup ได้
 ): Promise<ChatMessage | null> {
   if (!(await ownsConversation(shopId, conversationId))) return null;
-  const msg = await addMessage(conversationId, "admin", text);
+  const msg = await addMessage(conversationId, "admin", text, extId);
   await query("UPDATE conversations SET pending_human = false WHERE id = $1", [
     conversationId,
   ]);

@@ -81,6 +81,7 @@ export async function processAutoReply(
     }
     const target = await getSendTarget(shopId, conversationId);
     const extUserId = target?.lineUserId ?? "";
+    let lzMessageId = ""; // message_id จาก Lazada — เก็บเป็น ext_id กัน webhook echo ซ้ำ
 
     if (convo.channel === "facebook") {
       const fb = await getFbChannel(shopId);
@@ -91,7 +92,8 @@ export async function processAutoReply(
     } else if (convo.channel === "lazada") {
       const lz = await getLzChannel(shopId);
       // Lazada ส่งด้วย IM session_id จริง (ไม่ใช่ buyer_id)
-      await lzSendMessage(lz?.access_token ?? "", target?.sessionId ?? "", result.message);
+      const sent = await lzSendMessage(lz?.access_token ?? "", target?.sessionId ?? "", result.message);
+      lzMessageId = sent.messageId;
     } else if (convo.channel === "shopee") {
       const sp = await getSpChannel(shopId);
       await spSendMessage(
@@ -111,7 +113,7 @@ export async function processAutoReply(
       }
     }
 
-    await addAdminMessage(shopId, conversationId, result.message); // เคลียร์ pending ด้วย
+    await addAdminMessage(shopId, conversationId, result.message, lzMessageId || undefined); // เคลียร์ pending ด้วย
 
     // วัดยอดพ่วง: บันทึกทุกครั้งที่ AI เสนอพ่วงและส่งถึงลูกค้าแล้ว (นับจำนวนแม้ไม่ได้ใส่ตัวเลขมูลค่า)
     if (result.shouldUpsell) {

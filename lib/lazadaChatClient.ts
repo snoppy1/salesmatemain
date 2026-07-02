@@ -185,13 +185,17 @@ export async function exchangeImCode(code: string): Promise<ImTokenResult> {
   }
 }
 
-/** ส่งข้อความหาลูกค้า — true ถ้าสำเร็จ (หรือโหมดทดลอง) */
+export type SendResult = { ok: boolean; messageId: string };
+
+/** ส่งข้อความหาลูกค้า — messageId ใช้เก็บเป็น ext_id กัน webhook echo ซ้ำ ("" ถ้าไม่มี/โหมดทดลอง) */
 export async function sendMessage(
   accessToken: string,
   sessionId: string,
   text: string,
-): Promise<boolean> {
-  if (isMock(accessToken) || !sessionId || sessionId.startsWith("mock-")) return true;
+): Promise<SendResult> {
+  if (isMock(accessToken) || !sessionId || sessionId.startsWith("mock-")) {
+    return { ok: true, messageId: "" };
+  }
   try {
     // Lazada IM: ต้องมี template_id="1" (text) + ตัวข้อความใน field "txt" (ยืนยันจาก API จริง)
     const data = await signedCall(
@@ -200,9 +204,11 @@ export async function sendMessage(
       { session_id: sessionId, template_id: "1", txt: text },
       "POST",
     );
-    return Number(data.code ?? 0) === 0 || data.code === "0";
+    const ok = Number(data.code ?? 0) === 0 || data.code === "0";
+    const d = (data.data ?? {}) as Record<string, unknown>;
+    return { ok, messageId: ok ? String(d.message_id ?? "") : "" };
   } catch {
-    return false;
+    return { ok: false, messageId: "" };
   }
 }
 

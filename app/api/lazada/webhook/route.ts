@@ -2,6 +2,7 @@ import { NextResponse, after } from "next/server";
 import { verifySignature, fetchUserName, fetchHistory } from "@/lib/lazadaChatClient";
 import {
   ingestCustomerMessage,
+  ingestExternalAdminMessage,
   getConversationMode,
   setPendingHuman,
   claimHistorySync,
@@ -118,15 +119,26 @@ export async function POST(request: Request) {
   // สนใจเฉพาะ event "ข้อความใหม่" (message_type 2) — 19 = session update ฯลฯ ข้าม
   const d = payload.data;
   if (payload.message_type !== 2 || !d) return NextResponse.json({ ok: true });
-  // เฉพาะข้อความ "จากลูกค้า" (from_account_type 1 = buyer) + ไม่ใช่ auto-reply — กัน echo ฝั่งร้าน/ตัวเอง
-  if (d.from_account_type !== 1 || d.auto_reply) return NextResponse.json({ ok: true });
 
   const userId = String(d.from_user_id ?? "");
   const sessionId = String(d.session_id ?? "");
-  if (!userId) return NextResponse.json({ ok: true });
-
   const { text, imageUrl } = parseImContent(d.content);
   if (!text.trim() && !imageUrl) return NextResponse.json({ ok: true });
+
+  // ข้อความฝั่งร้าน (ตอบจากแอป Lazada / auto-greeting ของร้าน) → บันทึกเป็นแอดมินให้เห็นในเว็บ
+  // echo ของที่เราส่งเองไม่ซ้ำ เพราะตอนส่งเราเก็บ message_id เป็น ext_id ไว้แล้ว (dedup)
+  if (d.from_account_type !== 1) {
+    if (sessionId) {
+      await ingestExternalAdminMessage("lazada", sessionId, {
+        text: text.trim() ? text : "[รูปภาพ]",
+        extId: d.message_id ? String(d.message_id) : undefined,
+        createdAt: Number(d.send_time) || undefined,
+      });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
+  if (!userId) return NextResponse.json({ ok: true });
 
   // ชื่อ = title ของ session (อาจถูก mask); เก็บ session_id ไว้ใช้ส่งข้อความกลับ
   const displayName = await fetchUserName(channel.access_token, sessionId);

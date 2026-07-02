@@ -31,18 +31,24 @@ export async function POST(request: Request) {
   }
 
   const channel = await getChannelByShop(admin.shopId);
-  const ok = await sendMessage(
+  const sent = await sendMessage(
     channel?.access_token ?? "",
     target.sessionId ?? "", // ส่งด้วย IM session_id จริง (ไม่ใช่ buyer_id)
     text,
   );
-  if (!ok) {
+  if (!sent.ok) {
     return NextResponse.json(
       { error: "ส่งเข้า Lazada ไม่สำเร็จ (ตรวจ token/สิทธิ์)" },
       { status: 502 },
     );
   }
 
-  const message = await addAdminMessage(admin.shopId, body.conversationId, text);
+  // เก็บ message_id เป็น ext_id → webhook echo ของข้อความนี้จะ dedup ไม่ซ้ำ
+  const message = await addAdminMessage(
+    admin.shopId,
+    body.conversationId,
+    text,
+    sent.messageId || undefined,
+  );
   return NextResponse.json({ ok: true, message });
 }

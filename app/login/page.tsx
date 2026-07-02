@@ -7,6 +7,7 @@ import Link from "next/link";
 const SIGNIN_ERRORS: Record<string, string> = {
   google_unconfigured: "ยังไม่ได้ตั้งค่า Google บนระบบ — ใช้อีเมลเข้าสู่ระบบไปก่อนได้",
   google_failed: "เข้าสู่ระบบด้วย Google ไม่สำเร็จ ลองใหม่อีกครั้ง",
+  not_invited: "อีเมลนี้ยังไม่ได้รับสิทธิ์ทดลองใช้ กรุณาติดต่อทีมงาน",
 };
 
 function LoginInner() {

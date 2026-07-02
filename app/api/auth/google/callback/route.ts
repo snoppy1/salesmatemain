@@ -7,6 +7,7 @@ import {
   findAdminByGoogle,
   linkGoogleId,
 } from "@/lib/auth";
+import { isEmailAllowed } from "@/lib/allowlistRepo";
 
 export const runtime = "nodejs";
 
@@ -70,6 +71,10 @@ export async function GET(request: Request) {
     if (admin) {
       await linkGoogleId(admin.id, googleId);
     } else {
+      // beta gate: คนใหม่ต้องอยู่ใน allowlist ก่อน
+      if (!(await isEmailAllowed(email))) {
+        return NextResponse.redirect(`${origin}/login?e=not_invited`);
+      }
       const adminId = await createAccount({
         shopName: info.name ? `ร้านของ ${info.name}` : "ร้านของฉัน",
         username: email,

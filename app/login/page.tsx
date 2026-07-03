@@ -122,16 +122,27 @@ export function AuthShell({
         }}
       />
       <div className="relative w-full max-w-md">
-        <div className="mb-6 flex flex-col items-center text-center">
+        <div className="auth-rise mb-6 flex flex-col items-center text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/salesmate-logo.svg" alt="" className="h-12 w-auto drop-shadow-[0_0_24px_rgba(52,211,153,.45)]" />
+          <img src="/salesmate-logo.svg" alt="" className="auth-breathe h-16 w-auto drop-shadow-[0_0_24px_rgba(52,211,153,.45)]" />
           <h1 className="mt-3 text-2xl font-bold tracking-tight text-white">SalesMate</h1>
           <p className="mt-1 text-sm text-gray-400">ผู้ช่วยขาย AI สำหรับร้านแชต</p>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-[#161D26] p-6 shadow-2xl sm:p-7">
-          <h2 className="text-xl font-semibold text-white">{title}</h2>
-          <p className="mb-5 mt-1 text-sm text-gray-400">{subtitle}</p>
-          {children}
+        {/* ชั้นนอก 1px = เส้นขอบ + แสงเขียวตามเมาส์ (แทน border เดิม) */}
+        <div
+          className="auth-rise auth-glow rounded-[17px] p-px [animation-delay:.08s]"
+          onPointerMove={(e) => {
+            if (e.pointerType !== "mouse") return;
+            const r = e.currentTarget.getBoundingClientRect();
+            e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
+            e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
+          }}
+        >
+          <div className="auth-card rounded-2xl bg-[#161D26] p-6 shadow-2xl sm:p-7">
+            <h2 className="text-xl font-semibold text-white">{title}</h2>
+            <p className="mb-5 mt-1 text-sm text-gray-400">{subtitle}</p>
+            {children}
+          </div>
         </div>
       </div>
     </main>
@@ -216,7 +227,7 @@ export function GoogleButton({ label }: { label: string }) {
   return (
     <a
       href="/api/auth/google/start"
-      className="flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-white/15 bg-white/5 text-sm font-semibold text-gray-100 transition hover:bg-white/10"
+      className="flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-white/15 bg-white/5 text-sm font-semibold text-gray-100 transition hover:bg-white/10 active:scale-[.98]"
     >
       <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
         <path fill="#FFC107" d="M21.35 11.1H12v3.83h5.32a5.7 5.7 0 0 1-2.47 3.74v3.1h3.99c2.34-2.16 3.69-5.34 3.69-9.12 0-.6-.06-1.18-.17-1.55z"/>
@@ -261,7 +272,7 @@ export function SubmitButton({
     <button
       type="submit"
       disabled={loading}
-      className="h-11 w-full rounded-xl bg-emerald-500 text-sm font-bold text-[#04240F] shadow-[0_10px_26px_-12px_rgba(52,211,153,.9)] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+      className="relative h-11 w-full overflow-hidden rounded-xl bg-emerald-500 text-sm font-bold text-[#04240F] shadow-[0_10px_26px_-12px_rgba(52,211,153,.9)] transition after:absolute after:inset-0 after:-translate-x-[130%] after:-skew-x-12 after:bg-[linear-gradient(105deg,transparent_42%,rgba(255,255,255,.45)_50%,transparent_58%)] after:transition-transform after:duration-[550ms] after:content-[''] hover:bg-emerald-400 hover:after:translate-x-[130%] active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50"
     >
       {loading ? busy : idle}
     </button>

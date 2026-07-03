@@ -53,6 +53,66 @@ body {
   border-radius: 6px;
 }
 
+/* ---------- หน้า auth (login/signup/forgot): ลูกเล่นเข้าหน้า + แสงตามเมาส์ ---------- */
+@keyframes auth-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* แสงโลโก้หายใจช้าๆ (ถ้าปิดอนิเมชัน จะค้างที่แสงตาม drop-shadow เดิมของ class) */
+@keyframes auth-breathe {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 20px rgba(52, 211, 153, 0.35));
+  }
+  50% {
+    filter: drop-shadow(0 0 30px rgba(52, 211, 153, 0.55));
+  }
+}
+.auth-rise {
+  animation: auth-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.auth-breathe {
+  animation: auth-breathe 6s ease-in-out infinite;
+}
+/* ขอบการ์ดเรืองแสงเขียวจางๆ ตามเมาส์ (--mx/--my เซ็ตจาก onPointerMove เฉพาะ pointer แบบเมาส์) */
+.auth-glow {
+  background:
+    radial-gradient(
+      240px circle at var(--mx, 50%) var(--my, -20%),
+      rgba(52, 211, 153, 0.4),
+      transparent 70%
+    ),
+    rgba(255, 255, 255, 0.1);
+}
+/* เนื้อในการ์ดไหลเข้าทีละแถว */
+.auth-card > * {
+  animation: auth-rise 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.auth-card > *:nth-child(1) {
+  animation-delay: 0.14s;
+}
+.auth-card > *:nth-child(2) {
+  animation-delay: 0.18s;
+}
+.auth-card > *:nth-child(3) {
+  animation-delay: 0.22s;
+}
+.auth-card > *:nth-child(4) {
+  animation-delay: 0.26s;
+}
+.auth-card > *:nth-child(5) {
+  animation-delay: 0.3s;
+}
+.auth-card > *:nth-child(6) {
+  animation-delay: 0.34s;
+}
+
 /* เคารพผู้ใช้ที่ปิดอนิเมชัน (นโยบายแอป: ทุก motion ต้องมีทางเลือกนิ่ง) */
 @media (prefers-reduced-motion: reduce) {
   *,

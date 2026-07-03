@@ -11,7 +11,9 @@
   --line: #e6e8eb;
   --text: #0f172a;
   --text-muted: #64748b;
+  --text-muted-rgb: 100 116 139; /* = --text-muted (ให้ Tailwind ใส่ alpha ได้) */
   --accent: #059669;
+  --accent-rgb: 5 150 105; /* = --accent (ให้ Tailwind ใส่ alpha ได้) */
   --accent-contrast: #ffffff;
 }
 
@@ -23,7 +25,9 @@ html.dark {
   --line: #232a31;
   --text: #e6e9ed;
   --text-muted: #9aa4b2;
+  --text-muted-rgb: 154 164 178;
   --accent: #34d399;
+  --accent-rgb: 52 211 153;
   --accent-contrast: #04140d;
 }
 
@@ -40,4 +44,15 @@ body {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 6px;
+}
+
+/* เคารพผู้ใช้ที่ปิดอนิเมชัน (นโยบายแอป: ทุก motion ต้องมีทางเลือกนิ่ง) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

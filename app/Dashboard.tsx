@@ -380,12 +380,9 @@ export default function Dashboard({
         settings={mockSettings}
         onToggleAll={setAllMock}
       />
-      <main className="pl-16">
-        <div
-          className={`mx-auto px-4 py-6 sm:py-8 ${
-            view === "settings" || view === "catalog" || view === "inbox" ? "max-w-6xl" : "max-w-3xl"
-          }`}
-        >
+      {/* มือถือ: เมนูเป็นแถบล่าง (กันที่ด้วย pb-20) / จอใหญ่: rail ซ้าย */}
+      <main className="pb-20 md:pb-0 md:pl-16">
+        <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
           {view === "inbox" && <InboxView mockSettings={mockSettings} />}
           {view === "settings" && (
             <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
@@ -397,7 +394,7 @@ export default function Dashboard({
               />
               <section className="h-fit rounded-2xl border border-line bg-surface p-5">
                 <h2 className="mb-4 text-base font-semibold text-fg">
-                  ร้านค้า
+                  ผลงาน AI · ยอดขาย
                 </h2>
                 <UpsellMetric key={metricsKey} />
               </section>
@@ -447,23 +444,28 @@ function Sidebar({
     { key: "settings", label: "ตั้งค่าร้าน", icon: <IconStore /> },
   ];
 
+  // ป้ายเมนู: จอใหญ่โผล่ตอน hover "หรือ" ตอนโฟกัสด้วยคีย์บอร์ด (กันผู้ใช้คีย์บอร์ด tab ผ่านป้ายล่องหน)
+  const railLabel =
+    "whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100";
+
   return (
-    <aside className="group fixed inset-y-0 left-0 z-40 flex w-16 flex-col overflow-hidden border-r border-line bg-surface transition-[width] duration-200 ease-out hover:w-64">
-      {/* โลโก้มุมซ้ายบน — ข้อความ SalesMate เลื่อนออกมาตอน hover */}
-      <div className="flex h-16 items-center gap-3 px-3">
+    /* มือถือ: แถบล่างแนวนอน (นิ้วโป้งเอื้อมถึง) / จอใหญ่: rail ซ้าย เลื่อนกว้างตอน hover */
+    <aside className="group fixed inset-x-0 bottom-0 z-40 flex h-16 flex-row items-stretch overflow-hidden border-t border-line bg-surface transition-[width] duration-200 ease-out motion-reduce:transition-none md:inset-x-auto md:inset-y-0 md:bottom-auto md:left-0 md:h-auto md:w-16 md:flex-col md:border-r md:border-t-0 md:hover:w-64">
+      {/* โลโก้ (เฉพาะจอใหญ่) — ข้อความ SalesMate เลื่อนออกมาตอน hover/focus */}
+      <div className="hidden h-16 items-center gap-3 px-3 md:flex">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/salesmate-logo.svg"
           alt="SalesMate"
           className="h-10 w-10 shrink-0 object-contain"
         />
-        <span className="whitespace-nowrap text-lg font-bold tracking-tight text-fg opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+        <span className="whitespace-nowrap text-lg font-bold tracking-tight text-fg opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
           SalesMate
         </span>
       </div>
 
-      {/* หมวดหมู่ */}
-      <nav className="mt-2 flex flex-1 flex-col gap-1 px-2">
+      {/* หมวดหมู่ — มือถือ: ไอคอน+ป้ายเล็กเรียงแถว / จอใหญ่: แนวตั้ง */}
+      <nav className="flex flex-1 flex-row items-center justify-around gap-1 px-1 md:mt-2 md:flex-col md:items-stretch md:justify-start md:px-2">
         {items.map((it) => {
           const active = view === it.key;
           return (
@@ -472,40 +474,52 @@ function Sidebar({
               type="button"
               onClick={() => setView(it.key)}
               title={it.label}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition ${
+              className={`flex min-w-16 flex-col items-center gap-0.5 rounded-lg px-2 py-1.5 transition md:min-w-0 md:flex-row md:items-center md:gap-3 md:px-3 md:py-2.5 md:text-left ${
                 active
                   ? "bg-accent/15 text-accent"
                   : "text-muted hover:bg-surface2 hover:text-fg"
               }`}
             >
               <span className="shrink-0">{it.icon}</span>
-              <span className="whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                {it.label}
-              </span>
+              <span className="text-[10px] font-medium md:hidden">{it.label}</span>
+              <span className={`hidden text-sm font-medium md:inline ${railLabel}`}>{it.label}</span>
             </button>
           );
         })}
+
+        {/* มือถือ: ธีม + ออกจากระบบ อยู่ในแถบล่างด้วย (จอใหญ่ย้ายไปส่วนล่างของ rail) */}
+        <div className="flex items-center gap-1 md:hidden">
+          <ThemeToggle />
+          <button
+            type="button"
+            onClick={onLogout}
+            aria-label="ออกจากระบบ"
+            className="flex min-w-16 flex-col items-center gap-0.5 rounded-lg px-2 py-1.5 text-muted transition hover:bg-surface2 hover:text-fg"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <path d="M16 17l5-5-5-5M21 12H9" />
+            </svg>
+            <span className="text-[10px] font-medium">ออก</span>
+          </button>
+        </div>
       </nav>
 
-      {/* ซ้ายล่าง: ปุ่ม Setting (ฟันเฟือง) + บัญชี + ออกจากระบบ + ธีม */}
-      <div className="border-t border-line p-2">
+      {/* ซ้ายล่าง (เฉพาะจอใหญ่): ข้อมูลทดลอง + บัญชี + ออกจากระบบ + ธีม */}
+      <div className="hidden border-t border-line p-2 md:block">
         <button
           type="button"
           onClick={onOpenSettings}
-          title="Setting"
+          title="ข้อมูลทดลอง (mock)"
           className="mb-1 flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left text-muted transition hover:bg-surface2 hover:text-fg"
         >
           <IconGear />
-          <span className="whitespace-nowrap text-sm font-semibold opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-            Setting
-          </span>
+          <span className={`text-sm font-semibold ${railLabel}`}>ข้อมูลทดลอง</span>
         </button>
         <div className="flex items-center gap-3 rounded-lg px-3 py-1 text-muted">
-          <span className="truncate whitespace-nowrap text-xs opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-            @{username}
-          </span>
+          <span className={`truncate text-xs ${railLabel}`}>@{username}</span>
         </div>
-        <div className="flex items-center gap-2 px-3 pb-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+        <div className="flex items-center gap-2 px-3 pb-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
           <button
             type="button"
             onClick={onLogout}
@@ -1913,6 +1927,13 @@ function ProductRow({
     perPlatform.length >= 2 && !perPlatform.every((x) => x.n === perPlatform[0].n);
   const fileRef = useRef<HTMLInputElement>(null);
   const [imgBusy, setImgBusy] = useState(false);
+  // ลบ 2 จังหวะ: แตะแรก = ขอยืนยัน (ถอยเองใน 4 วิ) — กันมือลั่นลบถาวรแล้ว autosave ทับ
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  useEffect(() => {
+    if (!confirmDelete) return;
+    const t = setTimeout(() => setConfirmDelete(false), 4000);
+    return () => clearTimeout(t);
+  }, [confirmDelete]);
 
   async function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -1952,11 +1973,21 @@ function ProductRow({
           />
           <button
             type="button"
-            onClick={onRemove}
-            className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
+            onClick={() => {
+              if (!confirmDelete) {
+                setConfirmDelete(true);
+                return;
+              }
+              onRemove();
+            }}
+            className={`rounded-lg px-2 py-1 text-xs font-medium transition ${
+              confirmDelete
+                ? "bg-red-600 text-white hover:bg-red-700"
+                : "text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
+            }`}
             aria-label={`ลบสินค้าที่ ${index + 1}`}
           >
-            ลบ
+            {confirmDelete ? "ยืนยันลบ?" : "ลบ"}
           </button>
         </div>
       </div>

@@ -15,9 +15,11 @@ export default {
         surface2: "var(--surface-2)",
         line: "var(--line)",
         fg: "var(--text)",
-        muted: "var(--text-muted)",
+        // muted/accent ใช้รูป rgb(var / <alpha-value>) — ให้ตัวปรับความจาง (เช่น bg-accent/15) ทำงานจริง
+        // (ใส่ var เปล่าๆ จะทำให้ Tailwind ตัด alpha ทิ้งเงียบๆ → สี active/ป้ายเพี้ยน)
+        muted: "rgb(var(--text-muted-rgb) / <alpha-value>)",
         accent: {
-          DEFAULT: "var(--accent)",
+          DEFAULT: "rgb(var(--accent-rgb) / <alpha-value>)",
           contrast: "var(--accent-contrast)",
         },
       },

@@ -8,6 +8,7 @@ import type {
   AutoLevel,
 } from "@/lib/types";
 import { SiLine, SiFacebook, SiTiktok, SiShopee } from "react-icons/si";
+import UpsellMetric from "@/components/UpsellMetric";
 
 const btnPrimary =
   "rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-contrast transition hover:opacity-90 disabled:opacity-50";
@@ -19,10 +20,19 @@ const inputCls =
 function timeAgo(ts: number): string {
   const s = Math.floor((Date.now() - ts) / 1000);
   if (s < 60) return "เมื่อกี้";
-  if (s < 3600) return `${Math.floor(s / 60)} นาที`;
-  if (s < 86400) return `${Math.floor(s / 3600)} ชม.`;
-  return `${Math.floor(s / 86400)} วัน`;
+  if (s < 3600) return `${Math.floor(s / 60)} นาทีที่แล้ว`;
+  if (s < 86400) return `${Math.floor(s / 3600)} ชม.ที่แล้ว`;
+  return `${Math.floor(s / 86400)} วันที่แล้ว`;
 }
+
+/** สีป้ายช่องทางในหัวแชต — ใช้สีแบรนด์จริงของแพลตฟอร์ม ไม่ใช่เขียวลอยๆ */
+const CHANNEL_BADGE: Record<string, string> = {
+  line: "bg-[#06C755] text-white",
+  facebook: "bg-[#0866FF] text-white",
+  tiktok: "bg-black text-white",
+  lazada: "bg-[#0F146E] text-white",
+  shopee: "bg-[#EE4D2D] text-white",
+};
 
 // cache ระดับโมดูล — อยู่รอดข้ามการสลับหน้า/รีเมานต์ ทำให้สลับแชตขึ้นทันที
 let convCache: ConversationSummary[] = [];
@@ -160,6 +170,7 @@ export default function InboxView({
   const [sending, setSending] = useState(false);
   const [simText, setSimText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null); // กล่องเลื่อนข้อความ — ใช้เช็คว่าอยู่ใกล้ล่างสุดไหม
   const activeIdRef = useRef<string | null>(activeId);
   activeIdRef.current = activeId;
   const selectedPlatformRef = useRef<string | null>(selectedPlatform);
@@ -188,7 +199,8 @@ export default function InboxView({
       setActiveId((cur) => {
         const ch = selectedPlatformRef.current;
         if (!ch) return cur; // อยู่หน้ารวม ยังไม่เลือกแพลตฟอร์ม
-        if (cur && d.conversations.some((c) => c.id === cur && c.channel === ch)) {
+        if (cur === null) return null; // ผู้ใช้กดกลับมาดูลิสต์เอง (มือถือ) — อย่าเด้งเข้าแชตซ้ำ
+        if (d.conversations.some((c) => c.id === cur && c.channel === ch)) {
           return cur;
         }
         return d.conversations.find((c) => c.channel === ch)?.id ?? null;
@@ -235,10 +247,19 @@ export default function InboxView({
     return () => clearInterval(t);
   }, [activeId, loadDetail]);
 
-  // เลื่อนลงล่างสุดเมื่อข้อความเพิ่ม
+  // เลื่อนลงล่างสุดเมื่อข้อความเพิ่ม — เฉพาะตอนอยู่ใกล้ล่างสุดอยู่แล้ว
+  // (กันดึงจอตอนแม่ค้ากำลังเลื่อนอ่านประวัติ แล้ว poll เจอข้อความใหม่)
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = messagesRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 160;
+    if (nearBottom) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [detail?.messages.length]);
+
+  // เปิดแชตใหม่ → เริ่มที่ล่างสุดเสมอ (ไม่ animate)
+  useEffect(() => {
+    if (activeId) bottomRef.current?.scrollIntoView();
+  }, [activeId]);
 
   // ล้างช่องจำลองลูกค้าเมื่อสลับบทสนทนา + จำแชตที่เปิดไว้ (คงไว้ตอนสลับหน้า)
   useEffect(() => {
@@ -338,15 +359,19 @@ export default function InboxView({
     }
   }
 
-  // เลือกแพลตฟอร์มจากหน้ารวม → เข้าหน้าแชต แล้วเด้งไปบทสนทนาแรกของเจ้านั้น
+  // เลือกแพลตฟอร์มจากหน้ารวม → เข้าหน้าแชต
+  // จอใหญ่: เด้งไปบทสนทนาแรกเลย (เห็น 2 คอลัมน์) / มือถือ: โชว์ลิสต์ก่อน ให้เลือกเอง
   function pickPlatform(channel: string) {
     setSelectedPlatform(channel);
+    const isDesktop =
+      typeof window !== "undefined" &&
+      window.matchMedia("(min-width: 768px)").matches;
     setActiveId((cur) => {
       const stillValid =
         cur && conversations.some((c) => c.id === cur && c.channel === channel);
-      return stillValid
-        ? cur
-        : (conversations.find((c) => c.channel === channel)?.id ?? null);
+      if (stillValid) return cur;
+      if (!isDesktop) return null;
+      return conversations.find((c) => c.channel === channel)?.id ?? null;
     });
   }
 
@@ -451,7 +476,13 @@ export default function InboxView({
         setReasonFor(id, "");
         await loadDetail(id);
         void loadConversations();
+      } else {
+        // ส่งไม่ผ่าน — ห้ามเงียบ (แม่ค้าจะนึกว่าตอบลูกค้าแล้ว) ร่างยังอยู่ กดส่งซ้ำได้
+        const d = (await r.json().catch(() => null)) as { error?: string } | null;
+        setReasonFor(id, d?.error ?? "ส่งไม่สำเร็จ — ข้อความยังอยู่ในช่องพิมพ์ ลองกดส่งอีกครั้ง");
       }
+    } catch {
+      setReasonFor(id, "ส่งไม่สำเร็จ — เช็คอินเทอร์เน็ตแล้วกดส่งอีกครั้ง (ข้อความยังอยู่)");
     } finally {
       setSending(false);
     }
@@ -463,17 +494,23 @@ export default function InboxView({
     if (!text) return;
     const body: Record<string, string> = { text, channel: selectedPlatform ?? "line" };
     if (continueChat && activeId) body.conversationId = activeId;
-    const r = await fetch("/api/line/simulate", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (r.ok) {
+    try {
+      const r = await fetch("/api/line/simulate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        if (activeId) setReasonFor(activeId, "จำลองลูกค้าไม่สำเร็จ ลองใหม่");
+        return;
+      }
       const d = (await r.json()) as { conversationId: string };
       setSimText("");
       setActiveId(d.conversationId);
       await loadConversations();
       await loadDetail(d.conversationId);
+    } catch {
+      if (activeId) setReasonFor(activeId, "จำลองลูกค้าไม่สำเร็จ — เช็คอินเทอร์เน็ตแล้วลองใหม่");
     }
   }
 
@@ -489,7 +526,7 @@ export default function InboxView({
   // หน้ารวมแพลตฟอร์ม (ยังไม่ได้เลือกแพลตฟอร์ม)
   if (!selectedPlatform) {
     return (
-      <div className="h-[calc(100vh-8rem)]">
+      <div className="min-h-[calc(100dvh-11rem)] md:h-[calc(100dvh-8rem)]">
         <AppList
           apps={apps}
           conversations={conversations}
@@ -503,9 +540,11 @@ export default function InboxView({
   }
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] gap-4">
-      {/* ซ้าย: รายการบทสนทนา */}
-      <div className="flex w-72 shrink-0 flex-col rounded-2xl border border-line bg-surface">
+    <div className="flex h-[calc(100dvh-11rem)] gap-4 md:h-[calc(100dvh-8rem)]">
+      {/* ซ้าย: รายการบทสนทนา — มือถือ: เต็มจอ (ซ่อนเมื่อเปิดแชต) / จอใหญ่: คอลัมน์ซ้ายเสมอ */}
+      <div
+        className={`${activeId ? "hidden md:flex" : "flex"} w-full shrink-0 flex-col rounded-2xl border border-line bg-surface md:w-72`}
+      >
         <div className="border-b border-line p-3">
           <button
             type="button"
@@ -550,7 +589,9 @@ export default function InboxView({
         <div className="flex-1 overflow-y-auto">
           {visibleConvos.length === 0 ? (
             <p className="p-4 text-center text-xs text-muted">
-              ยังไม่มีบทสนทนา — ลองจำลองลูกค้าทักด้านล่าง
+              {chatMockOn
+                ? "ยังไม่มีบทสนทนา — ลองจำลองลูกค้าทักด้านล่าง"
+                : "ยังไม่มีบทสนทนา — เมื่อลูกค้าทักเข้ามาจะเด้งขึ้นที่นี่เอง"}
             </p>
           ) : (
             visibleConvos.map((c) => {
@@ -572,7 +613,7 @@ export default function InboxView({
                         {c.customerName}
                       </span>
                       {c.pendingHuman && (
-                        <span className="shrink-0 rounded bg-red-100 px-1 py-0.5 text-[9px] font-bold text-red-700 dark:bg-red-950/50 dark:text-red-300">
+                        <span className="shrink-0 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-950/50 dark:text-red-300">
                           รอตอบ
                         </span>
                       )}
@@ -592,27 +633,40 @@ export default function InboxView({
         </div>
       </div>
 
-      {/* ขวา: บทสนทนา + ช่องตอบ */}
-      <div className="flex flex-1 flex-col rounded-2xl border border-line bg-surface">
+      {/* ขวา: บทสนทนา + ช่องตอบ — มือถือ: เต็มจอเมื่อเปิดแชต (มีปุ่มกลับ) */}
+      <div
+        className={`${activeId ? "flex" : "hidden md:flex"} flex-1 flex-col rounded-2xl border border-line bg-surface`}
+      >
         {!detail ? (
           <div className="flex flex-1 items-center justify-center text-sm text-muted">
             {activeId ? "กำลังโหลด…" : "เลือกบทสนทนา หรือจำลองลูกค้าทักเพื่อเริ่ม"}
           </div>
         ) : (
           <>
-            <div className="flex items-center border-b border-line px-4 py-3">
-              <div>
+            <div className="flex items-center gap-2 border-b border-line px-3 py-3 md:px-4">
+              <button
+                type="button"
+                onClick={() => setActiveId(null)}
+                aria-label="กลับไปรายการแชต"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line text-base text-muted transition hover:bg-surface2 hover:text-fg md:hidden"
+              >
+                ‹
+              </button>
+              <div className="min-w-0">
                 <span className="text-sm font-semibold text-fg">
                   {detail.customerName}
                 </span>
-                <span className="ml-2 rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700 dark:bg-green-950/50 dark:text-green-300">
-                  {detail.channel.toUpperCase()}
+                <span
+                  className={`ml-2 rounded px-1.5 py-0.5 text-[10px] font-semibold ${CHANNEL_BADGE[detail.channel] ?? "bg-surface2 text-muted"}`}
+                >
+                  {PLATFORMS.find((p) => p.channel === detail.channel)?.name ??
+                    detail.channel}
                 </span>
               </div>
             </div>
 
             {/* ข้อความ */}
-            <div className="flex-1 space-y-2 overflow-y-auto p-4">
+            <div ref={messagesRef} className="flex-1 space-y-2 overflow-y-auto p-4">
               {detail.messages.map((m) => (
                 <div
                   key={m.id}
@@ -674,8 +728,15 @@ export default function InboxView({
               <textarea
                 value={draft}
                 onChange={(e) => activeId && setDraftFor(activeId, e.target.value)}
+                onKeyDown={(e) => {
+                  // Enter = ส่ง (ทางลัดที่มือโปรคาดหวัง) / Shift+Enter = ขึ้นบรรทัดใหม่
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void handleSend();
+                  }
+                }}
                 rows={2}
-                placeholder="พิมพ์คำตอบ หรือกด “เสนอคำตอบ”/“ให้ AI ร่าง” แล้วแก้ก่อนส่ง"
+                placeholder="พิมพ์คำตอบแล้ว Enter เพื่อส่ง (Shift+Enter ขึ้นบรรทัดใหม่)"
                 className={`${inputCls} resize-none`}
               />
               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -789,11 +850,16 @@ function AppList({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-5">
+      <div className="mb-4">
         <h2 className="text-lg font-bold text-fg">กล่องแชต</h2>
         <p className="mt-0.5 text-sm text-muted">
           เพิ่มแอปที่ใช้ แล้วตั้งโหมด AI แยกแต่ละแอปได้
         </p>
+      </div>
+
+      {/* ตัวเลขคือหลักฐาน — ผลงาน AI ต้องเห็นตั้งแต่หน้าแรก ไม่ฝังในตั้งค่า */}
+      <div className="mb-5">
+        <UpsellMetric layout="row" />
       </div>
 
       {apps.length === 0 ? (
@@ -864,7 +930,7 @@ function AppList({
                   type="button"
                   onClick={() => onRemoveApp(a.channel)}
                   aria-label="ลบแอปออกจากกล่องแชต"
-                  className="absolute right-2 top-2 hidden rounded-md px-1.5 py-0.5 text-xs text-muted transition hover:bg-red-500/10 hover:text-red-500 group-hover:block"
+                  className="absolute right-2 top-2 rounded-md px-1.5 py-1 text-xs text-muted transition hover:bg-red-500/10 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
                 >
                   ✕
                 </button>

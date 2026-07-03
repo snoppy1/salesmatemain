@@ -6,6 +6,7 @@ import {
   createAccount,
   identifierTaken,
   isValidEmail,
+  validatePasswordStrength,
 } from "@/lib/auth";
 import { isEmailAllowed } from "@/lib/allowlistRepo";
 
@@ -29,11 +30,10 @@ export async function POST(request: Request) {
   if (!isValidEmail(email)) {
     return NextResponse.json({ error: "อีเมลไม่ถูกต้อง" }, { status: 400 });
   }
-  if (password.length < 6) {
-    return NextResponse.json(
-      { error: "รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร" },
-      { status: 400 },
-    );
+  // นโยบายรหัสผ่าน: ≥8 ตัว มีตัวอักษร+ตัวเลข+อักขระพิเศษ (ตามข้อกำหนดความปลอดภัยแพลตฟอร์ม)
+  const pwError = validatePasswordStrength(password);
+  if (pwError) {
+    return NextResponse.json({ error: pwError }, { status: 400 });
   }
 
   if (await identifierTaken(email)) {

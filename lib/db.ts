@@ -125,6 +125,15 @@ async function ensureSchema(): Promise<void> {
     ALTER TABLE admins ADD COLUMN IF NOT EXISTS google_id TEXT;
     CREATE UNIQUE INDEX IF NOT EXISTS idx_admins_email ON admins(email) WHERE email IS NOT NULL;
     CREATE UNIQUE INDEX IF NOT EXISTS idx_admins_google ON admins(google_id) WHERE google_id IS NOT NULL;
+    -- นโยบายรหัสผ่าน (ตามข้อกำหนด Lazada 5.1): อายุรหัส + ประวัติกันใช้ซ้ำ 4 ครั้งล่าสุด
+    ALTER TABLE admins ADD COLUMN IF NOT EXISTS password_updated_at BIGINT;
+    CREATE TABLE IF NOT EXISTS password_history (
+      id            TEXT PRIMARY KEY,
+      admin_id      TEXT NOT NULL REFERENCES admins(id) ON DELETE CASCADE,
+      password_hash TEXT NOT NULL,
+      created_at    BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_pwhistory_admin ON password_history(admin_id, created_at DESC);
     ALTER TABLE conversations ADD COLUMN IF NOT EXISTS pending_human BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE messages ADD COLUMN IF NOT EXISTS ext_id TEXT;
     -- ชนิดข้อความ + รูป (เก็บลิงก์ CDN ของแพลตฟอร์ม หรือ blob ที่เราโฮสต์เอง)

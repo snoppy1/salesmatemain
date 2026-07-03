@@ -45,12 +45,14 @@ export default function HomeTab({ onOpenShop }: { onOpenShop: (id: string) => vo
     { label: "ร้านทั้งหมด", value: String(data.cards.totalShops) },
     { label: "ร้าน active วันนี้", value: String(data.cards.activeToday) },
     { label: "ข้อความลูกค้าวันนี้", value: String(data.cards.custMsgsToday) },
+    // ฐานคิดโควตา subscription (จำกัดข้อความ/วัน) ในอนาคต
+    { label: "AI ตอบวันนี้", value: String(data.cards.aiMsgsToday) },
     { label: "ค่า AI วันนี้ (โดยประมาณ)", value: `฿${data.cards.estCostTodayTHB.toFixed(2)}` },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {cards.map((c) => (
           <div key={c.label} className="rounded-2xl border border-line bg-surface p-4">
             <p className="text-xs text-muted">{c.label}</p>
@@ -60,7 +62,7 @@ export default function HomeTab({ onOpenShop }: { onOpenShop: (id: string) => vo
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
-        <table className="w-full min-w-[860px] text-sm">
+        <table className="w-full min-w-[980px] text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs text-muted">
               <th className="px-4 py-3 font-medium">ร้าน</th>
@@ -69,6 +71,7 @@ export default function HomeTab({ onOpenShop }: { onOpenShop: (id: string) => vo
               <th className="px-4 py-3 font-medium text-right">สินค้า</th>
               <th className="px-4 py-3 font-medium text-right">บทสนทนา</th>
               <th className="px-4 py-3 font-medium text-right">ข้อความวันนี้ / 7วัน</th>
+              <th className="px-4 py-3 font-medium text-right">AI ตอบวันนี้ / 7วัน</th>
               <th className="px-4 py-3 font-medium text-right">ค่า AI 7วัน ≈</th>
               <th className="px-4 py-3 font-medium">ใช้งานล่าสุด</th>
             </tr>
@@ -103,6 +106,9 @@ export default function HomeTab({ onOpenShop }: { onOpenShop: (id: string) => vo
                 <td className="px-4 py-3 text-right">{s.conversationCount}</td>
                 <td className="px-4 py-3 text-right">
                   {s.custMsgsToday} / {s.custMsgs7d}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  {s.aiMsgsToday} / {s.aiMsgs7d}
                 </td>
                 <td className="px-4 py-3 text-right">฿{(s.custMsgs7d * 0.5).toFixed(2)}</td>
                 <td className="px-4 py-3 text-muted">{fmtLast(s.lastActivityAt)}</td>

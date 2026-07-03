@@ -11,6 +11,7 @@ import { buildConversationContext } from "./prompt";
 import { listPromotions } from "./promotionsRepo";
 import { validNowPromotions } from "./promotions";
 import { isOrderTopic, needsHumanForOrderTopic } from "./orderIntent";
+import { isMostlyEnglish } from "./lang";
 import { getValidAccessToken } from "./connectionRepo";
 import { recordUpsell } from "./upsellRepo";
 import { replyMessage, pushMessage } from "./lineClient";
@@ -49,6 +50,13 @@ export async function processAutoReply(
     // ข้อความล่าสุดของลูกค้า (ใช้เช็คว่าเป็นคำถามออเดอร์ไหม)
     const lastCustomerText =
       [...convo.messages].reverse().find((m) => m.sender === "customer")?.text ?? "";
+
+    // ยังไม่รองรับภาษาอังกฤษ — ลูกค้าถามเป็นอังกฤษ → ไม่ให้ AI ตอบ ขึ้น "รอตอบ" ให้คนจัดการ
+    // (ไม่เรียก AI เลย = ไม่เสียเครดิตด้วย)
+    if (isMostlyEnglish(lastCustomerText)) {
+      await setPendingHuman(conversationId, true);
+      return;
+    }
 
     const baseReq = {
       shopName: shopData.shop.name,
@@ -113,7 +121,8 @@ export async function processAutoReply(
       }
     }
 
-    await addAdminMessage(shopId, conversationId, result.message, lzMessageId || undefined); // เคลียร์ pending ด้วย
+    // aiGenerated=true → นับเป็นข้อความที่ AI ตอบ (โควตา/ต้นทุน) + เคลียร์ pending ด้วย
+    await addAdminMessage(shopId, conversationId, result.message, lzMessageId || undefined, true);
 
     // วัดยอดพ่วง: บันทึกทุกครั้งที่ AI เสนอพ่วงและส่งถึงลูกค้าแล้ว (นับจำนวนแม้ไม่ได้ใส่ตัวเลขมูลค่า)
     if (result.shouldUpsell) {

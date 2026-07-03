@@ -140,6 +140,8 @@ async function ensureSchema(): Promise<void> {
     ALTER TABLE messages ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'text';
     ALTER TABLE messages ADD COLUMN IF NOT EXISTS image_url TEXT;
     ALTER TABLE messages ADD COLUMN IF NOT EXISTS blob_key TEXT;
+    -- ข้อความที่ AI ตอบเอง (แยกจากแอดมินพิมพ์) — ใช้นับโควตา/ต้นทุน ต่อยอด subscription จำกัดข้อความ/วัน
+    ALTER TABLE messages ADD COLUMN IF NOT EXISTS ai_generated BOOLEAN NOT NULL DEFAULT false;
     CREATE INDEX IF NOT EXISTS idx_messages_blob ON messages(blob_key) WHERE blob_key IS NOT NULL;
 
     -- แอปที่ร้านเพิ่มเข้ากล่องแชต + โหมด AI แยกต่อแอป (off/safe/full)

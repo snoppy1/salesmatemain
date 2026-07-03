@@ -13,6 +13,8 @@ export type ShopOverviewRow = {
   conversationCount: number;
   custMsgsToday: number;
   custMsgs7d: number;
+  aiMsgsToday: number; // ข้อความที่ AI ตอบเอง (ฐานคิดโควตา subscription ข้อความ/วัน)
+  aiMsgs7d: number;
   lastActivityAt: number | null;
 };
 
@@ -21,6 +23,7 @@ export type AdminOverview = {
     totalShops: number;
     activeToday: number;
     custMsgsToday: number;
+    aiMsgsToday: number;
     estCostTodayTHB: number;
   };
   shops: ShopOverviewRow[];
@@ -48,6 +51,8 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     conversation_count: number;
     msgs_today: number;
     msgs_7d: number;
+    ai_today: number;
+    ai_7d: number;
     last_activity: string | null;
   }>(
     `SELECT s.id, s.name,
@@ -61,6 +66,10 @@ export async function getAdminOverview(): Promise<AdminOverview> {
          WHERE c.shop_id = s.id AND m.sender = 'customer' AND m.created_at >= $1) AS msgs_today,
        (SELECT count(*)::int FROM messages m JOIN conversations c ON c.id = m.conversation_id
          WHERE c.shop_id = s.id AND m.sender = 'customer' AND m.created_at >= $2) AS msgs_7d,
+       (SELECT count(*)::int FROM messages m JOIN conversations c ON c.id = m.conversation_id
+         WHERE c.shop_id = s.id AND m.ai_generated = true AND m.created_at >= $1) AS ai_today,
+       (SELECT count(*)::int FROM messages m JOIN conversations c ON c.id = m.conversation_id
+         WHERE c.shop_id = s.id AND m.ai_generated = true AND m.created_at >= $2) AS ai_7d,
        (SELECT max(c.last_message_at) FROM conversations c WHERE c.shop_id = s.id) AS last_activity
      FROM shops s
      ORDER BY (SELECT max(c.last_message_at) FROM conversations c WHERE c.shop_id = s.id) DESC NULLS LAST`,
@@ -80,15 +89,19 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     conversationCount: r.conversation_count,
     custMsgsToday: r.msgs_today,
     custMsgs7d: r.msgs_7d,
+    aiMsgsToday: r.ai_today,
+    aiMsgs7d: r.ai_7d,
     lastActivityAt: r.last_activity != null ? Number(r.last_activity) : null,
   }));
 
   const custMsgsToday = shops.reduce((a, s) => a + s.custMsgsToday, 0);
+  const aiMsgsToday = shops.reduce((a, s) => a + s.aiMsgsToday, 0);
   return {
     cards: {
       totalShops: shops.length,
       activeToday: shops.filter((s) => s.custMsgsToday > 0).length,
       custMsgsToday,
+      aiMsgsToday,
       estCostTodayTHB: custMsgsToday * THB_PER_CUSTOMER_MSG,
     },
     shops,

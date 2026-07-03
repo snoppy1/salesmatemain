@@ -79,6 +79,7 @@ export async function addMessage(
   extId?: string,
   media?: { kind: "text" | "image"; imageUrl?: string; blobKey?: string },
   createdAt?: number, // เวลาส่งจริง (เช่น Lazada send_time) — ไม่ระบุ = ตอนนี้; ใช้เรียงลำดับให้ตรง
+  aiGenerated = false, // ข้อความที่ AI ตอบเอง (ใช้นับโควตา/ต้นทุน)
 ): Promise<ChatMessage> {
   const id = newId();
   const now = createdAt && Number.isFinite(createdAt) ? createdAt : Date.now();
@@ -86,9 +87,9 @@ export async function addMessage(
   const imageUrl = media?.imageUrl ?? null;
   const blobKey = media?.blobKey ?? null;
   await query(
-    `INSERT INTO messages (id, conversation_id, sender, text, created_at, ext_id, kind, image_url, blob_key)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-    [id, conversationId, sender, text, now, extId ?? null, kind, imageUrl, blobKey],
+    `INSERT INTO messages (id, conversation_id, sender, text, created_at, ext_id, kind, image_url, blob_key, ai_generated)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+    [id, conversationId, sender, text, now, extId ?? null, kind, imageUrl, blobKey, aiGenerated],
   );
   await query("UPDATE conversations SET last_message_at = $1 WHERE id = $2", [
     now,
@@ -242,9 +243,10 @@ export async function addAdminMessage(
   conversationId: string,
   text: string,
   extId?: string, // id ฝั่งแพลตฟอร์ม (เช่น Lazada message_id) — ให้ webhook echo dedup ได้
+  aiGenerated = false, // true = AI ตอบเอง (auto-reply) — ใช้นับโควตา
 ): Promise<ChatMessage | null> {
   if (!(await ownsConversation(shopId, conversationId))) return null;
-  const msg = await addMessage(conversationId, "admin", text, extId);
+  const msg = await addMessage(conversationId, "admin", text, extId, undefined, undefined, aiGenerated);
   await query("UPDATE conversations SET pending_human = false WHERE id = $1", [
     conversationId,
   ]);

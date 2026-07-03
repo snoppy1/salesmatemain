@@ -15,6 +15,9 @@
   --accent: #059669;
   --accent-rgb: 5 150 105; /* = --accent (ให้ Tailwind ใส่ alpha ได้) */
   --accent-contrast: #ffffff;
+  /* สีกราฟ (ผ่าน dataviz validator ทั้ง 2 โหมด: lightness/chroma/CVD/contrast) */
+  --chart-msgs: #2563eb;
+  --chart-upsell: #059669;
 }
 
 html.dark {
@@ -29,6 +32,8 @@ html.dark {
   --accent: #34d399;
   --accent-rgb: 52 211 153;
   --accent-contrast: #04140d;
+  --chart-msgs: #4f8ef0;
+  --chart-upsell: #1fae86;
 }
 
 body {

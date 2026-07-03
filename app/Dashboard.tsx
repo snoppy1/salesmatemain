@@ -18,6 +18,7 @@ import type {
 import ThemeToggle from "@/components/ThemeToggle";
 import InboxView from "./InboxView";
 import UpsellMetric from "@/components/UpsellMetric";
+import OverviewView from "@/components/OverviewView";
 import { sourceList, unifyStock } from "@/lib/stock";
 
 // ช่องทางที่ยังไม่พร้อม — ซ่อนจาก UI ก่อน (โค้ดหลังบ้านยังอยู่ครบ เปิดคืนได้)
@@ -62,7 +63,7 @@ async function fileToResizedDataUrl(file: File, max = 512): Promise<string> {
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-type View = "inbox" | "settings" | "catalog";
+type View = "overview" | "inbox" | "settings" | "catalog";
 
 export default function Dashboard({
   username,
@@ -79,7 +80,8 @@ export default function Dashboard({
   const [dirty, setDirty] = useState(false);
   const savingRef = useRef(false);
   const editSeqRef = useRef(0);
-  const [view, setView] = useState<View>("inbox");
+  // เปิดแอปมาเจอภาพรวมก่อน — เห็นผลงาน AI + งานที่รออยู่ ("แม่ค้าเปิดแอป 8 โมงเช้าควรเห็นอะไร")
+  const [view, setView] = useState<View>("overview");
   const [mockSettings, setMockSettings] = useState<MockSettings>({});
   const [mockModalOpen, setMockModalOpen] = useState(false);
   const [metricsKey, setMetricsKey] = useState(0); // bump เพื่อให้การ์ดวัดยอดโหลดใหม่
@@ -383,6 +385,7 @@ export default function Dashboard({
       {/* มือถือ: เมนูเป็นแถบล่าง (กันที่ด้วย pb-20) / จอใหญ่: rail ซ้าย */}
       <main className="pb-20 md:pb-0 md:pl-16">
         <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
+          {view === "overview" && <OverviewView onGoInbox={() => setView("inbox")} />}
           {view === "inbox" && <InboxView mockSettings={mockSettings} />}
           {view === "settings" && (
             <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
@@ -439,6 +442,7 @@ function Sidebar({
   onOpenSettings: () => void;
 }) {
   const items: { key: View; label: string; icon: React.ReactNode }[] = [
+    { key: "overview", label: "ภาพรวม", icon: <IconChart /> },
     { key: "inbox", label: "กล่องแชต", icon: <IconChat /> },
     { key: "catalog", label: "คลังสินค้า", icon: <IconList /> },
     { key: "settings", label: "ตั้งค่าร้าน", icon: <IconStore /> },
@@ -616,6 +620,14 @@ function MockSettingsModal({
   );
 }
 
+function IconChart() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 3v18h18" />
+      <path d="M7 15v3M12 10v8M17 6v12" />
+    </svg>
+  );
+}
 function IconChat() {
   return (
     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

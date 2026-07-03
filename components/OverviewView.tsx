@@ -7,6 +7,7 @@ type OverviewDay = {
   label: string;
   isToday: boolean;
   custMsgs: number;
+  aiMsgs: number;
   upsellValue: number;
 };
 type Overview = { pendingNow: number; daily: OverviewDay[] };
@@ -41,8 +42,8 @@ export default function OverviewView({ onGoInbox }: { onGoInbox: () => void }) {
         </p>
       </div>
 
-      {/* แถวบน: รอตอบ (งานด่วน) + ยอดเดือนนี้ */}
-      <div className="grid gap-2 sm:grid-cols-4">
+      {/* แถวบน: รอตอบ (งานด่วน) + AI ตอบวันนี้ (โควตา) + ยอดเดือนนี้ */}
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         <button
           type="button"
           onClick={onGoInbox}
@@ -64,7 +65,15 @@ export default function OverviewView({ onGoInbox }: { onGoInbox: () => void }) {
           </div>
           <div className="text-xs text-muted">แตะเพื่อไปกล่องแชต</div>
         </button>
-        <div className="sm:col-span-3">
+        {/* โควตาข้อความ AI — อนาคตโชว์เพดานตามแพ็กเกจตรงนี้ (เช่น 42/100) */}
+        <div className="rounded-xl border border-line bg-surface px-4 py-3">
+          <div className="text-xs text-muted">AI ตอบวันนี้</div>
+          <div className="text-lg font-bold text-fg">
+            {data ? `${data.daily[data.daily.length - 1]?.aiMsgs ?? 0} ข้อความ` : "…"}
+          </div>
+          <div className="text-xs text-muted">แพ็กเกจเบต้า: ไม่จำกัด</div>
+        </div>
+        <div className="sm:col-span-2 lg:col-span-3">
           <UpsellMetric layout="row" />
         </div>
       </div>
@@ -98,6 +107,13 @@ export default function OverviewView({ onGoInbox }: { onGoInbox: () => void }) {
               days={data?.daily ?? null}
               value={(d) => d.upsellValue}
               formatValue={(n) => `฿${n.toLocaleString()}`}
+            />
+            <ChartCard
+              title="ข้อความที่ AI ตอบ"
+              unit="ข้อความ"
+              colorVar="var(--chart-ai)"
+              days={data?.daily ?? null}
+              value={(d) => d.aiMsgs}
             />
           </>
         )}

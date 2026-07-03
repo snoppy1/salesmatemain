@@ -13,6 +13,7 @@ export type OverviewDay = {
   label: string; // ชื่อวันย่อภาษาไทย
   isToday: boolean;
   custMsgs: number; // ข้อความลูกค้าในวันนั้น
+  aiMsgs: number; // ข้อความที่ AI ตอบเอง (ฐานคิดโควตา subscription/วัน)
   upsellValue: number; // มูลค่าที่ AI เสนอพ่วง (บาท)
 };
 
@@ -30,7 +31,7 @@ export async function GET() {
   const dayIndexOf = (ms: number) => Math.floor((ms + BKK) / DAY);
   const todayIndex = dayIndexOf(todayStart);
 
-  const [pendingRow, msgRows, upsellRows] = await Promise.all([
+  const [pendingRow, msgRows, aiRows, upsellRows] = await Promise.all([
     queryOne<{ n: number }>(
       "SELECT count(*)::int AS n FROM conversations WHERE shop_id = $1 AND pending_human = true",
       [shopId],
@@ -39,6 +40,13 @@ export async function GET() {
       `SELECT FLOOR((m.created_at + 25200000) / 86400000)::int AS d, count(*)::int AS n
          FROM messages m JOIN conversations c ON c.id = m.conversation_id
         WHERE c.shop_id = $1 AND m.sender = 'customer' AND m.created_at >= $2
+        GROUP BY 1`,
+      [shopId, weekStart],
+    ),
+    query<{ d: number; n: number }>(
+      `SELECT FLOOR((m.created_at + 25200000) / 86400000)::int AS d, count(*)::int AS n
+         FROM messages m JOIN conversations c ON c.id = m.conversation_id
+        WHERE c.shop_id = $1 AND m.ai_generated = true AND m.created_at >= $2
         GROUP BY 1`,
       [shopId, weekStart],
     ),
@@ -53,6 +61,7 @@ export async function GET() {
   ]);
 
   const msgsByDay = new Map(msgRows.map((r) => [Number(r.d), Number(r.n)]));
+  const aiByDay = new Map(aiRows.map((r) => [Number(r.d), Number(r.n)]));
   const upsellByDay = new Map(upsellRows.map((r) => [Number(r.d), Number(r.v)]));
 
   const daily: OverviewDay[] = [];
@@ -64,6 +73,7 @@ export async function GET() {
       label: i === 0 ? "วันนี้" : THAI_DAYS[weekday],
       isToday: i === 0,
       custMsgs: msgsByDay.get(idx) ?? 0,
+      aiMsgs: aiByDay.get(idx) ?? 0,
       upsellValue: upsellByDay.get(idx) ?? 0,
     });
   }

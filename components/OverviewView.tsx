@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import CountUp from "@/components/CountUp";
 import UpsellMetric from "@/components/UpsellMetric";
 
 type OverviewDay = {
@@ -61,7 +62,13 @@ export default function OverviewView({ onGoInbox }: { onGoInbox: () => void }) {
                 : "text-fg"
             }`}
           >
-            {data ? `${data.pendingNow} แชต` : "…"}
+            {data ? (
+              <>
+                <CountUp value={data.pendingNow} /> แชต
+              </>
+            ) : (
+              "…"
+            )}
           </div>
           <div className="text-xs text-muted">แตะเพื่อไปกล่องแชต</div>
         </button>
@@ -69,7 +76,13 @@ export default function OverviewView({ onGoInbox }: { onGoInbox: () => void }) {
         <div className="rounded-xl border border-line bg-surface px-4 py-3">
           <div className="text-xs text-muted">AI ตอบวันนี้</div>
           <div className="text-lg font-bold text-fg">
-            {data ? `${data.daily[data.daily.length - 1]?.aiMsgs ?? 0} ข้อความ` : "…"}
+            {data ? (
+              <>
+                <CountUp value={data.daily[data.daily.length - 1]?.aiMsgs ?? 0} /> ข้อความ
+              </>
+            ) : (
+              "…"
+            )}
           </div>
           <div className="text-xs text-muted">แพ็กเกจเบต้า: ไม่จำกัด</div>
         </div>
@@ -249,6 +262,8 @@ function ChartCard({
                     d={barPath(x, h)}
                     fill={colorVar}
                     opacity={hover === null || hover === i ? 1 : 0.45}
+                    className="chart-bar"
+                    style={{ animationDelay: `${i * 45}ms` }}
                   />
                 )}
                 {v === 0 && (
@@ -267,7 +282,7 @@ function ChartCard({
                     x={x + barW / 2}
                     y={PAD_TOP + PLOT_H - h - 6}
                     textAnchor="middle"
-                    className="fill-[var(--text)]"
+                    className="chart-fade fill-[var(--text)]"
                     fontSize="11"
                     fontWeight="600"
                   >

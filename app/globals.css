@@ -53,8 +53,8 @@ body {
   border-radius: 6px;
 }
 
-/* ---------- หน้า auth (login/signup/forgot): ลูกเล่นเข้าหน้า + แสงตามเมาส์ ---------- */
-@keyframes auth-rise {
+/* ---------- motion กลาง: ไหลเข้าจากล่าง (auth + รายการแชต) ---------- */
+@keyframes rise-in {
   from {
     opacity: 0;
     transform: translateY(12px);
@@ -64,6 +64,32 @@ body {
     transform: none;
   }
 }
+/* รายการแชตไหลเข้า — เล่นเฉพาะ element ที่เพิ่งโผล่ (โพลรอบถัดไปไม่เล่นซ้ำ) */
+.list-enter {
+  animation: rise-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ---------- กราฟแท่ง: โตจากฐานตอนโหลด แล้วเลขบนแท่งค่อยตามมา ---------- */
+@keyframes chart-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+.chart-bar {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: chart-grow 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes chart-fade {
+  from {
+    opacity: 0;
+  }
+}
+.chart-fade {
+  animation: chart-fade 0.4s ease 0.5s both;
+}
+
+/* ---------- หน้า auth (login/signup/forgot): ลูกเล่นเข้าหน้า + แสงตามเมาส์ ---------- */
 /* แสงโลโก้หายใจช้าๆ (ถ้าปิดอนิเมชัน จะค้างที่แสงตาม drop-shadow เดิมของ class) */
 @keyframes auth-breathe {
   0%,
@@ -75,7 +101,7 @@ body {
   }
 }
 .auth-rise {
-  animation: auth-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: rise-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .auth-breathe {
   animation: auth-breathe 6s ease-in-out infinite;
@@ -92,7 +118,7 @@ body {
 }
 /* เนื้อในการ์ดไหลเข้าทีละแถว */
 .auth-card > * {
-  animation: auth-rise 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: rise-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .auth-card > *:nth-child(1) {
   animation-delay: 0.14s;

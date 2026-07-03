@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import CountUp from "@/components/CountUp";
 import { Stat } from "@/components/ui";
 
 type Metrics = {
@@ -68,9 +69,22 @@ export default function UpsellMetric({ layout = "col" }: { layout?: "col" | "row
 
   return (
     <div className={wrap}>
-      <Stat label="ยอดขายรวม (เดือนนี้)" value={baht(m.sales.totalRevenue)} hint={`${m.sales.orderCount} ออเดอร์`} />
-      <Stat label="AI เสนอพ่วง" value={baht(m.offered.totalEstValue)} hint={`${m.offered.count} ครั้ง`} />
-      <Stat label="พ่วงขายได้จริง" value={baht(m.sold.totalSoldValue)} hint={`${m.sold.count} ครั้ง`} highlight />
+      <Stat
+        label="ยอดขายรวม (เดือนนี้)"
+        value={<CountUp value={m.sales.totalRevenue} format={baht} />}
+        hint={`${m.sales.orderCount} ออเดอร์`}
+      />
+      <Stat
+        label="AI เสนอพ่วง"
+        value={<CountUp value={m.offered.totalEstValue} format={baht} />}
+        hint={`${m.offered.count} ครั้ง`}
+      />
+      <Stat
+        label="พ่วงขายได้จริง"
+        value={<CountUp value={m.sold.totalSoldValue} format={baht} />}
+        hint={`${m.sold.count} ครั้ง`}
+        highlight
+      />
     </div>
   );
 }

@@ -478,7 +478,7 @@ function Sidebar({
               type="button"
               onClick={() => setView(it.key)}
               title={it.label}
-              className={`flex min-w-16 flex-col items-center gap-0.5 rounded-lg px-2 py-1.5 transition md:min-w-0 md:flex-row md:items-center md:gap-3 md:px-3 md:py-2.5 md:text-left ${
+              className={`flex min-w-16 flex-col items-center gap-0.5 rounded-lg px-2 py-1.5 transition active:scale-[.96] md:min-w-0 md:flex-row md:items-center md:gap-3 md:px-3 md:py-2.5 md:text-left ${
                 active
                   ? "bg-accent/15 text-accent"
                   : "text-muted hover:bg-surface2 hover:text-fg"

@@ -594,14 +594,16 @@ export default function InboxView({
                 : "ยังไม่มีบทสนทนา — เมื่อลูกค้าทักเข้ามาจะเด้งขึ้นที่นี่เอง"}
             </p>
           ) : (
-            visibleConvos.map((c) => {
+            visibleConvos.map((c, i) => {
               const active = c.id === activeId;
               return (
                 <button
                   key={c.id}
                   type="button"
                   onClick={() => setActiveId(c.id)}
-                  className={`flex w-full flex-col gap-0.5 border-b border-line px-3 py-2.5 text-left transition ${
+                  // ไหลเข้าทีละแถวตอนแรกเห็น (แถวใหม่จากโพลก็ไหลเข้าเอง แถวเดิมไม่เล่นซ้ำ)
+                  style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}
+                  className={`list-enter flex w-full flex-col gap-0.5 border-b border-line px-3 py-2.5 text-left transition ${
                     active
                       ? "bg-accent/12"
                       : "hover:bg-surface2"

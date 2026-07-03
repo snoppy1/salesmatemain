@@ -73,6 +73,21 @@ export default function AdminConsole({
     setSave((s) => (s === "saving" ? s : "idle"));
   }
 
+  // ลบร้านถาวร (DB CASCADE ทุกตารางลูก + ลบรูป Blob) — เรียกจากโซนอันตรายหลังพิมพ์ชื่อยืนยัน
+  async function handleDeleteShop(): Promise<boolean> {
+    if (!selectedId) return false;
+    try {
+      const res = await fetch(`/api/admin/shops/${selectedId}`, { method: "DELETE" });
+      if (!res.ok) return false;
+      setList((prev) => prev.filter((s) => s.id !== selectedId));
+      setSelectedId(null);
+      setLoad({ kind: "none" });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async function handleSave() {
     if (!selectedId || save === "saving") return;
     setSave("saving");
@@ -274,10 +289,73 @@ export default function AdminConsole({
                 onSave={handleSave}
               />
             )}
+            {load.kind === "ready" && selected && (
+              <DangerZone
+                shopName={shop.name || selected.name}
+                onDelete={handleDeleteShop}
+              />
+            )}
           </section>
         </div>
       )}
     </main>
+  );
+}
+
+/** โซนอันตราย: ลบร้านถาวร — ต้องพิมพ์ชื่อร้านยืนยันก่อน (ข้อมูลแชต/สินค้า/บัญชีหายทั้งหมด) */
+function DangerZone({
+  shopName,
+  onDelete,
+}: {
+  shopName: string;
+  onDelete: () => Promise<boolean>;
+}) {
+  const [confirmText, setConfirmText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const matched = confirmText.trim() === shopName.trim() && shopName.trim() !== "";
+
+  async function handleClick() {
+    if (!matched || busy) return;
+    setBusy(true);
+    setError("");
+    const ok = await onDelete();
+    if (!ok) {
+      setError("ลบไม่สำเร็จ ลองใหม่");
+      setBusy(false);
+      return;
+    }
+    setConfirmText("");
+    setBusy(false);
+  }
+
+  return (
+    <div className="mt-6 rounded-2xl border border-red-300 bg-red-50/50 p-4 dark:border-red-900 dark:bg-red-950/20">
+      <h3 className="text-sm font-semibold text-red-700 dark:text-red-300">
+        โซนอันตราย — ลบร้านนี้ถาวร
+      </h3>
+      <p className="mt-1 text-xs text-muted">
+        ลบทุกอย่างของร้านนี้: บัญชีผู้ใช้ แชตทั้งหมด สินค้า การเชื่อมต่อ และสถิติ — กู้คืนไม่ได้
+      </p>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <input
+          type="text"
+          value={confirmText}
+          onChange={(e) => setConfirmText(e.target.value)}
+          placeholder={`พิมพ์ "${shopName}" เพื่อยืนยัน`}
+          className="flex-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm text-fg"
+        />
+        <button
+          type="button"
+          onClick={handleClick}
+          disabled={!matched || busy}
+          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {busy ? "กำลังลบ…" : "ลบร้านถาวร"}
+        </button>
+      </div>
+      {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
+    </div>
   );
 }
 

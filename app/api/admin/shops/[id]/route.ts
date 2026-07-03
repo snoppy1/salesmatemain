@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentSuperadmin } from "@/lib/superAuth";
-import { getShopData, saveShopData, shopExists } from "@/lib/shopRepo";
+import { getShopData, saveShopData, shopExists, deleteShop } from "@/lib/shopRepo";
 import type { ShopData } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -50,4 +50,20 @@ export async function PUT(
     products: Array.isArray(body?.products) ? body.products : [],
   });
   return NextResponse.json(saved);
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const su = await getCurrentSuperadmin();
+  if (!su) {
+    return NextResponse.json({ error: "ต้องเป็นผู้ดูแลระบบ" }, { status: 401 });
+  }
+  const { id } = await params;
+  if (!(await shopExists(id))) {
+    return NextResponse.json({ error: "ไม่พบร้านนี้" }, { status: 404 });
+  }
+  await deleteShop(id);
+  return NextResponse.json({ ok: true });
 }

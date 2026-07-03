@@ -195,6 +195,25 @@ export async function loadEmbeddingsByIds(
   return map;
 }
 
+/**
+ * ลบร้านถาวร (superadmin เท่านั้น) — ทุกตารางลูกมี FK ON DELETE CASCADE
+ * (admins→sessions/password_history, conversations→messages, products, channels, upsell ฯลฯ)
+ * รูปแชตที่โฮสต์ใน Blob ไม่อยู่ใน DB → ลบก่อนแบบ best-effort
+ */
+export async function deleteShop(shopId: string): Promise<void> {
+  const blobRows = await query<{ blob_key: string }>(
+    `SELECT m.blob_key FROM messages m
+      JOIN conversations c ON c.id = m.conversation_id
+     WHERE c.shop_id = $1 AND m.blob_key IS NOT NULL`,
+    [shopId],
+  );
+  if (blobRows.length) {
+    const { delBlobs } = await import("./blobStore");
+    await delBlobs(blobRows.map((r) => r.blob_key)).catch(() => {});
+  }
+  await query("DELETE FROM shops WHERE id = $1", [shopId]);
+}
+
 /** ร้านที่มีแชตเคลื่อนไหวตั้งแต่ since (ms) — ใช้ pre-warm เฉพาะร้านที่ใช้งานจริง */
 export async function listActiveShopIds(since: number): Promise<string[]> {
   const rows = await query<{ shop_id: string }>(

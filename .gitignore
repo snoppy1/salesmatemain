@@ -17,3 +17,6 @@ next-env.d.ts
 tsconfig.tsbuildinfo
 .agents
 .impeccable
+
+# credentials สำหรับ pen test — ห้าม commit
+docs/lazada-pentest-answers.md

@@ -39,7 +39,9 @@ export async function GET(request: Request) {
   }
 
   // ต่ออายุ Lazada IM token ที่ใกล้หมด (<12 ชม.) — กัน connection ตายทุก 24 ชม. (push+API หยุด)
+  // ล้มเหลวต้องรายงานออกมาเสมอ (เคยกลืนเงียบจน token ตายไป 37 ชม. ไม่มีใครรู้)
   let refreshedTokens = 0;
+  const refreshErrors: string[] = [];
   for (const ch of await listAllChannels()) {
     const exp = ch.expires_at ? Number(ch.expires_at) : 0;
     const nearExpiry = !exp || exp - Date.now() < 12 * 60 * 60 * 1000;
@@ -49,11 +51,16 @@ export async function GET(request: Request) {
       if (r.ok) {
         await updateChannelTokens(ch.shop_id, r.accessToken, r.refreshToken, r.expiresAt);
         refreshedTokens++;
+      } else {
+        refreshErrors.push(`${ch.shop_id.slice(0, 8)}:${r.error ?? "unknown"}`);
       }
-    } catch {
-      /* best-effort ต่อ channel */
+    } catch (e) {
+      refreshErrors.push(`${ch.shop_id.slice(0, 8)}:${e instanceof Error ? e.message : "throw"}`);
     }
   }
+  if (refreshErrors.length) {
+    console.error("[cron/prewarm] lazada token refresh failed:", refreshErrors.join(", "));
+  }
 
-  return NextResponse.json({ warmed, total: ids.length, refreshedTokens });
+  return NextResponse.json({ warmed, total: ids.length, refreshedTokens, refreshErrors });
 }

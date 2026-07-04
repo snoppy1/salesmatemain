@@ -108,12 +108,22 @@ export type ImTokenResult = {
 };
 
 /** ต่ออายุ access token ด้วย refresh token (Lazada /auth/token/refresh) */
-export async function refreshImToken(
-  refreshToken: string,
-): Promise<{ ok: boolean; accessToken: string; refreshToken: string; expiresAt: number | null }> {
+export async function refreshImToken(refreshToken: string): Promise<{
+  ok: boolean;
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number | null;
+  error?: string; // code จาก Lazada ตอนล้มเหลว (เช่น IllegalRefreshToken) — ห้ามกลืนเงียบ
+}> {
   const { appKey, appSecret } = imAppCreds();
-  const fail = { ok: false, accessToken: "", refreshToken: "", expiresAt: null };
-  if (!appKey || !appSecret || !refreshToken) return fail;
+  const fail = (error: string) => ({
+    ok: false,
+    accessToken: "",
+    refreshToken: "",
+    expiresAt: null,
+    error,
+  });
+  if (!appKey || !appSecret || !refreshToken) return fail("missing_credentials");
   const path = "/auth/token/refresh";
   const params: Record<string, string> = {
     app_key: appKey,
@@ -126,7 +136,9 @@ export async function refreshImToken(
     const res = await fetch(`${API_BASE}${path}?${new URLSearchParams(params)}`);
     const data = (await res.json()) as Record<string, unknown>;
     const accessToken = String(data.access_token ?? "");
-    if (!accessToken) return fail;
+    if (!accessToken) {
+      return fail(String(data.code ?? data.message ?? `http_${res.status}`));
+    }
     const expiresIn = Number(data.expires_in ?? 0);
     return {
       ok: true,
@@ -135,7 +147,7 @@ export async function refreshImToken(
       expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : null,
     };
   } catch {
-    return fail;
+    return fail("network_error");
   }
 }
 

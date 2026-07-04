@@ -1466,9 +1466,15 @@ function LazadaConnectBox() {
           )}
         </span>
         {connected ? (
-          <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-contrast">
-            เชื่อมแล้ว
-          </span>
+          status?.expired ? (
+            <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">
+              การเชื่อมต่อหลุด
+            </span>
+          ) : (
+            <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-contrast">
+              เชื่อมแล้ว
+            </span>
+          )
         ) : (
           <span className="rounded-full bg-surface2 px-2 py-0.5 text-xs font-semibold text-muted">
             ยังไม่เชื่อม
@@ -1478,6 +1484,20 @@ function LazadaConnectBox() {
 
       {connected ? (
         <div className="mt-3 space-y-3">
+          {/* token หมดอายุ = Lazada หยุดส่งแชตใหม่เข้าเว็บ — ต้องบอกตรงนี้ดังๆ ไม่ปล่อยเงียบ */}
+          {status?.expired && (
+            <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/40">
+              <p className="font-semibold text-red-700 dark:text-red-300">
+                การเชื่อมต่อ Lazada หลุด — แชตใหม่จะไม่เข้าเว็บจนกว่าจะเชื่อมใหม่
+              </p>
+              <a
+                href="/api/lazada/connect/start"
+                className="mt-2 inline-flex items-center gap-2 rounded-lg bg-[#0F146E] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0a0e52]"
+              >
+                เชื่อม Lazada ใหม่ (เข้าสู่ระบบ)
+              </a>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-fg">
               ร้าน: <b>{status?.accountName || "—"}</b>

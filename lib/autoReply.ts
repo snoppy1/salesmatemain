@@ -12,6 +12,8 @@ import { listPromotions } from "./promotionsRepo";
 import { validNowPromotions } from "./promotions";
 import { isOrderTopic, needsHumanForOrderTopic } from "./orderIntent";
 import { isMostlyEnglish } from "./lang";
+import { queryOne } from "./db";
+import { bangkokDayStartMs } from "./adminStats";
 import { getValidAccessToken } from "./connectionRepo";
 import { recordUpsell } from "./upsellRepo";
 import { replyMessage, pushMessage } from "./lineClient";
@@ -54,6 +56,20 @@ export async function processAutoReply(
     // ยังไม่รองรับภาษาอังกฤษ — ลูกค้าถามเป็นอังกฤษ → ไม่ให้ AI ตอบ ขึ้น "รอตอบ" ให้คนจัดการ
     // (ไม่เรียก AI เลย = ไม่เสียเครดิตด้วย)
     if (isMostlyEnglish(lastCustomerText)) {
+      await setPendingHuman(conversationId, true);
+      return;
+    }
+
+    // เพดานข้อความ AI ต่อร้านต่อวัน — กันยิงถล่ม (bot/fuzzing เช่นช่วง pen test) เผาเครดิต
+    // ตั้งสูงกว่าการใช้จริงหลายเท่า ร้านปกติไม่มีทางชน; ชนแล้วข้อความขึ้น "รอตอบ" แทน
+    const AI_DAILY_CAP = Number(process.env.AI_DAILY_CAP || 200);
+    const used = await queryOne<{ n: number }>(
+      `SELECT count(*)::int AS n
+         FROM messages m JOIN conversations c ON c.id = m.conversation_id
+        WHERE c.shop_id = $1 AND m.ai_generated = true AND m.created_at >= $2`,
+      [shopId, bangkokDayStartMs()],
+    );
+    if (Number(used?.n ?? 0) >= AI_DAILY_CAP) {
       await setPendingHuman(conversationId, true);
       return;
     }

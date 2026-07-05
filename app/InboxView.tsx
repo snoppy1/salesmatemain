@@ -49,7 +49,7 @@ type InboxApp = { channel: string; level: AutoLevel };
 /** ตัวเลือกโหมด AI (ใช้ทั้งการ์ดในหน้ารวม + header ในหน้าแชต) */
 const LEVEL_OPTIONS: { value: AutoLevel; label: string }[] = [
   { value: "off", label: "✋ กดส่งเอง" },
-  { value: "safe", label: "🛡️ ปลอดภัย" },
+  { value: "safe", label: "🤖 AI" },
 ];
 
 /** ไอคอนแบรนด์ทางการ (react-icons / Simple Icons) — โลโก้สีขาวบนพื้นสีแบรนด์ */

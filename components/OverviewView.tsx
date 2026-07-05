@@ -43,6 +43,8 @@ export default function OverviewView({ onGoInbox }: { onGoInbox: () => void }) {
         </p>
       </div>
 
+      <LazadaExpiredAlert />
+
       {/* แถวบน: รอตอบ (งานด่วน) + AI ตอบวันนี้ (โควตา) + ยอดเดือนนี้ */}
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         <button
@@ -131,6 +133,36 @@ export default function OverviewView({ onGoInbox }: { onGoInbox: () => void }) {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ---------- ป้ายเตือนการเชื่อมต่อ Lazada หลุด (token ตาย = แชตใหม่ไม่เข้า) ----------
+   วางหน้าแรกเพราะเป็นหน้าที่เปิดเจอแน่ๆ — บทเรียนจากเหตุการณ์ token ตายเงียบ 2 วัน */
+function LazadaExpiredAlert() {
+  const [expired, setExpired] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/lazada/connect/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { connected?: boolean; expired?: boolean } | null) =>
+        setExpired(Boolean(d?.connected && d?.expired)),
+      )
+      .catch(() => {});
+  }, []);
+
+  if (!expired) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3 dark:border-red-900 dark:bg-red-950/40">
+      <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+        การเชื่อมต่อ Lazada หลุด — แชตใหม่จะไม่เข้าจนกว่าจะเชื่อมใหม่
+      </p>
+      <a
+        href="/api/lazada/connect/start"
+        className="rounded-lg bg-[#0F146E] px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-[#0a0e52]"
+      >
+        เชื่อม Lazada ใหม่ (เข้าสู่ระบบ)
+      </a>
     </div>
   );
 }

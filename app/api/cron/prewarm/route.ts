@@ -38,13 +38,14 @@ export async function GET(request: Request) {
     }
   }
 
-  // ต่ออายุ Lazada IM token ที่ใกล้หมด (<12 ชม.) — กัน connection ตายทุก 24 ชม. (push+API หยุด)
+  // ต่ออายุ Lazada IM token ที่ใกล้หมด (<20 ชม. = รีเฟรชทุกๆ ~4 ชม.) — กัน connection ตาย
+  // (เคยใช้ 12 ชม.แล้ว refresh token ตายก่อน — สงสัย refresh token อายุสั้น จึงหมุนถี่ขึ้น)
   // ล้มเหลวต้องรายงานออกมาเสมอ (เคยกลืนเงียบจน token ตายไป 37 ชม. ไม่มีใครรู้)
   let refreshedTokens = 0;
   const refreshErrors: string[] = [];
   for (const ch of await listAllChannels()) {
     const exp = ch.expires_at ? Number(ch.expires_at) : 0;
-    const nearExpiry = !exp || exp - Date.now() < 12 * 60 * 60 * 1000;
+    const nearExpiry = !exp || exp - Date.now() < 20 * 60 * 60 * 1000;
     if (!nearExpiry || !ch.refresh_token) continue;
     try {
       const r = await refreshImToken(ch.refresh_token);

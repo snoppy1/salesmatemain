@@ -69,21 +69,27 @@ body {
   animation: rise-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* ---------- กราฟแท่ง: โตจากฐานตอนโหลด แล้วเลขบนแท่งค่อยตามมา ---------- */
-@keyframes chart-grow {
+/* ---------- กราฟเส้น: เส้นวาดจากซ้าย→ขวา แล้วพื้น/จุด/เลขค่อยตามมา ---------- */
+/* pathLength=100 บน <path> ทำให้ dashoffset นับเป็น % ไม่ต้องวัดความยาวจริง */
+@keyframes chart-draw {
   from {
-    transform: scaleY(0);
+    stroke-dashoffset: 100;
   }
 }
-.chart-bar {
-  transform-box: fill-box;
-  transform-origin: bottom;
-  animation: chart-grow 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+.chart-line {
+  stroke-dasharray: 100;
+  animation: chart-draw 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 @keyframes chart-fade {
   from {
     opacity: 0;
   }
+}
+.chart-area {
+  animation: chart-fade 0.5s ease 0.35s both;
+}
+.chart-dot {
+  animation: chart-fade 0.4s ease both;
 }
 .chart-fade {
   animation: chart-fade 0.4s ease 0.5s both;

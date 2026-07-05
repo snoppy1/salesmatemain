@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import CountUp from "@/components/CountUp";
 import UpsellMetric from "@/components/UpsellMetric";
 
@@ -167,13 +167,15 @@ function LazadaExpiredAlert() {
   );
 }
 
-/* ---------- การ์ดกราฟแท่ง 7 วัน (SVG ตามสเปก dataviz) ---------- */
+/* ---------- การ์ดกราฟเส้น + จุด 7 วัน (SVG ตามสเปก dataviz) ---------- */
 
 const W = 320;
 const H = 150;
-const PAD_TOP = 22; // ที่ว่างสำหรับเลขบนแท่ง
+const PAD_TOP = 22; // ที่ว่างสำหรับเลขบนจุด
 const PAD_BOTTOM = 20; // ที่ว่างสำหรับชื่อวัน
+const SIDE_PAD = 18; // กันจุดหัว-ท้ายไม่ให้ตกขอบ
 const PLOT_H = H - PAD_TOP - PAD_BOTTOM;
+const BASE_Y = PAD_TOP + PLOT_H; // เส้นฐาน
 
 function ChartCard({
   title,
@@ -191,6 +193,7 @@ function ChartCard({
   formatValue?: (n: number) => string;
 }) {
   const [hover, setHover] = useState<number | null>(null);
+  const gradId = useId();
 
   if (!days) {
     return (
@@ -208,27 +211,20 @@ function ChartCard({
   const scale = allZero ? 0 : PLOT_H / max;
 
   const n = days.length;
-  const gap = 10; // ช่องว่างระหว่างแท่ง (>2px ตามสเปก)
-  const barW = (W - gap * (n + 1)) / n;
+  const xOf = (i: number) =>
+    SIDE_PAD + (W - 2 * SIDE_PAD) * (n === 1 ? 0 : i / (n - 1));
+  const yOf = (v: number) => BASE_Y - v * scale;
 
-  // แท่งหัวโค้ง 4px ยึดฐานเสมอ (โค้งเฉพาะบน)
-  const barPath = (x: number, h: number): string => {
-    const r = Math.min(4, h, barW / 2);
-    const y = PAD_TOP + PLOT_H - h;
-    const bottom = PAD_TOP + PLOT_H;
-    if (h <= 0) return "";
-    return [
-      `M ${x} ${bottom}`,
-      `L ${x} ${y + r}`,
-      `Q ${x} ${y} ${x + r} ${y}`,
-      `L ${x + barW - r} ${y}`,
-      `Q ${x + barW} ${y} ${x + barW} ${y + r}`,
-      `L ${x + barW} ${bottom}`,
-      "Z",
-    ].join(" ");
-  };
+  // จุดของแต่ละวัน (allZero → ยึดเส้นฐาน)
+  const pts = values.map((v, i) => [xOf(i), yOf(v)] as const);
+  const linePath = "M " + pts.map((p) => `${p[0]} ${p[1]}`).join(" L ");
+  const areaPath =
+    `M ${xOf(0)} ${BASE_Y} L ` +
+    pts.map((p) => `${p[0]} ${p[1]}`).join(" L ") +
+    ` L ${xOf(n - 1)} ${BASE_Y} Z`;
 
   const hovered = hover !== null ? days[hover] : null;
+  const colStep = (W - 2 * SIDE_PAD) / Math.max(1, n - 1);
 
   return (
     <div className="rounded-2xl border border-line bg-surface p-4">
@@ -238,7 +234,7 @@ function ChartCard({
       </div>
 
       <div className="relative mt-3">
-        {/* tooltip ตอน hover/แตะแท่ง */}
+        {/* tooltip ตอน hover/แตะจุด */}
         {hovered && (
           <div className="pointer-events-none absolute -top-1 left-1/2 z-10 -translate-x-1/2 rounded-lg border border-line bg-surface px-2.5 py-1 text-xs shadow-sm">
             <span className="font-medium text-fg">{hovered.label}</span>
@@ -252,9 +248,17 @@ function ChartCard({
           viewBox={`0 0 ${W} ${H}`}
           className="w-full"
           role="img"
-          aria-label={`กราฟแท่ง${title} 7 วันล่าสุด`}
+          aria-label={`กราฟเส้น${title} 7 วันล่าสุด`}
           onMouseLeave={() => setHover(null)}
         >
+          <defs>
+            {/* พื้นไล่เฉดใต้เส้น: สีกราฟจางบน → โปร่งใสที่เส้นฐาน */}
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={colorVar} stopOpacity="0.28" />
+              <stop offset="100%" stopColor={colorVar} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+
           {/* grid บางๆ: เส้นฐาน + กึ่งกลาง (recessive) */}
           <line
             x1="0"
@@ -264,55 +268,67 @@ function ChartCard({
             stroke="var(--line)"
             strokeDasharray="3 4"
           />
-          <line
-            x1="0"
-            x2={W}
-            y1={PAD_TOP + PLOT_H}
-            y2={PAD_TOP + PLOT_H}
-            stroke="var(--line)"
-          />
+          <line x1="0" x2={W} y1={BASE_Y} y2={BASE_Y} stroke="var(--line)" />
+
+          {!allZero && (
+            <>
+              <path d={areaPath} fill={`url(#${gradId})`} className="chart-area" />
+              <path
+                d={linePath}
+                fill="none"
+                stroke={colorVar}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                pathLength={100}
+                className="chart-line"
+              />
+            </>
+          )}
+
+          {/* crosshair แนวตั้งที่จุดชี้ (บอกว่ากำลังอ่านวันไหน) */}
+          {hover !== null && (
+            <line
+              x1={xOf(hover)}
+              x2={xOf(hover)}
+              y1={PAD_TOP}
+              y2={BASE_Y}
+              stroke="var(--line)"
+            />
+          )}
 
           {days.map((d, i) => {
-            const x = gap + i * (barW + gap);
+            const [x, y] = pts[i];
             const v = values[i];
-            const h = Math.max(v * scale, v > 0 ? 3 : 0);
+            const active = hover === i;
             const showLabel = !allZero && (i === maxIndex || d.isToday) && v > 0;
             return (
               <g key={i}>
-                {/* hit target ใหญ่กว่าแท่ง (แตะง่ายบนมือถือ) */}
+                {/* hit target เต็มความสูง กว้างเท่าช่อง (แตะง่ายบนมือถือ) */}
                 <rect
-                  x={x - gap / 2}
+                  x={x - colStep / 2}
                   y={0}
-                  width={barW + gap}
+                  width={colStep}
                   height={H}
                   fill="transparent"
                   onMouseEnter={() => setHover(i)}
                   onClick={() => setHover(i)}
                 />
-                {v > 0 && (
-                  <path
-                    d={barPath(x, h)}
-                    fill={colorVar}
-                    opacity={hover === null || hover === i ? 1 : 0.45}
-                    className="chart-bar"
-                    style={{ animationDelay: `${i * 45}ms` }}
-                  />
-                )}
-                {v === 0 && (
-                  <line
-                    x1={x}
-                    x2={x + barW}
-                    y1={PAD_TOP + PLOT_H}
-                    y2={PAD_TOP + PLOT_H}
-                    stroke={colorVar}
-                    strokeWidth="2"
-                    opacity=".5"
-                  />
-                )}
+                {/* จุด ≥8px มีวงแหวนสี surface กันกลืนเส้น/พื้น */}
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={active ? 5 : 4}
+                  fill={colorVar}
+                  stroke="var(--surface)"
+                  strokeWidth="2"
+                  className="chart-dot"
+                  style={{ animationDelay: `${300 + i * 45}ms` }}
+                />
                 {showLabel && (
                   <text
-                    x={x + barW / 2}
-                    y={PAD_TOP + PLOT_H - h - 6}
+                    x={x}
+                    y={y - 9}
                     textAnchor="middle"
                     className="chart-fade fill-[var(--text)]"
                     fontSize="11"
@@ -322,7 +338,7 @@ function ChartCard({
                   </text>
                 )}
                 <text
-                  x={x + barW / 2}
+                  x={x}
                   y={H - 5}
                   textAnchor="middle"
                   className="fill-[var(--text-muted)]"

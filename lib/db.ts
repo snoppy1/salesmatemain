@@ -282,6 +282,16 @@ async function ensureSchema(): Promise<void> {
       matched_order_id TEXT
     );
 
+    -- บันทึกการรันของ cron (หน้าสถานะระบบใน admin console) — เก็บ 50 รายการล่าสุดต่อ job
+    CREATE TABLE IF NOT EXISTS cron_runs (
+      id     TEXT PRIMARY KEY,
+      job    TEXT NOT NULL,
+      ran_at BIGINT NOT NULL,
+      ok     BOOLEAN NOT NULL DEFAULT true,
+      detail TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX IF NOT EXISTS idx_cron_runs_job ON cron_runs(job, ran_at DESC);
+
     CREATE INDEX IF NOT EXISTS idx_rules_shop ON rules(shop_id);
     CREATE INDEX IF NOT EXISTS idx_products_shop ON products(shop_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_admin ON sessions(admin_id);

@@ -3,6 +3,7 @@ import { listActiveShopIds, getShopData } from "@/lib/shopRepo";
 import { prewarmShop } from "@/lib/claude";
 import { listAllChannels, updateChannelTokens } from "@/lib/lazadaChannelRepo";
 import { refreshImToken } from "@/lib/lazadaChatClient";
+import { recordCronRun } from "@/lib/cronRunsRepo";
 
 export const runtime = "nodejs";
 
@@ -62,6 +63,13 @@ export async function GET(request: Request) {
   if (refreshErrors.length) {
     console.error("[cron/prewarm] lazada token refresh failed:", refreshErrors.join(", "));
   }
+  // บันทึกผลไว้ให้หน้า "สถานะระบบ" — ok=false เมื่อต่ออายุ token ล้มเหลว
+  await recordCronRun("prewarm", refreshErrors.length === 0, {
+    warmed,
+    total: ids.length,
+    refreshedTokens,
+    refreshErrors,
+  });
 
   return NextResponse.json({ warmed, total: ids.length, refreshedTokens, refreshErrors });
 }

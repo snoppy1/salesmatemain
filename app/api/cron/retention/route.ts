@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { purgeOldConversations, expireOldImages } from "@/lib/retention";
+import { recordCronRun } from "@/lib/cronRunsRepo";
 
 export const runtime = "nodejs";
 
@@ -12,5 +13,6 @@ export async function GET(request: Request) {
   }
   const purgedConversations = await purgeOldConversations();
   const expiredImages = await expireOldImages();
+  await recordCronRun("retention", true, { purgedConversations, expiredImages });
   return NextResponse.json({ purgedConversations, expiredImages });
 }

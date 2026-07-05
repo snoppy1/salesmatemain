@@ -6,6 +6,7 @@ import type { Product, Rule, Shop, ShopData, ShopSummary } from "@/lib/types";
 import ThemeToggle from "@/components/ThemeToggle";
 import HomeTab from "./HomeTab";
 import AllowlistTab from "./AllowlistTab";
+import StatusTab from "./StatusTab";
 
 function genId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -45,7 +46,7 @@ export default function AdminConsole({
   const [rules, setRules] = useState<Rule[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [save, setSave] = useState<SaveState>("idle");
-  const [tab, setTab] = useState<"home" | "shops" | "allowlist">("home");
+  const [tab, setTab] = useState<"home" | "shops" | "allowlist" | "status">("home");
 
   const selected = list.find((s) => s.id === selectedId) ?? null;
 
@@ -158,6 +159,7 @@ export default function AdminConsole({
             ["home", "หน้าแรก"],
             ["shops", "ร้านค้า"],
             ["allowlist", "อีเมลที่อนุญาต"],
+            ["status", "สถานะระบบ"],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -185,6 +187,8 @@ export default function AdminConsole({
       )}
 
       {tab === "allowlist" && <AllowlistTab />}
+
+      {tab === "status" && <StatusTab />}
 
       {tab === "shops" && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[18rem_1fr]">

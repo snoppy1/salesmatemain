@@ -217,3 +217,39 @@ export async function salesSince(
     return { orderCount: 0, totalRevenue: 0 };
   }
 }
+
+/**
+ * ยอดขายรายวันตั้งแต่ sinceMs → Map(ดัชนีวันเวลาไทย → ยอดรวมบาท)
+ * ดัชนีวัน = floor((created_at + 7ชม.) / 1วัน) ให้ตรงกับ endpoint ภาพรวม
+ * mock/ไม่มีข้อมูล → map ว่าง (กราฟโชว์ 0 ไม่ปลอมยอด)
+ */
+export async function salesDailySince(
+  accessToken: string,
+  sinceMs: number,
+): Promise<Map<number, number>> {
+  const DAY = 86400e3;
+  const BKK = 7 * 3600e3;
+  const byDay = new Map<number, number>();
+  if (isMock(accessToken)) return byDay;
+  try {
+    const data = await signedGet("/orders/get", accessToken, {
+      created_after: new Date(sinceMs).toISOString(),
+      limit: "100",
+      sort_by: "created_at",
+      sort_direction: "DESC",
+    });
+    if (String(data.code ?? "0") !== "0") return byDay;
+    const orders = ((data.data as Record<string, unknown>)?.orders as unknown[]) ?? [];
+    for (const o of orders) {
+      const x = (o ?? {}) as Record<string, unknown>;
+      const created = parseLazadaDate(x.created_at);
+      if (created == null) continue;
+      const price = Number(x.price ?? 0) || 0;
+      const idx = Math.floor((created + BKK) / DAY);
+      byDay.set(idx, (byDay.get(idx) ?? 0) + price);
+    }
+  } catch {
+    /* คืน map ว่าง = โชว์ 0 */
+  }
+  return byDay;
+}

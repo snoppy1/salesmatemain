@@ -4,19 +4,21 @@ import { useCallback, useEffect, useId, useState } from "react";
 import CountUp from "@/components/CountUp";
 import UpsellMetric from "@/components/UpsellMetric";
 
-type OverviewDay = {
-  label: string;
-  isToday: boolean;
+/** วันในกราฟต้องมีอย่างน้อยชื่อวัน + ธงวันนี้ (ค่าตัวเลขดึงผ่าน accessor) */
+type ChartDay = { label: string; isToday: boolean };
+type OverviewDay = ChartDay & {
   custMsgs: number;
   aiMsgs: number;
   upsellValue: number;
 };
+type SalesDay = ChartDay & { revenue: number };
 type Overview = { pendingNow: number; daily: OverviewDay[] };
 
 /** หน้าภาพรวมร้าน — ตัวเลขคือหลักฐาน: รอตอบตอนนี้ + ยอดเดือนนี้ + กราฟ 7 วัน */
 export default function OverviewView({ onGoInbox }: { onGoInbox: () => void }) {
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState(false);
+  const [sales, setSales] = useState<SalesDay[] | null>(null);
 
   const load = useCallback(() => {
     setError(false);
@@ -33,6 +35,14 @@ export default function OverviewView({ onGoInbox }: { onGoInbox: () => void }) {
     }, 30000); // รีเฟรชทุก 30 วิ พอ (หน้าภาพรวม ไม่ใช่แชต)
     return () => clearInterval(t);
   }, [load]);
+
+  // ยอดขายรายวันดึงจาก Lazada Orders API — โหลดครั้งเดียวตอนเปิดหน้า (ไม่ poll ทุก 30 วิ)
+  useEffect(() => {
+    fetch("/api/metrics/sales-daily")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d: { daily: SalesDay[] }) => setSales(d.daily))
+      .catch(() => setSales(null));
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -116,20 +126,23 @@ export default function OverviewView({ onGoInbox }: { onGoInbox: () => void }) {
               value={(d) => d.custMsgs}
             />
             <ChartCard
-              title="มูลค่าที่ AI เสนอพ่วง"
-              unit="บาท"
-              colorVar="var(--chart-upsell)"
-              days={data?.daily ?? null}
-              value={(d) => d.upsellValue}
-              formatValue={(n) => `฿${n.toLocaleString()}`}
-            />
-            <ChartCard
               title="ข้อความที่ AI ตอบ"
               unit="ข้อความ"
               colorVar="var(--chart-ai)"
               days={data?.daily ?? null}
               value={(d) => d.aiMsgs}
             />
+            {/* ยอดขายรวมรายวัน (จาก Lazada Orders) — วางล่างสุด เต็มความกว้าง */}
+            <div className="lg:col-span-2">
+              <ChartCard
+                title="ยอดขายรวม (ร้านที่ AI ดูแล)"
+                unit="บาท"
+                colorVar="var(--chart-upsell)"
+                days={sales}
+                value={(d) => d.revenue}
+                formatValue={(n) => `฿${n.toLocaleString()}`}
+              />
+            </div>
           </>
         )}
       </div>
@@ -177,7 +190,7 @@ const SIDE_PAD = 18; // กันจุดหัว-ท้ายไม่ให�
 const PLOT_H = H - PAD_TOP - PAD_BOTTOM;
 const BASE_Y = PAD_TOP + PLOT_H; // เส้นฐาน
 
-function ChartCard({
+function ChartCard<T extends ChartDay>({
   title,
   unit,
   colorVar,
@@ -188,8 +201,8 @@ function ChartCard({
   title: string;
   unit: string;
   colorVar: string;
-  days: OverviewDay[] | null;
-  value: (d: OverviewDay) => number;
+  days: T[] | null;
+  value: (d: T) => number;
   formatValue?: (n: number) => string;
 }) {
   const [hover, setHover] = useState<number | null>(null);

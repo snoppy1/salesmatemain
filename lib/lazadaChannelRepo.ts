@@ -10,10 +10,11 @@ export type LazadaChannelRow = {
   account_name: string;
   refresh_token: string;
   expires_at: string | null; // epoch ms (bigint) — เวลาหมดอายุ access token
+  updated_at: string; // epoch ms — เวลาที่ token ถูกอัปเดตล่าสุด (ต่ออายุสำเร็จ/เชื่อมใหม่)
 };
 
 const COLS =
-  "id, shop_id, account_id, access_token, account_name, refresh_token, expires_at";
+  "id, shop_id, account_id, access_token, account_name, refresh_token, expires_at, updated_at";
 
 /** บันทึก/แทนที่บัญชีแชต Lazada ของร้าน (1 ร้าน 1 บัญชี) */
 export async function saveChannel(

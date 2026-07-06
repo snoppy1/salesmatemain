@@ -153,22 +153,51 @@ export default function OverviewView({ onGoInbox }: { onGoInbox: () => void }) {
 /* ---------- ป้ายเตือนการเชื่อมต่อ Lazada หลุด (token ตาย = แชตใหม่ไม่เข้า) ----------
    วางหน้าแรกเพราะเป็นหน้าที่เปิดเจอแน่ๆ — บทเรียนจากเหตุการณ์ token ตายเงียบ 2 วัน */
 function LazadaExpiredAlert() {
-  const [expired, setExpired] = useState(false);
+  const [state, setState] = useState<{ expired: boolean; atRisk: boolean }>({
+    expired: false,
+    atRisk: false,
+  });
 
   useEffect(() => {
-    fetch("/api/lazada/connect/status")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: { connected?: boolean; expired?: boolean } | null) =>
-        setExpired(Boolean(d?.connected && d?.expired)),
-      )
-      .catch(() => {});
+    const load = () =>
+      fetch("/api/lazada/connect/status")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { connected?: boolean; expired?: boolean; atRisk?: boolean } | null) =>
+          setState({
+            expired: Boolean(d?.connected && d?.expired),
+            atRisk: Boolean(d?.connected && d?.atRisk),
+          }),
+        )
+        .catch(() => {});
+    load();
+    const t = setInterval(() => {
+      if (!document.hidden) load();
+    }, 60000);
+    return () => clearInterval(t);
   }, []);
 
-  if (!expired) return null;
+  if (!state.expired && !state.atRisk) return null;
+
+  // หมดอายุ = แดง (แชตหยุดแล้ว) / กำลังจะหมด = เหลือง (ต่ออายุล้มเหลว เตือนก่อน)
+  const critical = state.expired;
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3 dark:border-red-900 dark:bg-red-950/40">
-      <p className="text-sm font-semibold text-red-700 dark:text-red-300">
-        การเชื่อมต่อ Lazada หลุด — แชตใหม่จะไม่เข้าจนกว่าจะเชื่อมใหม่
+    <div
+      className={`flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 ${
+        critical
+          ? "border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/40"
+          : "border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40"
+      }`}
+    >
+      <p
+        className={`text-sm font-semibold ${
+          critical
+            ? "text-red-700 dark:text-red-300"
+            : "text-amber-700 dark:text-amber-300"
+        }`}
+      >
+        {critical
+          ? "การเชื่อมต่อ Lazada หลุด — แชตใหม่จะไม่เข้าจนกว่าจะเชื่อมใหม่"
+          : "การเชื่อมต่อ Lazada กำลังจะหมดอายุ — ควรกดเชื่อมใหม่ก่อนแชตหยุด"}
       </p>
       <a
         href="/api/lazada/connect/start"

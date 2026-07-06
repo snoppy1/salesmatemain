@@ -1470,6 +1470,10 @@ function LazadaConnectBox() {
             <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">
               การเชื่อมต่อหลุด
             </span>
+          ) : status?.atRisk ? (
+            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-semibold text-white">
+              กำลังจะหมดอายุ
+            </span>
           ) : (
             <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-contrast">
               เชื่อมแล้ว
@@ -1489,6 +1493,20 @@ function LazadaConnectBox() {
             <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/40">
               <p className="font-semibold text-red-700 dark:text-red-300">
                 การเชื่อมต่อ Lazada หลุด — แชตใหม่จะไม่เข้าเว็บจนกว่าจะเชื่อมใหม่
+              </p>
+              <a
+                href="/api/lazada/connect/start"
+                className="mt-2 inline-flex items-center gap-2 rounded-lg bg-[#0F146E] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0a0e52]"
+              >
+                เชื่อม Lazada ใหม่ (เข้าสู่ระบบ)
+              </a>
+            </div>
+          )}
+          {/* ยังไม่หมด แต่ต่ออายุอัตโนมัติล้มเหลว — เตือนเหลืองให้เชื่อมใหม่ก่อนแชตหยุด */}
+          {!status?.expired && status?.atRisk && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/40">
+              <p className="font-semibold text-amber-700 dark:text-amber-300">
+                การเชื่อมต่อ Lazada กำลังจะหมดอายุ — ต่ออายุอัตโนมัติไม่สำเร็จ ควรกดเชื่อมใหม่เพื่อไม่ให้แชตหยุด
               </p>
               <a
                 href="/api/lazada/connect/start"

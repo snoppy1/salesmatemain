@@ -185,6 +185,7 @@ export type LazadaChannelStatus = {
   configured?: boolean; // ตั้ง env LAZADA_CHAT_SECRET แล้วหรือยัง
   mock?: boolean;
   expired?: boolean; // token หมดอายุแล้ว (แชตใหม่ไม่เข้า) — ต้องกดเชื่อมใหม่
+  atRisk?: boolean; // ยังไม่หมด แต่ต่ออายุอัตโนมัติล้มเหลว กำลังจะหมด — ควรเชื่อมใหม่ก่อน
 };
 
 /** สถานะการเชื่อมบัญชีแชต Shopee ของร้าน */

@@ -91,6 +91,7 @@ export type Rule = {
 };
 
 export type GenerateRequest = {
+  shopId?: string; // ร้านที่เรียก — ใช้บันทึกต้นทุนจริงต่อร้าน (ไม่กระทบการสร้าง prompt)
   shopName: string;
   shopVoice: string;
   shopMemory: string; // ข้อมูล/นโยบายร้านที่ร้านอยากให้ AI จำ (ดู Shop.memory)

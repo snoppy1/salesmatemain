@@ -282,6 +282,21 @@ async function ensureSchema(): Promise<void> {
       matched_order_id TEXT
     );
 
+    -- ต้นทุน AI จริงต่อการเรียก (จาก usage ของ Anthropic) — ฐานคิดต้นทุน/แพ็กเกจ
+    CREATE TABLE IF NOT EXISTS ai_usage (
+      id           TEXT PRIMARY KEY,
+      shop_id      TEXT NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+      model        TEXT NOT NULL,
+      kind         TEXT NOT NULL DEFAULT 'reply', -- reply | choices | order | prewarm
+      in_tokens    INTEGER NOT NULL DEFAULT 0,
+      out_tokens   INTEGER NOT NULL DEFAULT 0,
+      cache_write  INTEGER NOT NULL DEFAULT 0,
+      cache_read   INTEGER NOT NULL DEFAULT 0,
+      cost_thb     DOUBLE PRECISION NOT NULL DEFAULT 0,
+      created_at   BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_ai_usage_shop ON ai_usage(shop_id, created_at DESC);
+
     -- บันทึกการรันของ cron (หน้าสถานะระบบใน admin console) — เก็บ 50 รายการล่าสุดต่อ job
     CREATE TABLE IF NOT EXISTS cron_runs (
       id     TEXT PRIMARY KEY,

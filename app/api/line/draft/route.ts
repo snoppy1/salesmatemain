@@ -52,6 +52,7 @@ export async function POST(request: Request) {
   const lastCustomerText =
     [...convo.messages].reverse().find((m) => m.sender === "customer")?.text ?? "";
   const baseReq = {
+    shopId: admin.shopId,
     shopName: shopData.shop.name,
     shopVoice: shopData.shop.voice,
     shopMemory: shopData.shop.memory,

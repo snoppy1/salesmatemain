@@ -14,6 +14,7 @@ import { pickChatModel, CHAT_OPUS, CHAT_SONNET } from "./modelRouter";
 import { embedQuery, embeddingsEnabled } from "./embeddings";
 import { loadEmbeddingsByIds } from "./shopRepo";
 import { RETRIEVAL_MIN_PRODUCTS } from "./catalogRetrieval";
+import { recordUsageFromResponse } from "./aiUsageRepo";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 
@@ -73,6 +74,7 @@ async function callClaudeRaw(
   systemPrompt: string,
   req: GenerateRequest,
   model: string,
+  kind: "reply" | "choices",
 ): Promise<Record<string, unknown>> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -117,7 +119,10 @@ async function callClaudeRaw(
 
   const data = (await res.json().catch(() => null)) as {
     content?: Array<{ type: string; text?: string }>;
+    usage?: Record<string, unknown>;
   } | null;
+  // บันทึกต้นทุนจริง (token ถูกใช้ไปแล้วไม่ว่าจะ parse ผลได้ไหม) — ไม่ให้ throw ทับ error หลัก
+  await recordUsageFromResponse(req.shopId, model, kind, data?.usage).catch(() => {});
   const rawText = data?.content?.find((c) => c.type === "text")?.text ?? "";
 
   try {
@@ -131,7 +136,7 @@ async function callClaudeRaw(
 export async function generateReply(req: GenerateRequest): Promise<ReplyResult> {
   await prepHybrid(req); // embed คำถาม + โหลด vector สินค้า (best-effort)
   const { model } = pickChatModel(req); // router: Sonnet ทั่วไป / Opus เคสเสี่ยง
-  const obj = await callClaudeRaw(REPLY_SYSTEM_PROMPT, req, model);
+  const obj = await callClaudeRaw(REPLY_SYSTEM_PROMPT, req, model, "reply");
   return parseReplyResult(obj);
 }
 
@@ -169,6 +174,15 @@ export async function prewarmShop(req: GenerateRequest): Promise<boolean> {
         ],
       }),
     });
+    if (res.ok) {
+      // อุ่นแคชก็มีต้นทุน (cache-write) — บันทึกด้วยเพื่อให้ต้นทุนจริงครบ
+      const data = (await res.json().catch(() => null)) as {
+        usage?: Record<string, unknown>;
+      } | null;
+      await recordUsageFromResponse(req.shopId, CHAT_SONNET, "prewarm", data?.usage).catch(
+        () => {},
+      );
+    }
     return res.ok;
   } catch {
     return false;
@@ -179,7 +193,7 @@ export async function prewarmShop(req: GenerateRequest): Promise<boolean> {
 export async function generateChoices(req: GenerateRequest): Promise<string[]> {
   await prepHybrid(req);
   const { model } = pickChatModel(req);
-  const obj = await callClaudeRaw(CHOICES_SYSTEM_PROMPT, req, model);
+  const obj = await callClaudeRaw(CHOICES_SYSTEM_PROMPT, req, model, "choices");
   const arr = Array.isArray(obj.choices) ? obj.choices : [];
   return arr
     .map((c) => (typeof c === "string" ? c.trim() : ""))
@@ -282,7 +296,10 @@ export async function generateReplyWithTools(
     const data = (await res.json().catch(() => null)) as {
       stop_reason?: string;
       content?: Array<{ type: string; text?: string; id?: string; name?: string; input?: unknown }>;
+      usage?: Record<string, unknown>;
     } | null;
+    // ต้นทุนของทุก turn ใน tool loop (Opus) — บันทึกทีละ turn รวมยอดเองในภายหลัง
+    await recordUsageFromResponse(req.shopId, CHAT_OPUS, "order", data?.usage).catch(() => {});
     const content = data?.content ?? [];
     const toolCalls = content
       .filter((c) => c.type === "tool_use")

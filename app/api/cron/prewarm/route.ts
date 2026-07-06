@@ -26,6 +26,7 @@ export async function GET(request: Request) {
     try {
       const d = await getShopData(id);
       const ok = await prewarmShop({
+        shopId: id,
         shopName: d.shop.name,
         shopVoice: d.shop.voice,
         shopMemory: d.shop.memory,

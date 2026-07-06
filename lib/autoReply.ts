@@ -75,6 +75,7 @@ export async function processAutoReply(
     }
 
     const baseReq = {
+      shopId,
       shopName: shopData.shop.name,
       shopVoice: shopData.shop.voice,
       shopMemory: shopData.shop.memory,

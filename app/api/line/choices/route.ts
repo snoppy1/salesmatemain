@@ -47,6 +47,7 @@ export async function POST(request: Request) {
 
   try {
     const choices = await generateChoices({
+      shopId: admin.shopId,
       shopName: shopData.shop.name,
       shopVoice: shopData.shop.voice,
       shopMemory: shopData.shop.memory,

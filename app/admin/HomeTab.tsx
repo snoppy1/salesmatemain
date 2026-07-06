@@ -47,7 +47,7 @@ export default function HomeTab({ onOpenShop }: { onOpenShop: (id: string) => vo
     { label: "ข้อความลูกค้าวันนี้", value: String(data.cards.custMsgsToday) },
     // ฐานคิดโควตา subscription (จำกัดข้อความ/วัน) ในอนาคต
     { label: "AI ตอบวันนี้", value: String(data.cards.aiMsgsToday) },
-    { label: "ค่า AI วันนี้ (โดยประมาณ)", value: `฿${data.cards.estCostTodayTHB.toFixed(2)}` },
+    { label: "ต้นทุน AI วันนี้ (จริง)", value: `฿${data.cards.costTodayTHB.toFixed(2)}` },
   ];
 
   return (
@@ -72,7 +72,7 @@ export default function HomeTab({ onOpenShop }: { onOpenShop: (id: string) => vo
               <th className="px-4 py-3 font-medium text-right">บทสนทนา</th>
               <th className="px-4 py-3 font-medium text-right">ข้อความวันนี้ / 7วัน</th>
               <th className="px-4 py-3 font-medium text-right">AI ตอบวันนี้ / 7วัน</th>
-              <th className="px-4 py-3 font-medium text-right">ค่า AI 7วัน ≈</th>
+              <th className="px-4 py-3 font-medium text-right">ต้นทุนจริง วันนี้ / 7วัน</th>
               <th className="px-4 py-3 font-medium">ใช้งานล่าสุด</th>
             </tr>
           </thead>
@@ -110,7 +110,9 @@ export default function HomeTab({ onOpenShop }: { onOpenShop: (id: string) => vo
                 <td className="px-4 py-3 text-right">
                   {s.aiMsgsToday} / {s.aiMsgs7d}
                 </td>
-                <td className="px-4 py-3 text-right">฿{(s.custMsgs7d * 0.5).toFixed(2)}</td>
+                <td className="px-4 py-3 text-right whitespace-nowrap">
+                  ฿{s.costTodayTHB.toFixed(2)} / ฿{s.cost7dTHB.toFixed(2)}
+                </td>
                 <td className="px-4 py-3 text-muted">{fmtLast(s.lastActivityAt)}</td>
               </tr>
             ))}

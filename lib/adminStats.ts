@@ -1,5 +1,6 @@
 import "server-only";
 import { query } from "./db";
+import { costByShopSince, totalCostSince } from "./aiUsageRepo";
 
 /** ประมาณค่า AI: ข้อความลูกค้า 1 ข้อความ ≈ 1 การตอบ ≈ ฿0.5 (ค่า warm เฉลี่ยที่วัดจริง) */
 export const THB_PER_CUSTOMER_MSG = 0.5;
@@ -15,6 +16,8 @@ export type ShopOverviewRow = {
   custMsgs7d: number;
   aiMsgsToday: number; // ข้อความที่ AI ตอบเอง (ฐานคิดโควตา subscription ข้อความ/วัน)
   aiMsgs7d: number;
+  costTodayTHB: number; // ต้นทุน AI จริงวันนี้ (จาก usage)
+  cost7dTHB: number; // ต้นทุน AI จริง 7 วัน
   lastActivityAt: number | null;
 };
 
@@ -24,7 +27,7 @@ export type AdminOverview = {
     activeToday: number;
     custMsgsToday: number;
     aiMsgsToday: number;
-    estCostTodayTHB: number;
+    costTodayTHB: number; // ต้นทุนจริงวันนี้ (รวมทุกร้าน)
   };
   shops: ShopOverviewRow[];
 };
@@ -76,6 +79,13 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     [dayStart, weekStart],
   );
 
+  // ต้นทุนจริงจาก ai_usage (คิวรีรวม/ต่อร้าน) — วิ่งขนานกับข้อมูลร้าน
+  const [costTodayMap, cost7dMap, costTodayTotal] = await Promise.all([
+    costByShopSince(dayStart),
+    costByShopSince(weekStart),
+    totalCostSince(dayStart),
+  ]);
+
   const shops: ShopOverviewRow[] = rows.map((r) => ({
     id: r.id,
     name: r.name,
@@ -91,6 +101,8 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     custMsgs7d: r.msgs_7d,
     aiMsgsToday: r.ai_today,
     aiMsgs7d: r.ai_7d,
+    costTodayTHB: costTodayMap.get(r.id) ?? 0,
+    cost7dTHB: cost7dMap.get(r.id) ?? 0,
     lastActivityAt: r.last_activity != null ? Number(r.last_activity) : null,
   }));
 
@@ -102,7 +114,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
       activeToday: shops.filter((s) => s.custMsgsToday > 0).length,
       custMsgsToday,
       aiMsgsToday,
-      estCostTodayTHB: custMsgsToday * THB_PER_CUSTOMER_MSG,
+      costTodayTHB: costTodayTotal,
     },
     shops,
   };

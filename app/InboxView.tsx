@@ -169,6 +169,7 @@ export default function InboxView({
   const [apps, setApps] = useState<InboxApp[]>(() => appsCache);
   const [sending, setSending] = useState(false);
   const [simText, setSimText] = useState("");
+  const [search, setSearch] = useState(""); // ค้นหาชื่อแชต (ในรายการบทสนทนาของแพลตฟอร์มที่เลือก)
   const bottomRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null); // กล่องเลื่อนข้อความ — ใช้เช็คว่าอยู่ใกล้ล่างสุดไหม
   const activeIdRef = useRef<string | null>(activeId);
@@ -515,9 +516,18 @@ export default function InboxView({
   }
 
   const platform = PLATFORMS.find((p) => p.channel === selectedPlatform) ?? null;
-  const visibleConvos = selectedPlatform
+  const q = search.trim().toLowerCase();
+  const platformConvos = selectedPlatform
     ? conversations.filter((c) => c.channel === selectedPlatform)
     : [];
+  // ค้นหาจากชื่อลูกค้าเป็นหลัก + เผื่อข้อความล่าสุด (ว่าง=แสดงทั้งหมด)
+  const visibleConvos = q
+    ? platformConvos.filter(
+        (c) =>
+          c.customerName.toLowerCase().includes(q) ||
+          (c.lastText ?? "").toLowerCase().includes(q),
+      )
+    : platformConvos;
   // เปิดข้อมูลทดลองแชตของเจ้านี้อยู่ไหม (ปิด = ซ่อนกล่องแชทจำลอง โชว์เฉพาะแชตจริง) — default ปิด
   const chatMockOn = selectedPlatform
     ? mockSettings[selectedPlatform]?.chat === true
@@ -548,7 +558,10 @@ export default function InboxView({
         <div className="border-b border-line p-3">
           <button
             type="button"
-            onClick={() => setSelectedPlatform(null)}
+            onClick={() => {
+              setSearch("");
+              setSelectedPlatform(null);
+            }}
             className="mb-3 flex w-fit items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-sm font-medium text-muted transition hover:bg-surface2 hover:text-fg"
           >
             <span className="text-base leading-none">‹</span> กล่องแชต
@@ -585,13 +598,52 @@ export default function InboxView({
               ))}
             </select>
           </div>
+
+          {/* ค้นหาชื่อแชต — โผล่เมื่อมีบทสนทนาให้ค้น */}
+          {platformConvos.length > 0 && (
+            <div className="relative mt-3">
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="7" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="ค้นหาชื่อแชต"
+                aria-label="ค้นหาชื่อแชต"
+                className="w-full rounded-lg border border-line bg-app py-2 pl-8 pr-8 text-sm text-fg outline-none placeholder:text-muted focus:border-accent"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  aria-label="ล้างการค้นหา"
+                  className="absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-muted transition hover:bg-surface2 hover:text-fg"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex-1 overflow-y-auto">
           {visibleConvos.length === 0 ? (
             <p className="p-4 text-center text-xs text-muted">
-              {chatMockOn
-                ? "ยังไม่มีบทสนทนา — ลองจำลองลูกค้าทักด้านล่าง"
-                : "ยังไม่มีบทสนทนา — เมื่อลูกค้าทักเข้ามาจะเด้งขึ้นที่นี่เอง"}
+              {q
+                ? `ไม่พบแชตที่ตรงกับ “${search.trim()}”`
+                : chatMockOn
+                  ? "ยังไม่มีบทสนทนา — ลองจำลองลูกค้าทักด้านล่าง"
+                  : "ยังไม่มีบทสนทนา — เมื่อลูกค้าทักเข้ามาจะเด้งขึ้นที่นี่เอง"}
             </p>
           ) : (
             visibleConvos.map((c, i) => {

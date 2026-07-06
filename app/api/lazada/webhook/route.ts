@@ -9,6 +9,7 @@ import {
   backfillMessages,
 } from "@/lib/inboxRepo";
 import { getChannelByAccountId } from "@/lib/lazadaChannelRepo";
+import { refreshLazadaIfDue } from "@/lib/lazadaTokens";
 import { processAutoReply } from "@/lib/autoReply";
 
 export const runtime = "nodejs";
@@ -115,6 +116,9 @@ export async function POST(request: Request) {
   const channel = await getChannelByAccountId(accountId);
   if (!channel) return NextResponse.json({ ok: true });
   const shopId = channel.shop_id;
+
+  // ต่ออายุ token จาก traffic จริง (refresh token IM อายุแค่ ~24 ชม. — ต่อจากทุก push กัน token ตายเวลา cron ขาด)
+  after(() => refreshLazadaIfDue(channel));
 
   // สนใจเฉพาะ event "ข้อความใหม่" (message_type 2) — 19 = session update ฯลฯ ข้าม
   const d = payload.data;

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { AdminOverview } from "@/lib/adminStats";
+import TokenAlerts from "./TokenAlerts";
 
 const CHANNEL_LABEL: Record<string, string> = {
   line: "LINE",
@@ -52,6 +53,7 @@ export default function HomeTab({ onOpenShop }: { onOpenShop: (id: string) => vo
 
   return (
     <div className="space-y-6">
+      <TokenAlerts />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {cards.map((c) => (
           <div key={c.label} className="rounded-2xl border border-line bg-surface p-4">

@@ -18,6 +18,7 @@ export type ShopOverviewRow = {
   aiMsgs7d: number;
   costTodayTHB: number; // ต้นทุน AI จริงวันนี้ (จาก usage)
   cost7dTHB: number; // ต้นทุน AI จริง 7 วัน
+  lazadaToken: "none" | "ok" | "expired"; // สถานะ token Lazada (expired = แชตใหม่ไม่เข้า)
   lastActivityAt: number | null;
 };
 
@@ -56,6 +57,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     msgs_7d: number;
     ai_today: number;
     ai_7d: number;
+    lazada_expires_at: string | null;
     last_activity: string | null;
   }>(
     `SELECT s.id, s.name,
@@ -73,6 +75,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
          WHERE c.shop_id = s.id AND m.ai_generated = true AND m.created_at >= $1) AS ai_today,
        (SELECT count(*)::int FROM messages m JOIN conversations c ON c.id = m.conversation_id
          WHERE c.shop_id = s.id AND m.ai_generated = true AND m.created_at >= $2) AS ai_7d,
+       (SELECT lc.expires_at FROM lazada_channels lc WHERE lc.shop_id = s.id LIMIT 1) AS lazada_expires_at,
        (SELECT max(c.last_message_at) FROM conversations c WHERE c.shop_id = s.id) AS last_activity
      FROM shops s
      ORDER BY (SELECT max(c.last_message_at) FROM conversations c WHERE c.shop_id = s.id) DESC NULLS LAST`,
@@ -103,6 +106,12 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     aiMsgs7d: r.ai_7d,
     costTodayTHB: costTodayMap.get(r.id) ?? 0,
     cost7dTHB: cost7dMap.get(r.id) ?? 0,
+    // token หมดอายุ = Lazada หยุด push แชตใหม่ (expires_at null = ไม่ทราบอายุ ถือว่ายังใช้ได้)
+    lazadaToken: !r.has_lazada
+      ? "none"
+      : r.lazada_expires_at != null && Number(r.lazada_expires_at) < Date.now()
+        ? "expired"
+        : "ok",
     lastActivityAt: r.last_activity != null ? Number(r.last_activity) : null,
   }));
 

@@ -92,14 +92,22 @@ export default function HomeTab({ onOpenShop }: { onOpenShop: (id: string) => vo
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1">
                     {s.channels.length === 0 && <span className="text-muted">–</span>}
-                    {s.channels.map((ch) => (
-                      <span
-                        key={ch}
-                        className="rounded-full bg-surface2 px-2 py-0.5 text-xs font-semibold text-muted"
-                      >
-                        {CHANNEL_LABEL[ch] ?? ch}
-                      </span>
-                    ))}
+                    {s.channels.map((ch) => {
+                      // Lazada token หมดอายุ → ป้ายแดง "Lazada หมดอายุ" (แชตใหม่ไม่เข้า)
+                      const expired = ch === "lazada" && s.lazadaToken === "expired";
+                      return (
+                        <span
+                          key={ch}
+                          className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                            expired
+                              ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300"
+                              : "bg-surface2 text-muted"
+                          }`}
+                        >
+                          {expired ? "Lazada หมดอายุ" : (CHANNEL_LABEL[ch] ?? ch)}
+                        </span>
+                      );
+                    })}
                   </div>
                 </td>
                 <td className="px-4 py-3 text-right">{s.productCount}</td>

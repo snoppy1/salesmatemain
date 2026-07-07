@@ -21,6 +21,13 @@ function fmtLast(ms: number | null): string {
   });
 }
 
+/** เวลาตอบ: <90 วิ โชว์วินาที, เกินนั้นโชว์นาที */
+function fmtResp(sec: number | null): string {
+  if (sec == null) return "–";
+  if (sec < 90) return `${sec} วิ`;
+  return `${(sec / 60).toFixed(1)} นาที`;
+}
+
 export default function HomeTab({ onOpenShop }: { onOpenShop: (id: string) => void }) {
   const [data, setData] = useState<AdminOverview | null>(null);
   const [error, setError] = useState("");
@@ -50,6 +57,7 @@ export default function HomeTab({ onOpenShop }: { onOpenShop: (id: string) => vo
     { label: "AI ตอบวันนี้", value: String(data.cards.aiMsgsToday) },
     { label: "ต้นทุน AI วันนี้ (จริง)", value: `฿${data.cards.costTodayTHB.toFixed(2)}` },
   ];
+  const eff = data.efficiency;
 
   return (
     <div className="space-y-6">
@@ -63,8 +71,56 @@ export default function HomeTab({ onOpenShop }: { onOpenShop: (id: string) => vo
         ))}
       </div>
 
+      {/* ประสิทธิภาพ AI 7 วัน — ตัวเลขตัดสินใจ (ภายใน ยังไม่โชว์ร้านจนกว่าจะพิสูจน์) */}
+      <div>
+        <div className="mb-2 flex items-baseline justify-between gap-2">
+          <h3 className="text-sm font-semibold text-fg">ประสิทธิภาพ AI · 7 วันล่าสุด</h3>
+          <span className="text-xs text-muted">รวมทุกร้าน · ตัวเลขภายใน</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {[
+            {
+              label: "AI ตอบแทนคน",
+              value: eff.deflectionPct != null ? `${eff.deflectionPct}%` : "–",
+              hint: "AI ตอบ / (AI + คน)",
+            },
+            {
+              label: "เวลาตอบเฉลี่ย",
+              value: fmtResp(eff.avgResponseSec),
+              hint: "ลูกค้าทัก → AI ตอบ",
+            },
+            {
+              label: "ปิดพ่วง (เสนอ→ขาย)",
+              value: eff.upsellConvPct != null ? `${eff.upsellConvPct}%` : "–",
+              hint: "ปิดได้ / เสนอไป",
+            },
+            {
+              label: "พ่วงปิดได้จริง",
+              value: `฿${eff.upsellSoldValue7d.toLocaleString()}`,
+              hint: "มูลค่าพ่วงที่ขายได้",
+            },
+            {
+              label: "ตอบนอกเวลา",
+              value: String(eff.afterHoursAi7d),
+              hint: "20:00–08:00 (คงพลาดถ้าไม่มี AI)",
+            },
+            {
+              label: "เวลาที่ประหยัด",
+              value: `~${eff.timeSavedHours7d} ชม.`,
+              hint: "ประมาณ 45 วิ/ข้อความ",
+            },
+          ].map((c) => (
+            <div key={c.label} className="rounded-2xl border border-line bg-surface p-4">
+              <p className="text-xs text-muted">{c.label}</p>
+              <p className="mt-1 text-xl font-bold text-fg">{c.value}</p>
+              <p className="mt-0.5 text-[11px] text-muted">{c.hint}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
-        <table className="w-full min-w-[980px] text-sm">
+        <table className="w-full min-w-[1240px] text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs text-muted">
               <th className="px-4 py-3 font-medium">ร้าน</th>
@@ -74,6 +130,9 @@ export default function HomeTab({ onOpenShop }: { onOpenShop: (id: string) => vo
               <th className="px-4 py-3 font-medium text-right">บทสนทนา</th>
               <th className="px-4 py-3 font-medium text-right">ข้อความวันนี้ / 7วัน</th>
               <th className="px-4 py-3 font-medium text-right">AI ตอบวันนี้ / 7วัน</th>
+              <th className="px-4 py-3 font-medium text-right">AI ตอบแทนคน</th>
+              <th className="px-4 py-3 font-medium text-right">เวลาตอบ</th>
+              <th className="px-4 py-3 font-medium text-right">พ่วง ปิด/เสนอ</th>
               <th className="px-4 py-3 font-medium text-right">ต้นทุนจริง วันนี้ / 7วัน</th>
               <th className="px-4 py-3 font-medium">ใช้งานล่าสุด</th>
             </tr>
@@ -119,6 +178,20 @@ export default function HomeTab({ onOpenShop }: { onOpenShop: (id: string) => vo
                 </td>
                 <td className="px-4 py-3 text-right">
                   {s.aiMsgsToday} / {s.aiMsgs7d}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  {s.deflectionPct != null ? `${s.deflectionPct}%` : "–"}
+                </td>
+                <td className="px-4 py-3 text-right whitespace-nowrap">
+                  {fmtResp(s.avgResponseSec)}
+                </td>
+                <td className="px-4 py-3 text-right whitespace-nowrap">
+                  {s.upsellSold7d}/{s.upsellOffered7d}
+                  {s.upsellSoldValue7d > 0 && (
+                    <span className="ml-1 text-xs text-accent">
+                      ฿{s.upsellSoldValue7d.toLocaleString()}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-right whitespace-nowrap">
                   ฿{s.costTodayTHB.toFixed(2)} / ฿{s.cost7dTHB.toFixed(2)}

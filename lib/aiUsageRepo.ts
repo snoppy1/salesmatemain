@@ -77,3 +77,42 @@ export async function costByShopSince(sinceMs: number): Promise<Map<string, numb
   );
   return new Map(rows.map((r) => [r.shop_id, Number(r.c)]));
 }
+
+/** การใช้โมเดล AI แยกตาม (ร้าน, โมเดล) ตั้งแต่ sinceMs — สำหรับหน้าดูโมเดลในแอดมิน */
+export type ModelUsageRow = {
+  shopId: string;
+  model: string;
+  replies: number; // จำนวนครั้งที่ตอบลูกค้า (ไม่นับ prewarm อุ่นแคช)
+  replyCostThb: number; // ต้นทุนของการตอบ
+  prewarmCostThb: number; // ต้นทุนอุ่นแคช
+  totalCostThb: number; // รวมทั้งหมด
+};
+
+export async function modelUsageRowsSince(sinceMs: number): Promise<ModelUsageRow[]> {
+  const rows = await query<{
+    shop_id: string;
+    model: string;
+    replies: number;
+    reply_cost: number;
+    prewarm_cost: number;
+    total_cost: number;
+  }>(
+    `SELECT shop_id, model,
+        count(*) FILTER (WHERE kind <> 'prewarm')::int AS replies,
+        COALESCE(sum(cost_thb) FILTER (WHERE kind <> 'prewarm'), 0)::float8 AS reply_cost,
+        COALESCE(sum(cost_thb) FILTER (WHERE kind = 'prewarm'), 0)::float8 AS prewarm_cost,
+        COALESCE(sum(cost_thb), 0)::float8 AS total_cost
+       FROM ai_usage
+      WHERE created_at >= $1
+      GROUP BY shop_id, model`,
+    [sinceMs],
+  );
+  return rows.map((r) => ({
+    shopId: r.shop_id,
+    model: r.model,
+    replies: Number(r.replies),
+    replyCostThb: Number(r.reply_cost),
+    prewarmCostThb: Number(r.prewarm_cost),
+    totalCostThb: Number(r.total_cost),
+  }));
+}

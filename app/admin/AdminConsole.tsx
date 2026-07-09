@@ -7,6 +7,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import HomeTab from "./HomeTab";
 import AllowlistTab from "./AllowlistTab";
 import StatusTab from "./StatusTab";
+import ModelUsageTab from "./ModelUsageTab";
 
 function genId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -46,7 +47,9 @@ export default function AdminConsole({
   const [rules, setRules] = useState<Rule[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [save, setSave] = useState<SaveState>("idle");
-  const [tab, setTab] = useState<"home" | "shops" | "allowlist" | "status">("home");
+  const [tab, setTab] = useState<
+    "home" | "shops" | "allowlist" | "status" | "models"
+  >("home");
 
   const selected = list.find((s) => s.id === selectedId) ?? null;
 
@@ -160,6 +163,7 @@ export default function AdminConsole({
             ["shops", "ร้านค้า"],
             ["allowlist", "อีเมลที่อนุญาต"],
             ["status", "สถานะระบบ"],
+            ["models", "โมเดล AI"],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -189,6 +193,8 @@ export default function AdminConsole({
       {tab === "allowlist" && <AllowlistTab />}
 
       {tab === "status" && <StatusTab />}
+
+      {tab === "models" && <ModelUsageTab />}
 
       {tab === "shops" && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[18rem_1fr]">

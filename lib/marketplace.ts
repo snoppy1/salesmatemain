@@ -161,13 +161,10 @@ function mapLazadaProduct(p: unknown): CatalogItem {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export async function fetchCatalog(accessToken: string): Promise<CatalogItem[]> {
-  if (!isLazadaConfigured() || accessToken.startsWith("mock-")) {
-    return withLiveStock(MOCK_CATALOG);
-  }
-  // Lazada /products/get แบ่งหน้า (limit ≤50) → วน offset จนครบ (เดิมดึงหน้าเดียวได้แค่ ~50 ตัว)
+/** ดึงสินค้าตาม filter หนึ่งค่า (แบ่งหน้า + retry + กัน rate-limit) — คืนเท่าที่ดึงได้ */
+async function fetchByFilter(accessToken: string, filter: string): Promise<CatalogItem[]> {
   const LIMIT = 50;
-  const MAX_PAGES = 60; // กันวนไม่จบ (รองรับสูงสุด ~3,000 สินค้า)
+  const MAX_PAGES = 60; // กันวนไม่จบ (รองรับสูงสุด ~3,000 สินค้า/filter)
   const GAP_MS = 300; // หน่วงระหว่างหน้า กัน Lazada rate-limit ตอนยิงรัวๆ
   const out: CatalogItem[] = [];
   for (let page = 0; page < MAX_PAGES; page++) {
@@ -179,7 +176,7 @@ export async function fetchCatalog(accessToken: string): Promise<CatalogItem[]> 
       try {
         const data = await signedCall("/products/get", {
           access_token: accessToken,
-          filter: "live",
+          filter,
           limit: String(LIMIT),
           offset: String(page * LIMIT),
         });
@@ -198,6 +195,24 @@ export async function fetchCatalog(accessToken: string): Promise<CatalogItem[]> 
     for (const p of products) out.push(mapLazadaProduct(p));
     if (total > 0 && out.length >= total) break; // ดึงครบตามจำนวนจริงแล้ว
     if (products.length < LIMIT) break; // หน้าสุดท้าย (ไม่เต็มหน้า)
+  }
+  return out;
+}
+
+export async function fetchCatalog(accessToken: string): Promise<CatalogItem[]> {
+  if (!isLazadaConfigured() || accessToken.startsWith("mock-")) {
+    return withLiveStock(MOCK_CATALOG);
+  }
+  // "แอคทีฟ" ใน Lazada = live (มีของ) + sold-out (ขายหมดแต่ยังโพสต์อยู่)
+  // filter=live ได้เฉพาะที่มีของ → ต้องดึง sold-out ด้วย AI จะได้ตอบ "หมดแล้ว" ไม่ใช่ "ไม่มีสินค้านี้"
+  const seen = new Set<string>();
+  const out: CatalogItem[] = [];
+  for (const filter of ["live", "sold-out"]) {
+    for (const it of await fetchByFilter(accessToken, filter)) {
+      if (it.externalId && seen.has(it.externalId)) continue; // กันซ้ำข้าม filter
+      if (it.externalId) seen.add(it.externalId);
+      out.push(it);
+    }
   }
   return out;
 }

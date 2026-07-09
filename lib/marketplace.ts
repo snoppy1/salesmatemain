@@ -142,32 +142,47 @@ export function htmlToText(html: string): string {
   return text.length > 500 ? text.slice(0, 500).trim() + "…" : text;
 }
 
+/** แปลง 1 product จาก Lazada → CatalogItem */
+function mapLazadaProduct(p: unknown): CatalogItem {
+  const x = p as Record<string, unknown>;
+  const attrs = (x.attributes ?? {}) as Record<string, unknown>;
+  const skus = (x.skus as Record<string, unknown>[]) ?? [];
+  const images = (x.images as string[]) ?? [];
+  const qty = skus[0]?.quantity ?? skus[0]?.Available ?? skus[0]?.SellableQuantity;
+  return {
+    name: String(attrs.name ?? ""),
+    description: htmlToText(String(attrs.short_description ?? attrs.description ?? "")),
+    price: String(skus[0]?.price ?? ""),
+    externalId: String(x.item_id ?? ""),
+    image: String(images[0] ?? skus[0]?.Images ?? ""),
+    stock: qty != null ? Number(qty) : undefined,
+  };
+}
+
 export async function fetchCatalog(accessToken: string): Promise<CatalogItem[]> {
   if (!isLazadaConfigured() || accessToken.startsWith("mock-")) {
     return withLiveStock(MOCK_CATALOG);
   }
-  const data = await signedCall("/products/get", {
-    access_token: accessToken,
-    filter: "live",
-    limit: "50",
-  });
-  const products =
-    ((data.data as Record<string, unknown> | undefined)?.products as unknown[]) ?? [];
-  return products.map((p) => {
-    const x = p as Record<string, unknown>;
-    const attrs = (x.attributes ?? {}) as Record<string, unknown>;
-    const skus = (x.skus as Record<string, unknown>[]) ?? [];
-    const images = (x.images as string[]) ?? [];
-    const qty = skus[0]?.quantity ?? skus[0]?.Available ?? skus[0]?.SellableQuantity;
-    return {
-      name: String(attrs.name ?? ""),
-      description: htmlToText(String(attrs.short_description ?? attrs.description ?? "")),
-      price: String(skus[0]?.price ?? ""),
-      externalId: String(x.item_id ?? ""),
-      image: String(images[0] ?? skus[0]?.Images ?? ""),
-      stock: qty != null ? Number(qty) : undefined,
-    };
-  });
+  // Lazada /products/get แบ่งหน้า (limit ≤50) → วน offset จนครบ (เดิมดึงหน้าเดียวได้แค่ ~50 ตัว)
+  const LIMIT = 50;
+  const MAX_PAGES = 60; // กันวนไม่จบ (รองรับสูงสุด ~3,000 สินค้า)
+  const out: CatalogItem[] = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const data = await signedCall("/products/get", {
+      access_token: accessToken,
+      filter: "live",
+      limit: String(LIMIT),
+      offset: String(page * LIMIT),
+    });
+    const d = (data.data as Record<string, unknown> | undefined) ?? {};
+    const products = (d.products as unknown[]) ?? [];
+    if (products.length === 0) break;
+    for (const p of products) out.push(mapLazadaProduct(p));
+    const total = Number(d.total_products ?? 0);
+    if (total > 0 && out.length >= total) break; // ดึงครบตามจำนวนจริงแล้ว
+    if (products.length < LIMIT) break; // หน้าสุดท้าย (ไม่เต็มหน้า)
+  }
+  return out;
 }
 
 const MOCK_CATALOG: CatalogItem[] = [

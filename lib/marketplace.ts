@@ -159,6 +159,8 @@ function mapLazadaProduct(p: unknown): CatalogItem {
   };
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export async function fetchCatalog(accessToken: string): Promise<CatalogItem[]> {
   if (!isLazadaConfigured() || accessToken.startsWith("mock-")) {
     return withLiveStock(MOCK_CATALOG);
@@ -166,19 +168,34 @@ export async function fetchCatalog(accessToken: string): Promise<CatalogItem[]> 
   // Lazada /products/get แบ่งหน้า (limit ≤50) → วน offset จนครบ (เดิมดึงหน้าเดียวได้แค่ ~50 ตัว)
   const LIMIT = 50;
   const MAX_PAGES = 60; // กันวนไม่จบ (รองรับสูงสุด ~3,000 สินค้า)
+  const GAP_MS = 300; // หน่วงระหว่างหน้า กัน Lazada rate-limit ตอนยิงรัวๆ
   const out: CatalogItem[] = [];
   for (let page = 0; page < MAX_PAGES; page++) {
-    const data = await signedCall("/products/get", {
-      access_token: accessToken,
-      filter: "live",
-      limit: String(LIMIT),
-      offset: String(page * LIMIT),
-    });
-    const d = (data.data as Record<string, unknown> | undefined) ?? {};
-    const products = (d.products as unknown[]) ?? [];
-    if (products.length === 0) break;
+    if (page > 0) await sleep(GAP_MS);
+    let products: unknown[] = [];
+    let total = 0;
+    // ยิงหน้านี้ + retry 1 ครั้งถ้าพลาด/ติด rate-limit (Lazada code != "0")
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const data = await signedCall("/products/get", {
+          access_token: accessToken,
+          filter: "live",
+          limit: String(LIMIT),
+          offset: String(page * LIMIT),
+        });
+        const d = (data.data as Record<string, unknown> | undefined) ?? {};
+        products = (d.products as unknown[]) ?? [];
+        total = Number(d.total_products ?? 0);
+        const ok = String((data as Record<string, unknown>).code ?? "0") === "0";
+        if (ok || attempt === 1) break;
+        await sleep(1000); // error → พักแล้วลองใหม่ 1 ครั้ง
+      } catch {
+        if (attempt === 1) break;
+        await sleep(1000);
+      }
+    }
+    if (products.length === 0) break; // หน้าเปล่า/พลาดซ้ำ → คืนเท่าที่ดึงได้ (ดีกว่าล้มทั้งหมด)
     for (const p of products) out.push(mapLazadaProduct(p));
-    const total = Number(d.total_products ?? 0);
     if (total > 0 && out.length >= total) break; // ดึงครบตามจำนวนจริงแล้ว
     if (products.length < LIMIT) break; // หน้าสุดท้าย (ไม่เต็มหน้า)
   }

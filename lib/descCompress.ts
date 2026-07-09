@@ -40,11 +40,18 @@ async function compressOne(desc: string): Promise<string> {
   }
 }
 
-/** ย่อหลายตัว (ทำทีละ 6 พร้อมกัน เพื่อความเร็ว) — คืนลำดับเดิมเสมอ */
+/**
+ * ย่อหลายตัว (ทำทีละ BATCH พร้อมกัน) — คืนลำดับเดิมเสมอ
+ * จำกัดเวลา (budget) กัน import timeout ตอนสินค้าเยอะ: หมดเวลาแล้วที่เหลือใช้คำอธิบายเดิม (500 ตัวอักษร)
+ * — คำอธิบายเดิมผ่าน htmlToText มาแล้ว ยังใช้ตอบได้ปกติ แค่ยาวกว่านิดหน่อย
+ */
 export async function compressDescriptions(descs: string[]): Promise<string[]> {
   const out = [...descs];
-  const BATCH = 6;
+  if (!process.env.ANTHROPIC_API_KEY) return out; // ไม่มีคีย์ → คืนเดิมทั้งหมด
+  const BATCH = 10;
+  const deadline = Date.now() + Number(process.env.IMPORT_COMPRESS_BUDGET_MS ?? 25000);
   for (let i = 0; i < descs.length; i += BATCH) {
+    if (Date.now() >= deadline) break; // งบเวลาหมด → ที่เหลือใช้คำอธิบายเดิม
     const results = await Promise.all(
       descs.slice(i, i + BATCH).map((d) => compressOne(d ?? "")),
     );

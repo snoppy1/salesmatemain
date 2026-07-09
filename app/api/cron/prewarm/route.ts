@@ -21,8 +21,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  // อุ่นเฉพาะร้านที่มีแชตใน 6 ชม.ล่าสุด (active) — ไม่เปลืองอุ่นร้านที่ไม่มีคนใช้
-  const ids = await listActiveShopIds(Date.now() - 6 * 60 * 60 * 1000);
+  // อุ่นเฉพาะร้านที่ "กำลังคุยอยู่" (มีแชตใน 1 ชม.ล่าสุด) — พอเงียบก็หยุดอุ่น ปล่อยแคชหมดอายุ
+  // เดิม 6 ชม. ทำให้อุ่นทิ้งเปล่าเยอะสำหรับร้าน traffic ต่ำ (อุ่น 24 ชม.แพงกว่าจ่าย cold-start นานๆ ที)
+  const PREWARM_WINDOW_MS = Number(process.env.PREWARM_ACTIVE_WINDOW_MS ?? 60 * 60 * 1000);
+  const ids = await listActiveShopIds(Date.now() - PREWARM_WINDOW_MS);
   let warmed = 0;
   for (const id of ids) {
     try {

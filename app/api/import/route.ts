@@ -6,6 +6,7 @@ import {
   parseModelJson,
 } from "@/lib/prompt";
 import { getCurrentAdmin } from "@/lib/auth";
+import { recordUsageFromResponse } from "@/lib/aiUsageRepo";
 
 export const runtime = "nodejs";
 
@@ -74,7 +75,10 @@ export async function POST(request: Request) {
 
   const data = (await anthropicRes.json().catch(() => null)) as {
     content?: Array<{ type: string; text?: string }>;
+    usage?: Record<string, unknown>;
   } | null;
+  // บันทึกต้นทุนงานนำเข้า (token ถูกใช้แล้วไม่ว่าผลจะ parse ได้ไหม)
+  await recordUsageFromResponse(admin.shopId, MODEL, "import", data?.usage).catch(() => {});
   const rawText = data?.content?.find((c) => c.type === "text")?.text ?? "";
 
   let result: ImportResult;

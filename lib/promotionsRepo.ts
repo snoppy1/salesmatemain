@@ -35,7 +35,7 @@ export async function listPromotions(shopId: string): Promise<Promotion[]> {
   const rows = await query<Row>(
     `SELECT id, title, type, conditions_text, min_spend, product_scope, code,
             starts_at, ends_at, source
-       FROM promotions WHERE shop_id = $1 ORDER BY synced_at DESC`,
+       FROM promotions WHERE shop_id = $1 ORDER BY synced_at DESC, id`,
     [shopId],
   );
   return rows.map(toPromotion);

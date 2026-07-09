@@ -35,7 +35,10 @@ export async function POST() {
 
   const named = items.filter((it) => it.name.trim());
   // ย่อคำอธิบายตอนดึงเข้า: เก็บสเปก ตัดน้ำ (ลด token ตอน AI ตอบ) — best-effort ไม่ทำให้ import พัง
-  const shortDescs = await compressDescriptions(named.map((it) => it.description));
+  const shortDescs = await compressDescriptions(
+    named.map((it) => it.description),
+    admin.shopId,
+  );
   const products = named.map((it, idx) => ({
     name: it.name,
     price: it.price,

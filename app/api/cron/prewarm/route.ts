@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
-import { listActiveShopIds, getShopData } from "@/lib/shopRepo";
+import { listWarmableShopIds, getShopData } from "@/lib/shopRepo";
 import { prewarmShop } from "@/lib/claude";
 import { listAllChannels, updateChannelTokens } from "@/lib/lazadaChannelRepo";
 import { refreshImToken } from "@/lib/lazadaChatClient";
 import { pollAllLazada } from "@/lib/lazadaPoll";
 import { recordCronRun } from "@/lib/cronRunsRepo";
+import { shopsWarmedSince } from "@/lib/aiUsageRepo";
+import { listPromotions } from "@/lib/promotionsRepo";
+import { validNowPromotions } from "@/lib/promotions";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // เผื่อ warm + refresh token + poll แชต Lazada
@@ -21,21 +24,30 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  // อุ่นเฉพาะร้านที่ "กำลังคุยอยู่" (มีแชตใน 1 ชม.ล่าสุด) — พอเงียบก็หยุดอุ่น ปล่อยแคชหมดอายุ
-  // เดิม 6 ชม. ทำให้อุ่นทิ้งเปล่าเยอะสำหรับร้าน traffic ต่ำ (อุ่น 24 ชม.แพงกว่าจ่าย cold-start นานๆ ที)
+  // อุ่นแบบ adaptive ต่อร้าน (traffic แต่ละร้านไม่เท่ากัน):
+  // - กำลังคุยอยู่ (มีแชตใน 1 ชม.ล่าสุด) และ traffic ถึงเกณฑ์ (ลูกค้าทัก ≥15 ข้อความ/24 ชม.)
+  //   ร้านเงียบไม่อุ่น — จ่าย cold-start ตอนมีแชตจริงถูกกว่าอุ่นทิ้งทั้งวัน (ข้อมูลจริง: จ่ายอุ่น ฿28 เซฟแค่ ฿2)
+  // - กันยิงซ้ำ: ข้ามร้านที่เพิ่งอุ่นใน 10 นาที (เคยเจอ trigger ซ้อนยิง 4 ครั้ง/นาที)
   const PREWARM_WINDOW_MS = Number(process.env.PREWARM_ACTIVE_WINDOW_MS ?? 60 * 60 * 1000);
-  const ids = await listActiveShopIds(Date.now() - PREWARM_WINDOW_MS);
+  const PREWARM_MIN_MSGS_24H = Number(process.env.PREWARM_MIN_MSGS_24H ?? 15);
+  const [warmableIds, recentlyWarmed] = await Promise.all([
+    listWarmableShopIds(Date.now() - PREWARM_WINDOW_MS, PREWARM_MIN_MSGS_24H),
+    shopsWarmedSince(Date.now() - 10 * 60 * 1000),
+  ]);
+  const ids = warmableIds.filter((id) => !recentlyWarmed.has(id));
   let warmed = 0;
   for (const id of ids) {
     try {
       const d = await getShopData(id);
+      // โปรโมชั่นต้องเหมือนตอนตอบจริงเป๊ะ (เดิมส่ง [] — วันแรกที่ร้านมีโปร การอุ่นทั้งหมดจะกลายเป็นขยะเงียบๆ)
+      const promotions = validNowPromotions(await listPromotions(id), Date.now());
       const ok = await prewarmShop({
         shopId: id,
         shopName: d.shop.name,
         shopVoice: d.shop.voice,
         shopMemory: d.shop.memory,
         products: d.products,
-        promotions: [],
+        promotions,
         customerMsg: ".",
       });
       if (ok) warmed++;

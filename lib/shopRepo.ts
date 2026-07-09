@@ -223,6 +223,27 @@ export async function listActiveShopIds(since: number): Promise<string[]> {
   return rows.map((r) => r.shop_id);
 }
 
+/**
+ * ร้านที่ "คุ้มค่าอุ่นแคช": กำลังคุยอยู่ (มีแชตหลัง activeSinceMs) และ traffic ถึงเกณฑ์
+ * (ลูกค้าทัก ≥ minCustMsgs24h ใน 24 ชม.) — ร้านเงียบปล่อยจ่าย cold-start เองถูกกว่าอุ่นทิ้ง
+ */
+export async function listWarmableShopIds(
+  activeSinceMs: number,
+  minCustMsgs24h: number,
+): Promise<string[]> {
+  const dayAgo = Date.now() - 24 * 3600e3;
+  const rows = await query<{ shop_id: string }>(
+    `SELECT c.shop_id
+       FROM conversations c
+      WHERE c.last_message_at > $1
+      GROUP BY c.shop_id
+     HAVING (SELECT count(*) FROM messages m JOIN conversations c2 ON c2.id = m.conversation_id
+              WHERE c2.shop_id = c.shop_id AND m.sender = 'customer' AND m.created_at >= $2) >= $3`,
+    [activeSinceMs, dayAgo, minCustMsgs24h],
+  );
+  return rows.map((r) => r.shop_id);
+}
+
 /** บันทึกชื่อ/โทนร้าน + แทนที่รายการคู่พ่วงทั้งหมด (ทำใน transaction) */
 export async function saveShopData(shopId: string, data: ShopData): Promise<ShopData> {
   const clean = (r: Partial<Rule>): RuleRow => ({
@@ -347,11 +368,16 @@ export async function syncProductsStock(
     name: string;
     source: string | null;
     stock_by_platform: Record<string, number> | null;
+    price: string | null;
+    stock: number | null;
   }>(
-    "SELECT id, name, source, stock_by_platform FROM products WHERE shop_id = $1",
+    "SELECT id, name, source, stock_by_platform, price, stock FROM products WHERE shop_id = $1",
     [shopId],
   );
   const norm = (s: string) => s.trim().toLowerCase();
+  // ราคา canonical: ตัด .00/.0 ท้าย ("1290.00"→"1290") — กัน format จาก marketplace แกว่งไปมา
+  // แล้วทำให้บรรทัดดัชนีในก้อนแคชเปลี่ยนทั้งที่ราคาจริงเท่าเดิม (เขียนแคช 30K ใหม่ฟรีๆ)
+  const canonPrice = (p: string) => p.trim().replace(/\.0+$/, "");
   const maxRow = await queryOne<{ m: number }>(
     "SELECT COALESCE(MAX(sort_order), -1)::int AS m FROM products WHERE shop_id = $1",
     [shopId],
@@ -371,12 +397,21 @@ export async function syncProductsStock(
       const source = srcs.includes(platform)
         ? match.source
         : [...srcs, platform].join(",");
+      const newStock = unifyStock(sbp) ?? null;
+      const newPrice = canonPrice(it.price);
+      // ค่าไม่เปลี่ยนจริง → ข้าม (sync วิ่งทุก 45 วิ — เขียนซ้ำฟรีๆ เปลือง DB และเสี่ยงกวนแคช)
+      const same =
+        newStock === (match.stock ?? null) &&
+        newPrice === canonPrice(match.price ?? "") &&
+        source === match.source &&
+        JSON.stringify(sbp) === JSON.stringify(match.stock_by_platform ?? {});
+      if (same) continue;
       await query(
         "UPDATE products SET stock = $1, stock_by_platform = $2, price = $3, source = $4 WHERE id = $5",
         [
-          unifyStock(sbp) ?? null,
+          newStock,
           Object.keys(sbp).length ? JSON.stringify(sbp) : null,
-          it.price,
+          newPrice,
           source,
           match.id,
         ],

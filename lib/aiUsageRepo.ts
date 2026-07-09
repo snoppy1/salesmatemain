@@ -3,11 +3,13 @@ import { query, queryOne } from "./db";
 import { newId } from "./auth";
 import { costThb, extractUsage, type AiUsage } from "./aiPricing";
 
+export type UsageKind = "reply" | "choices" | "order" | "prewarm" | "import";
+
 /** บันทึกต้นทุนจริง 1 การเรียก (best-effort — AI ห้ามล้มเพราะบันทึกต้นทุนไม่ได้) */
 export async function recordAiUsage(
   shopId: string,
   model: string,
-  kind: "reply" | "choices" | "order" | "prewarm",
+  kind: UsageKind,
   usage: AiUsage,
 ): Promise<void> {
   // ไม่มี token เลย (เช่นเรียกล้มก่อนคิดเงิน) → ไม่ต้องบันทึก
@@ -44,11 +46,20 @@ export async function recordAiUsage(
 export async function recordUsageFromResponse(
   shopId: string | undefined,
   model: string,
-  kind: "reply" | "choices" | "order" | "prewarm",
+  kind: UsageKind,
   usageRaw: Record<string, unknown> | null | undefined,
 ): Promise<void> {
   if (!shopId) return; // ไม่รู้ว่าเป็นร้านไหน → ข้าม (ไม่ทำให้ AI ล้ม)
   await recordAiUsage(shopId, model, kind, extractUsage(usageRaw));
+}
+
+/** ร้านที่ถูกอุ่นแคชไปแล้วตั้งแต่ sinceMs — ใช้กัน prewarm ยิงซ้ำถี่ๆ (เคยเจอ 4 ครั้ง/นาที) */
+export async function shopsWarmedSince(sinceMs: number): Promise<Set<string>> {
+  const rows = await query<{ shop_id: string }>(
+    "SELECT DISTINCT shop_id FROM ai_usage WHERE kind = 'prewarm' AND created_at >= $1",
+    [sinceMs],
+  );
+  return new Set(rows.map((r) => r.shop_id));
 }
 
 /** ต้นทุนรวม (บาท) ของร้านหนึ่งตั้งแต่ sinceMs */

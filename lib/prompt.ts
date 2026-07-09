@@ -116,6 +116,7 @@ function briefStockTag(p: Product): string {
  */
 export function buildUserContentParts(req: GenerateRequest): {
   stable: string;
+  promo: string; // แยกจาก stable เพื่อให้เป็น cache breakpoint คนละจุด — โปรเปลี่ยนไม่ล้างแคชดัชนีสินค้า
   customer: string;
 } {
   const enabled = (req.products ?? []).filter(
@@ -154,7 +155,10 @@ ${req.shopVoice.trim() || "ไม่ระบุ"}
 ${(req.shopMemory ?? "").trim() || "ไม่ระบุ"}
 
 ${catalogHeader}
-${productsBlock}
+${productsBlock}`;
+
+  // ขึ้นต้นด้วย \n\n เพื่อให้ stable+promo ต่อกันแล้วได้ข้อความเดิมเป๊ะทุกไบต์ (คำตอบไม่เปลี่ยน)
+  const promo = `
 
 [โปรโมชั่นที่ใช้ได้ตอนนี้ (แนะนำได้เฉพาะที่ตรงเงื่อนไข + ใช้กับสินค้าที่ลูกค้าสนใจ ห้ามแต่งเอง)]
 ${promoBlock}`;
@@ -174,12 +178,12 @@ ${req.customerMsg.trim()}
 
 วิเคราะห์แล้วตอบเป็น JSON ตามรูปแบบที่กำหนด`;
 
-  return { stable, customer };
+  return { stable, promo, customer };
 }
 
 export function buildUserContent(req: GenerateRequest): string {
-  const { stable, customer } = buildUserContentParts(req);
-  return `${stable}\n\n${customer}`;
+  const { stable, promo, customer } = buildUserContentParts(req);
+  return `${stable}${promo}\n\n${customer}`;
 }
 
 /** ประกอบประวัติแชตเป็น customerMsg ให้ AI (เน้นข้อความล่าสุดของลูกค้า) — ใช้ทั้ง draft/choices/auto */

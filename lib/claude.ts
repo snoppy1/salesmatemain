@@ -81,12 +81,14 @@ async function callClaudeRaw(
     throw new ClaudeError("ยังไม่ได้ตั้งค่า ANTHROPIC_API_KEY ฝั่งเซิร์ฟเวอร์", 500);
   }
 
-  const { stable, customer } = buildUserContentParts(req);
+  const { stable, promo, customer } = buildUserContentParts(req);
   const imgs = req.imageUrls ?? [];
-  // Prompt caching: ระบบ prompt + (ร้าน+คลังสินค้า) ซ้ำทุกข้อความของร้านเดิม → ใส่ cache_control
-  // อ่านซ้ำใน 5 นาทีจ่ายแค่ ~10% (คำตอบเหมือนเดิม แคชแค่ลดต้นทุน token ส่วนที่ซ้ำ); รูปต่อท้าย customer
+  // Prompt caching 3 breakpoints: system / (ร้าน+คลัง) / โปรฯ — โปรเปลี่ยนแล้วแคชคลังยังรอด
+  // TTL 5m ฝั่งตอบ (write 1.25x แทน 2x; การอ่านต่ออายุเอง บทสนทนาต่อเนื่องไม่หลุด) — prewarm ใช้ 1h
+  // แคชไม่เปลี่ยนคำตอบ (โมเดลเห็นข้อความเดิมเป๊ะ) แค่ลดต้นทุน token ส่วนที่ซ้ำ; รูปต่อท้าย customer
   const content = [
-    { type: "text", text: stable, cache_control: { type: "ephemeral", ttl: "1h" } },
+    { type: "text", text: stable, cache_control: { type: "ephemeral", ttl: "5m" } },
+    { type: "text", text: promo, cache_control: { type: "ephemeral", ttl: "5m" } },
     { type: "text", text: customer },
     ...imgs.map((url) => ({ type: "image", source: { type: "url", url } })),
   ];
@@ -104,7 +106,7 @@ async function callClaudeRaw(
         model,
         max_tokens: 900,
         system: [
-          { type: "text", text: systemPrompt, cache_control: { type: "ephemeral", ttl: "1h" } },
+          { type: "text", text: systemPrompt, cache_control: { type: "ephemeral", ttl: "5m" } },
         ],
         messages: [{ role: "user", content }],
       }),
@@ -141,14 +143,15 @@ export async function generateReply(req: GenerateRequest): Promise<ReplyResult> 
 }
 
 /**
- * อุ่นแคช (system prompt + ดัชนีคลังของร้าน) ด้วยคำขอจิ๋ว max_tokens=1
- * เป้าหมาย: ให้ข้อความแรกของลูกค้าเป็น cache-read (ถูก) แทน cache-write (แพง ~฿2)
- * best-effort — ใช้ Sonnet (โมเดลหลัก) เพราะแคชแยกตามโมเดล
+ * อุ่นแคช (system prompt + ดัชนีคลังของร้าน) ด้วยคำขอจิ๋ว max_tokens=0 (API รองรับสำหรับ prewarm — ไม่คิด output)
+ * เป้าหมาย: ให้ข้อความแรกของลูกค้าเป็น cache-read (ถูก) แทน cache-write (แพง)
+ * best-effort — ใช้ Sonnet (โมเดลหลัก) เพราะแคชแยกตามโมเดล; TTL 1h เพราะ cron อุ่นทุก 30 นาที
+ * โครงบล็อกต้องตรงกับ callClaudeRaw เป๊ะ (stable/promo แยกก้อน) ไม่งั้นอุ่นทิ้งฟรี
  */
 export async function prewarmShop(req: GenerateRequest): Promise<boolean> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return false;
-  const { stable } = buildUserContentParts(req);
+  const { stable, promo } = buildUserContentParts(req);
   try {
     const res = await fetch(ANTHROPIC_URL, {
       method: "POST",
@@ -159,7 +162,7 @@ export async function prewarmShop(req: GenerateRequest): Promise<boolean> {
       },
       body: JSON.stringify({
         model: CHAT_SONNET,
-        max_tokens: 1,
+        max_tokens: 0,
         system: [
           { type: "text", text: REPLY_SYSTEM_PROMPT, cache_control: { type: "ephemeral", ttl: "1h" } },
         ],
@@ -168,7 +171,7 @@ export async function prewarmShop(req: GenerateRequest): Promise<boolean> {
             role: "user",
             content: [
               { type: "text", text: stable, cache_control: { type: "ephemeral", ttl: "1h" } },
-              { type: "text", text: "." },
+              { type: "text", text: promo, cache_control: { type: "ephemeral", ttl: "1h" } },
             ],
           },
         ],
@@ -282,7 +285,14 @@ export async function generateReplyWithTools(
         body: JSON.stringify({
           model: CHAT_OPUS, // ออเดอร์/จัดส่ง = เดิมพันสูง (เงิน/ที่อยู่/tool) → คง Opus
           max_tokens: 900,
-          system: ORDER_REPLY_SYSTEM_PROMPT,
+          // แคช system (tools อยู่หน้า system ใน prefix โดนแคชไปด้วย) — turn 2+ ใน tool loop อ่าน 0.1x
+          system: [
+            {
+              type: "text",
+              text: ORDER_REPLY_SYSTEM_PROMPT,
+              cache_control: { type: "ephemeral", ttl: "5m" },
+            },
+          ],
           tools,
           messages,
         }),
@@ -308,8 +318,15 @@ export async function generateReplyWithTools(
     return { toolUse: data?.stop_reason === "tool_use", assistantContent: content, toolCalls, text };
   };
 
+  // ข้อความแรก = บล็อกเดียวกับ reply path + cache_control → ทุก turn ของ tool loop อ่านซ้ำที่ 0.1x
+  // (เดิมส่ง string เดียวไม่มีแคช = จ่าย ~30K token เต็มราคา Opus ทุก turn)
+  const { stable, promo, customer } = buildUserContentParts(req);
   const finalText = await runToolLoop({
-    initialContent: buildUserContent(req),
+    initialContent: [
+      { type: "text", text: stable, cache_control: { type: "ephemeral", ttl: "5m" } },
+      { type: "text", text: promo, cache_control: { type: "ephemeral", ttl: "5m" } },
+      { type: "text", text: `\n\n${customer}` },
+    ],
     callModel,
     runTool: (name, input) => dispatchOrderTool(name, input, ctx),
   });

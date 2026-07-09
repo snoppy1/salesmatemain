@@ -264,6 +264,29 @@ export async function setPendingHuman(
   ]);
 }
 
+/** เวลาข้อความล่าสุดของลูกค้าในบทสนทนา (epoch ms) — ใช้ debounce auto-reply (null = ไม่มี) */
+export async function latestCustomerMessageAt(
+  conversationId: string,
+): Promise<number | null> {
+  const row = await queryOne<{ t: string | null }>(
+    "SELECT max(created_at) AS t FROM messages WHERE conversation_id = $1 AND sender = 'customer'",
+    [conversationId],
+  );
+  return row?.t != null ? Number(row.t) : null;
+}
+
+/** แอดมินตอบเองหลังเวลา afterMs หรือยัง — ถ้าตอบแล้ว AI ไม่ต้องตอบซ้ำ (คนแทรกช่วง debounce) */
+export async function adminRepliedAfter(
+  conversationId: string,
+  afterMs: number,
+): Promise<boolean> {
+  const row = await queryOne<{ id: string }>(
+    "SELECT id FROM messages WHERE conversation_id = $1 AND sender = 'admin' AND created_at > $2 LIMIT 1",
+    [conversationId, afterMs],
+  );
+  return Boolean(row);
+}
+
 /** โหมดของบทสนทนา ('manual'|'auto') — null ถ้าไม่มี */
 export async function getConversationMode(
   conversationId: string,

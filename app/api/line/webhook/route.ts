@@ -12,9 +12,10 @@ import {
 } from "@/lib/inboxRepo";
 import { getChannelByBotUserId } from "@/lib/lineChannelRepo";
 import { isBlobConfigured, putImage } from "@/lib/blobStore";
-import { processAutoReply } from "@/lib/autoReply";
+import { scheduleAutoReply } from "@/lib/autoReply";
 
 export const runtime = "nodejs";
+export const maxDuration = 40; // เผื่อ debounce 10 วิ + เวลา AI ตอบ (รันใน after())
 
 /** fallback ร้านเดียวแบบเดิม (ผ่าน env) — ใช้เมื่อหา channel จาก destination ไม่เจอ */
 async function resolveEnvShopId(): Promise<string | null> {
@@ -138,9 +139,9 @@ export async function POST(request: Request) {
   if (autoJobs.length) {
     const sid = shopId;
     after(async () => {
-      for (const j of autoJobs) {
-        await processAutoReply(sid, j.conversationId, j.replyToken);
-      }
+      await Promise.all(
+        autoJobs.map((j) => scheduleAutoReply(sid, j.conversationId, j.replyToken)),
+      );
     });
   }
 

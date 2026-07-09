@@ -10,9 +10,10 @@ import {
 } from "@/lib/inboxRepo";
 import { getChannelByAccountId } from "@/lib/lazadaChannelRepo";
 import { refreshLazadaIfDue } from "@/lib/lazadaTokens";
-import { processAutoReply } from "@/lib/autoReply";
+import { scheduleAutoReply } from "@/lib/autoReply";
 
 export const runtime = "nodejs";
+export const maxDuration = 40; // เผื่อ debounce 10 วิ + เวลา AI ตอบ (รันใน after() หลังตอบ 200)
 
 // บาง integration เรียก GET เพื่อ health-check / verify — ตอบ ok ไว้
 export async function GET() {
@@ -168,7 +169,7 @@ export async function POST(request: Request) {
         const hist = await fetchHistory(token, sessionId);
         if (hist.length) await backfillMessages(cid, hist);
       }
-      if (mode === "auto" && !imageUrl) await processAutoReply(shopId, cid, "");
+      if (mode === "auto" && !imageUrl) await scheduleAutoReply(shopId, cid, "");
     });
   }
 

@@ -4,6 +4,8 @@ import {
   setPendingHuman,
   addAdminMessage,
   getSendTarget,
+  latestCustomerMessageAt,
+  adminRepliedAfter,
 } from "./inboxRepo";
 import { getShopData } from "./shopRepo";
 import { generateReply, generateReplyWithTools, type ReplyResult } from "./claude";
@@ -26,6 +28,32 @@ import { getChannelByShop as getFbChannel } from "./facebookChannelRepo";
 import { getChannelByShop as getTtChannel } from "./tiktokChannelRepo";
 import { getChannelByShop as getLzChannel } from "./lazadaChannelRepo";
 import { getChannelByShop as getSpChannel } from "./shopeeChannelRepo";
+
+/** หน่วงก่อน AI ตอบ (วินาที×1000) — เผื่อลูกค้าพิมพ์ต่อเป็นท่อนๆ + เผื่อเวลาแอดมินแทรกเอง; ตั้ง 0 = ตอบทันที */
+const AUTO_REPLY_DELAY_MS = Number(process.env.AUTO_REPLY_DELAY_MS ?? 10000);
+
+/**
+ * ตอบอัตโนมัติแบบ debounce (เรียกจาก webhook ที่ลูกค้าทักเข้ามาจริง):
+ * รอ ~10 วิ แล้วค่อยตอบ — ถ้าระหว่างรอ (1) ลูกค้าพิมพ์เพิ่ม → ให้ข้อความใหม่เป็นคนตอบ (กันตอบทีละท่อน)
+ * หรือ (2) แอดมินแทรกตอบเอง → AI ไม่ต้องตอบซ้ำ. ตอบครั้งเดียวรวมทุกท่อน (processAutoReply อ่านทั้งบทสนทนาอยู่แล้ว)
+ */
+export async function scheduleAutoReply(
+  shopId: string,
+  conversationId: string,
+  replyToken: string,
+): Promise<void> {
+  const triggerAt = await latestCustomerMessageAt(conversationId);
+  if (triggerAt == null) return; // ไม่มีข้อความลูกค้า — ไม่ต้องตอบ
+  if (AUTO_REPLY_DELAY_MS > 0) {
+    await new Promise((r) => setTimeout(r, AUTO_REPLY_DELAY_MS));
+    // ลูกค้าพิมพ์เพิ่มระหว่างรอ → webhook ของข้อความใหม่จะรับหน้าที่ตอบเอง (debounce)
+    const latest = await latestCustomerMessageAt(conversationId);
+    if (latest != null && latest > triggerAt) return;
+    // แอดมินแทรกตอบเองระหว่างรอ → ไม่ตอบซ้ำ
+    if (await adminRepliedAfter(conversationId, triggerAt)) return;
+  }
+  await processAutoReply(shopId, conversationId, replyToken);
+}
 
 /**
  * โหมด auto: AI ร่าง + ประเมินความมั่นใจ แล้วส่งเองตามช่องทางของบทสนทนา

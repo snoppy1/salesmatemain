@@ -6,9 +6,10 @@ import {
   setPendingHuman,
 } from "@/lib/inboxRepo";
 import { getChannelByAccountId } from "@/lib/tiktokChannelRepo";
-import { processAutoReply } from "@/lib/autoReply";
+import { scheduleAutoReply } from "@/lib/autoReply";
 
 export const runtime = "nodejs";
+export const maxDuration = 40; // เผื่อ debounce 10 วิ + เวลา AI ตอบ (รันใน after())
 
 // บาง integration เรียก GET เพื่อ health-check — ตอบ ok ไว้
 export async function GET() {
@@ -109,9 +110,9 @@ export async function POST(request: Request) {
 
   if (autoJobs.length) {
     after(async () => {
-      for (const j of autoJobs) {
-        await processAutoReply(shopId, j.conversationId, "");
-      }
+      await Promise.all(
+        autoJobs.map((j) => scheduleAutoReply(shopId, j.conversationId, "")),
+      );
     });
   }
 

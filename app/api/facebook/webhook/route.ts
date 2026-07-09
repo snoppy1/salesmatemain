@@ -7,9 +7,10 @@ import {
 } from "@/lib/inboxRepo";
 import { getChannelByPageId } from "@/lib/facebookChannelRepo";
 import { isBlobConfigured, putImage } from "@/lib/blobStore";
-import { processAutoReply } from "@/lib/autoReply";
+import { scheduleAutoReply } from "@/lib/autoReply";
 
 export const runtime = "nodejs";
+export const maxDuration = 40; // เผื่อ debounce 10 วิ + เวลา AI ตอบ (รันใน after())
 
 // GET: Meta ยืนยัน webhook ครั้งแรก → ตอบ hub.challenge ถ้า verify token ตรง
 export async function GET(request: Request) {
@@ -116,9 +117,9 @@ export async function POST(request: Request) {
   // ตอบ 200 เร็ว แล้วค่อยให้ AI ทำงานหลังตอบ (กัน Meta timeout/retry)
   if (autoJobs.length) {
     after(async () => {
-      for (const j of autoJobs) {
-        await processAutoReply(j.shopId, j.conversationId, "");
-      }
+      await Promise.all(
+        autoJobs.map((j) => scheduleAutoReply(j.shopId, j.conversationId, "")),
+      );
     });
   }
 

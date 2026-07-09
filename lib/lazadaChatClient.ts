@@ -309,6 +309,60 @@ export type LzHistoryMsg = {
   createdAt: number;
 };
 
+export type LzSession = {
+  sessionId: string;
+  title: string;
+  buyerId: string;
+  lastMessageTime: number; // epoch ms ของข้อความล่าสุดใน session
+};
+
+/**
+ * รายชื่อ session ที่มีความเคลื่อนไหวตั้งแต่ sinceMs — ใช้ poll หาแชตใหม่ (กันกรณี push ของ Lazada หยุด)
+ * /im/session/list คืน session ไล่ย้อนหลังจาก start_time (เหมือน message/list) → ไล่ pagination จนเลย sinceMs
+ */
+export async function listRecentSessions(
+  accessToken: string,
+  sinceMs: number,
+): Promise<LzSession[]> {
+  if (isMock(accessToken)) return [];
+  const found = new Map<string, LzSession>();
+  let start = String(Date.now());
+  for (let page = 0; page < 40; page++) {
+    let data: Record<string, unknown>;
+    try {
+      data = await signedCall("/im/session/list", accessToken, {
+        start_time: start,
+        page_size: "20",
+      });
+    } catch {
+      break;
+    }
+    const d = (data.data ?? {}) as Record<string, unknown>;
+    const list = Array.isArray(d.session_list) ? (d.session_list as Record<string, unknown>[]) : [];
+    if (list.length === 0) break;
+    let oldest = Infinity;
+    for (const s of list) {
+      const sid = String(s.session_id ?? "");
+      if (!sid) continue;
+      const lastMs = Number(s.last_message_time ?? 0);
+      if (lastMs) oldest = Math.min(oldest, lastMs);
+      if (!found.has(sid)) {
+        found.set(sid, {
+          sessionId: sid,
+          title: String(s.title ?? ""),
+          buyerId: String(s.buyer_id ?? s.buyer_user_id ?? ""),
+          lastMessageTime: lastMs,
+        });
+      }
+    }
+    if (oldest !== Infinity && oldest < sinceMs) break; // เลยช่วงที่สนใจแล้ว
+    const next = Number(d.next_start_time ?? 0) || (oldest !== Infinity ? oldest - 1 : 0);
+    if (!next || String(next) === start) break;
+    start = String(next);
+  }
+  return [...found.values()].filter((s) => !s.lastMessageTime || s.lastMessageTime >= sinceMs);
+}
+
 /**
  * ดึงประวัติแชตทั้งหมดของ session (เรียงเก่า→ใหม่)
  * Lazada IM: /im/message/list คืนข้อความ "ย้อนหลังจาก start_time" (start_time=now ไล่ลง, page_size≤20)

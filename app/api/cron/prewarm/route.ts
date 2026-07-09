@@ -3,9 +3,11 @@ import { listActiveShopIds, getShopData } from "@/lib/shopRepo";
 import { prewarmShop } from "@/lib/claude";
 import { listAllChannels, updateChannelTokens } from "@/lib/lazadaChannelRepo";
 import { refreshImToken } from "@/lib/lazadaChatClient";
+import { pollAllLazada } from "@/lib/lazadaPoll";
 import { recordCronRun } from "@/lib/cronRunsRepo";
 
 export const runtime = "nodejs";
+export const maxDuration = 60; // เผื่อ warm + refresh token + poll แชต Lazada
 
 /**
  * อุ่นแคช Anthropic ของร้านที่ใช้งานจริง (Vercel Cron ทุก ~30-50 นาที กันแคช 1 ชม.หมดอายุ)
@@ -64,13 +66,29 @@ export async function GET(request: Request) {
   if (refreshErrors.length) {
     console.error("[cron/prewarm] lazada token refresh failed:", refreshErrors.join(", "));
   }
+
+  // poll แชต Lazada ใหม่ผ่าน API — backstop กัน push หยุด (ดึงเข้าเองแม้ push พลาด)
+  let polledMsgs = 0;
+  try {
+    polledMsgs = await pollAllLazada();
+  } catch (e) {
+    console.error("[cron/prewarm] lazada poll failed:", e instanceof Error ? e.message : e);
+  }
+
   // บันทึกผลไว้ให้หน้า "สถานะระบบ" — ok=false เมื่อต่ออายุ token ล้มเหลว
   await recordCronRun("prewarm", refreshErrors.length === 0, {
     warmed,
     total: ids.length,
     refreshedTokens,
     refreshErrors,
+    polledMsgs,
   });
 
-  return NextResponse.json({ warmed, total: ids.length, refreshedTokens, refreshErrors });
+  return NextResponse.json({
+    warmed,
+    total: ids.length,
+    refreshedTokens,
+    refreshErrors,
+    polledMsgs,
+  });
 }

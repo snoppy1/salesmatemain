@@ -275,6 +275,16 @@ export async function latestCustomerMessageAt(
   return row?.t != null ? Number(row.t) : null;
 }
 
+/** เวลาข้อความ Lazada ล่าสุดของร้าน (epoch ms) — ใช้ poll หาแชตใหม่จากจุดนี้ (null = ยังไม่มี) */
+export async function latestLazadaMessageAt(shopId: string): Promise<number | null> {
+  const row = await queryOne<{ t: string | null }>(
+    `SELECT max(m.created_at) AS t FROM messages m JOIN conversations c ON c.id = m.conversation_id
+      WHERE c.shop_id = $1 AND c.channel = 'lazada'`,
+    [shopId],
+  );
+  return row?.t != null ? Number(row.t) : null;
+}
+
 /** แอดมินตอบเองหลังเวลา afterMs หรือยัง — ถ้าตอบแล้ว AI ไม่ต้องตอบซ้ำ (คนแทรกช่วง debounce) */
 export async function adminRepliedAfter(
   conversationId: string,

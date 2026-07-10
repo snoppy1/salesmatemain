@@ -24,6 +24,15 @@ function newProduct(): Product {
   return { id: genId(), name: "", description: "", price: "" };
 }
 
+/** ชื่อแพลตฟอร์มแบบอ่านง่าย (คีย์ = channel ใน inbox_apps) */
+const CHANNEL_NAMES: Record<string, string> = {
+  line: "LINE",
+  facebook: "Facebook",
+  tiktok: "TikTok",
+  lazada: "Lazada",
+  shopee: "Shopee",
+};
+
 type LoadState =
   | { kind: "none" }
   | { kind: "loading" }
@@ -47,6 +56,8 @@ export default function AdminConsole({
   const [shop, setShop] = useState<Shop>({ name: "", voice: "", memory: "" });
   const [rules, setRules] = useState<Rule[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  // ช่องทางในกล่องแชตของร้าน + โหมดตอบต่อช่อง (off = กดส่งเอง, safe/full = AI ตอบเอง)
+  const [inboxApps, setInboxApps] = useState<{ channel: string; level: string }[]>([]);
   const [save, setSave] = useState<SaveState>("idle");
   const [tab, setTab] = useState<
     "home" | "shops" | "allowlist" | "status" | "models" | "sales"
@@ -64,10 +75,13 @@ export default function AdminConsole({
         setLoad({ kind: "error", message: "โหลดข้อมูลร้านไม่สำเร็จ" });
         return;
       }
-      const data = (await res.json()) as ShopData;
+      const data = (await res.json()) as ShopData & {
+        inboxApps?: { channel: string; level: string }[];
+      };
       setShop(data.shop);
       setRules(data.rules ?? []);
       setProducts(data.products ?? []);
+      setInboxApps(data.inboxApps ?? []);
       setLoad({ kind: "ready" });
     } catch {
       setLoad({ kind: "error", message: "โหลดข้อมูลร้านไม่สำเร็จ" });
@@ -268,6 +282,7 @@ export default function AdminConsole({
             ) : (
               <ShopEditor
                 selected={selected}
+                inboxApps={inboxApps}
                 shop={shop}
                 setShop={(patch) => {
                   setShop((s) => ({ ...s, ...patch }));
@@ -375,6 +390,7 @@ function DangerZone({
 
 function ShopEditor({
   selected,
+  inboxApps,
   shop,
   setShop,
   rules,
@@ -389,6 +405,7 @@ function ShopEditor({
   onSave,
 }: {
   selected: ShopSummary;
+  inboxApps: { channel: string; level: string }[];
   shop: Shop;
   setShop: (patch: Partial<Shop>) => void;
   rules: Rule[];
@@ -434,6 +451,29 @@ function ShopEditor({
         >
           {saveLabel}
         </button>
+      </div>
+
+      {/* ช่องทางที่ร้านใช้ + โหมดตอบของแต่ละช่อง */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {inboxApps.length === 0 && (
+          <span className="rounded-full border border-dashed border-line px-3 py-1 text-xs text-muted">
+            ยังไม่ได้เพิ่มช่องทางในกล่องแชต
+          </span>
+        )}
+        {inboxApps.map((a) => {
+          const ai = a.level === "safe" || a.level === "full";
+          return (
+            <span
+              key={a.channel}
+              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface2 px-3 py-1 text-xs"
+            >
+              <span className="font-medium text-fg">{CHANNEL_NAMES[a.channel] ?? a.channel}</span>
+              <span className={ai ? "text-emerald-500" : "text-muted"}>
+                {ai ? "🤖 AI ตอบเอง" : "✋ กดส่งเอง"}
+              </span>
+            </span>
+          );
+        })}
       </div>
 
       <div className="mt-4 space-y-4">

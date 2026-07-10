@@ -12,6 +12,8 @@ export type ModelAgg = {
   model: string;
   replies: number;
   replyCostThb: number;
+  imports: number;
+  importCostThb: number;
   prewarmCostThb: number;
   totalCostThb: number;
 };
@@ -48,11 +50,15 @@ export async function GET(request: Request) {
       model: r.model,
       replies: 0,
       replyCostThb: 0,
+      imports: 0,
+      importCostThb: 0,
       prewarmCostThb: 0,
       totalCostThb: 0,
     };
     cur.replies += r.replies;
     cur.replyCostThb += r.replyCostThb;
+    cur.imports += r.imports;
+    cur.importCostThb += r.importCostThb;
     cur.prewarmCostThb += r.prewarmCostThb;
     cur.totalCostThb += r.totalCostThb;
     map.set(r.model, cur);

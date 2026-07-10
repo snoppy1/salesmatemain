@@ -541,7 +541,10 @@ function ShopEditor({
 
       <div className="mt-6">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-fg">คลังสินค้า</h3>
+          <h3 className="text-sm font-semibold text-fg">
+            คลังสินค้า{" "}
+            <span className="font-normal text-muted">({products.length.toLocaleString()} รายการ)</span>
+          </h3>
           <button type="button" onClick={addProduct} className={secondaryBtnClass}>
             + เพิ่มสินค้า
           </button>

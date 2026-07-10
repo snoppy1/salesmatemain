@@ -93,8 +93,10 @@ export async function costByShopSince(sinceMs: number): Promise<Map<string, numb
 export type ModelUsageRow = {
   shopId: string;
   model: string;
-  replies: number; // จำนวนครั้งที่ตอบลูกค้า (ไม่นับ prewarm อุ่นแคช)
+  replies: number; // จำนวนครั้งที่ตอบลูกค้า (ไม่นับ prewarm/นำเข้า)
   replyCostThb: number; // ต้นทุนของการตอบ
+  imports: number; // จำนวนงานนำเข้าสินค้า (ย่อคำอธิบาย/สกัดข้อมูล — เกิดตอนดึงสินค้าเข้า ไม่ใช่แชต)
+  importCostThb: number; // ต้นทุนงานนำเข้า
   prewarmCostThb: number; // ต้นทุนอุ่นแคช
   totalCostThb: number; // รวมทั้งหมด
 };
@@ -105,12 +107,16 @@ export async function modelUsageRowsSince(sinceMs: number): Promise<ModelUsageRo
     model: string;
     replies: number;
     reply_cost: number;
+    imports: number;
+    import_cost: number;
     prewarm_cost: number;
     total_cost: number;
   }>(
     `SELECT shop_id, model,
-        count(*) FILTER (WHERE kind <> 'prewarm')::int AS replies,
-        COALESCE(sum(cost_thb) FILTER (WHERE kind <> 'prewarm'), 0)::float8 AS reply_cost,
+        count(*) FILTER (WHERE kind NOT IN ('prewarm', 'import'))::int AS replies,
+        COALESCE(sum(cost_thb) FILTER (WHERE kind NOT IN ('prewarm', 'import')), 0)::float8 AS reply_cost,
+        count(*) FILTER (WHERE kind = 'import')::int AS imports,
+        COALESCE(sum(cost_thb) FILTER (WHERE kind = 'import'), 0)::float8 AS import_cost,
         COALESCE(sum(cost_thb) FILTER (WHERE kind = 'prewarm'), 0)::float8 AS prewarm_cost,
         COALESCE(sum(cost_thb), 0)::float8 AS total_cost
        FROM ai_usage
@@ -123,6 +129,8 @@ export async function modelUsageRowsSince(sinceMs: number): Promise<ModelUsageRo
     model: r.model,
     replies: Number(r.replies),
     replyCostThb: Number(r.reply_cost),
+    imports: Number(r.imports),
+    importCostThb: Number(r.import_cost),
     prewarmCostThb: Number(r.prewarm_cost),
     totalCostThb: Number(r.total_cost),
   }));

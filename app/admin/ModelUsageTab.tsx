@@ -8,6 +8,8 @@ type ModelAgg = {
   model: string;
   replies: number;
   replyCostThb: number;
+  imports: number;
+  importCostThb: number;
   prewarmCostThb: number;
   totalCostThb: number;
 };
@@ -97,6 +99,7 @@ export default function ModelUsageTab() {
                   <th className="px-4 py-3 font-medium">โมเดล (รวมทุกร้าน)</th>
                   <th className="px-4 py-3 font-medium text-right">ข้อความที่ตอบ</th>
                   <th className="px-4 py-3 font-medium text-right">ต้นทุนตอบ</th>
+                  <th className="px-4 py-3 font-medium text-right">นำเข้าสินค้า</th>
                   <th className="px-4 py-3 font-medium text-right">อุ่นแคช</th>
                   <th className="px-4 py-3 font-medium text-right">รวมต้นทุน</th>
                 </tr>
@@ -104,7 +107,7 @@ export default function ModelUsageTab() {
               <tbody>
                 {data.overall.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-xs text-muted">
+                    <td colSpan={6} className="px-4 py-6 text-center text-xs text-muted">
                       ยังไม่มีการใช้ AI ในช่วงนี้
                     </td>
                   </tr>
@@ -122,6 +125,9 @@ export default function ModelUsageTab() {
                       ฿{m.replyCostThb.toFixed(2)}
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap text-muted">
+                      {m.imports > 0 ? `฿${m.importCostThb.toFixed(2)}` : "-"}
+                    </td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap text-muted">
                       ฿{m.prewarmCostThb.toFixed(2)}
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap font-semibold text-fg">
@@ -135,6 +141,7 @@ export default function ModelUsageTab() {
                     <td className="px-4 py-3 text-right font-semibold text-fg">
                       {data.totals.replies.toLocaleString()}
                     </td>
+                    <td className="px-4 py-3" />
                     <td className="px-4 py-3" />
                     <td className="px-4 py-3" />
                     <td className="px-4 py-3 text-right whitespace-nowrap font-semibold text-fg">
@@ -181,6 +188,7 @@ export default function ModelUsageTab() {
                               <th className="py-1.5 pr-4 font-medium">โมเดล</th>
                               <th className="py-1.5 pr-4 font-medium text-right">ข้อความ</th>
                               <th className="py-1.5 pr-4 font-medium text-right">ต้นทุนตอบ</th>
+                              <th className="py-1.5 pr-4 font-medium text-right">นำเข้าสินค้า</th>
                               <th className="py-1.5 pr-4 font-medium text-right">อุ่นแคช</th>
                               <th className="py-1.5 font-medium text-right">รวม</th>
                             </tr>
@@ -199,6 +207,9 @@ export default function ModelUsageTab() {
                                 <td className="py-1.5 pr-4 text-right">{m.replies.toLocaleString()}</td>
                                 <td className="py-1.5 pr-4 text-right whitespace-nowrap">
                                   ฿{m.replyCostThb.toFixed(2)}
+                                </td>
+                                <td className="py-1.5 pr-4 text-right whitespace-nowrap text-muted">
+                                  {m.imports > 0 ? `฿${m.importCostThb.toFixed(2)}` : "-"}
                                 </td>
                                 <td className="py-1.5 pr-4 text-right whitespace-nowrap text-muted">
                                   ฿{m.prewarmCostThb.toFixed(2)}

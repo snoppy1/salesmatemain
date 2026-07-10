@@ -95,7 +95,8 @@ export async function processAutoReply(
     const used = await queryOne<{ n: number }>(
       `SELECT count(*)::int AS n
          FROM messages m JOIN conversations c ON c.id = m.conversation_id
-        WHERE c.shop_id = $1 AND m.ai_generated = true AND m.created_at >= $2`,
+        WHERE c.shop_id = $1 AND m.ai_generated = true AND m.created_at >= $2
+          AND m.text NOT LIKE '[การ์ดสินค้า]%'`, // การ์ดสินค้าไม่ได้เรียก AI — ไม่กินโควตา
       [shopId, bangkokDayStartMs()],
     );
     if (Number(used?.n ?? 0) >= AI_DAILY_CAP) {

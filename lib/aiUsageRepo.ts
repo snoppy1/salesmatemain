@@ -1,7 +1,7 @@
 import "server-only";
 import { query, queryOne } from "./db";
 import { newId } from "./auth";
-import { costThb, extractUsage, type AiUsage } from "./aiPricing";
+import { costThb, cacheWriteCostThb, extractUsage, type AiUsage } from "./aiPricing";
 
 export type UsageKind = "reply" | "choices" | "order" | "prewarm" | "import";
 
@@ -33,7 +33,8 @@ export async function recordAiUsage(
         usage.outputTokens,
         usage.cacheWriteTokens,
         usage.cacheReadTokens,
-        costThb(model, usage),
+        // ฝั่งตอบแชตเขียนแคชแบบ 5 นาที (1.25×) — มีแต่ prewarm ที่ใช้ 1 ชม. (2×)
+        costThb(model, usage, kind === "prewarm" ? "1h" : "5m"),
         Date.now(),
       ],
     );
@@ -98,6 +99,8 @@ export type ModelUsageRow = {
   imports: number; // จำนวนงานนำเข้าสินค้า (ย่อคำอธิบาย/สกัดข้อมูล — เกิดตอนดึงสินค้าเข้า ไม่ใช่แชต)
   importCostThb: number; // ต้นทุนงานนำเข้า
   prewarmCostThb: number; // ต้นทุนอุ่นแคช
+  cacheWriteCostThb: number; // ค่า "เขียนแคชใหม่" ล้วนๆ (ส่วนหนึ่งของต้นทุนตอบ+อุ่น ไม่ใช่ยอดบวกเพิ่ม)
+  coldWrites: number; // จำนวนครั้งที่ต้องจุดแคชใหม่ (เขียนก้อนใหญ่)
   totalCostThb: number; // รวมทั้งหมด
 };
 
@@ -110,6 +113,9 @@ export async function modelUsageRowsSince(sinceMs: number): Promise<ModelUsageRo
     imports: number;
     import_cost: number;
     prewarm_cost: number;
+    w5m_tokens: string;
+    w1h_tokens: string;
+    cold_writes: number;
     total_cost: number;
   }>(
     `SELECT shop_id, model,
@@ -118,6 +124,9 @@ export async function modelUsageRowsSince(sinceMs: number): Promise<ModelUsageRo
         count(*) FILTER (WHERE kind = 'import')::int AS imports,
         COALESCE(sum(cost_thb) FILTER (WHERE kind = 'import'), 0)::float8 AS import_cost,
         COALESCE(sum(cost_thb) FILTER (WHERE kind = 'prewarm'), 0)::float8 AS prewarm_cost,
+        COALESCE(sum(cache_write) FILTER (WHERE kind <> 'prewarm'), 0)::bigint AS w5m_tokens,
+        COALESCE(sum(cache_write) FILTER (WHERE kind = 'prewarm'), 0)::bigint AS w1h_tokens,
+        count(*) FILTER (WHERE cache_write > 1000)::int AS cold_writes,
         COALESCE(sum(cost_thb), 0)::float8 AS total_cost
        FROM ai_usage
       WHERE created_at >= $1
@@ -132,6 +141,8 @@ export async function modelUsageRowsSince(sinceMs: number): Promise<ModelUsageRo
     imports: Number(r.imports),
     importCostThb: Number(r.import_cost),
     prewarmCostThb: Number(r.prewarm_cost),
+    cacheWriteCostThb: cacheWriteCostThb(r.model, Number(r.w5m_tokens), Number(r.w1h_tokens)),
+    coldWrites: Number(r.cold_writes),
     totalCostThb: Number(r.total_cost),
   }));
 }

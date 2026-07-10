@@ -11,6 +11,8 @@ type ModelAgg = {
   imports: number;
   importCostThb: number;
   prewarmCostThb: number;
+  cacheWriteCostThb: number;
+  coldWrites: number;
   totalCostThb: number;
 };
 type ShopModelUsage = {
@@ -93,7 +95,7 @@ export default function ModelUsageTab() {
         <>
           {/* รวมทุกร้าน */}
           <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="w-full min-w-[860px] text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs text-muted">
                   <th className="px-4 py-3 font-medium">โมเดล (รวมทุกร้าน)</th>
@@ -101,13 +103,14 @@ export default function ModelUsageTab() {
                   <th className="px-4 py-3 font-medium text-right">ต้นทุนตอบ</th>
                   <th className="px-4 py-3 font-medium text-right">นำเข้าสินค้า</th>
                   <th className="px-4 py-3 font-medium text-right">อุ่นแคช</th>
+                  <th className="px-4 py-3 font-medium text-right">เขียนแคชใหม่*</th>
                   <th className="px-4 py-3 font-medium text-right">รวมต้นทุน</th>
                 </tr>
               </thead>
               <tbody>
                 {data.overall.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-xs text-muted">
+                    <td colSpan={7} className="px-4 py-6 text-center text-xs text-muted">
                       ยังไม่มีการใช้ AI ในช่วงนี้
                     </td>
                   </tr>
@@ -130,6 +133,12 @@ export default function ModelUsageTab() {
                     <td className="px-4 py-3 text-right whitespace-nowrap text-muted">
                       ฿{m.prewarmCostThb.toFixed(2)}
                     </td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap text-muted">
+                      ฿{m.cacheWriteCostThb.toFixed(2)}
+                      {m.coldWrites > 0 && (
+                        <span className="ml-1 text-xs">({m.coldWrites} ครั้ง)</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap font-semibold text-fg">
                       ฿{m.totalCostThb.toFixed(2)}
                     </td>
@@ -144,6 +153,7 @@ export default function ModelUsageTab() {
                     <td className="px-4 py-3" />
                     <td className="px-4 py-3" />
                     <td className="px-4 py-3" />
+                    <td className="px-4 py-3" />
                     <td className="px-4 py-3 text-right whitespace-nowrap font-semibold text-fg">
                       ฿{data.totals.costThb.toFixed(2)}
                     </td>
@@ -152,6 +162,10 @@ export default function ModelUsageTab() {
               </tbody>
             </table>
           </div>
+          <p className="text-xs text-muted">
+            * เขียนแคชใหม่ = ค่า &quot;จุดแคช&quot; ตอนไม่มีแคชเดิม (ข้อความแรกของวัน/หลังร้านเงียบ) —
+            ยอดนี้ซ้อนอยู่ในต้นทุนตอบ+อุ่นแคชแล้ว ไม่ใช่ค่าใช้จ่ายเพิ่ม ตัวเลขในวงเล็บคือจำนวนครั้งที่จุดใหม่
+          </p>
 
           {/* แยกรายร้าน — คลิกเพื่อดูโมเดลของร้านนั้น */}
           <div>
@@ -182,7 +196,7 @@ export default function ModelUsageTab() {
                     </button>
                     {open && (
                       <div className="overflow-x-auto border-t border-line bg-app/40 px-4 py-3">
-                        <table className="w-full min-w-[560px] text-sm">
+                        <table className="w-full min-w-[700px] text-sm">
                           <thead>
                             <tr className="text-left text-xs text-muted">
                               <th className="py-1.5 pr-4 font-medium">โมเดล</th>
@@ -190,6 +204,7 @@ export default function ModelUsageTab() {
                               <th className="py-1.5 pr-4 font-medium text-right">ต้นทุนตอบ</th>
                               <th className="py-1.5 pr-4 font-medium text-right">นำเข้าสินค้า</th>
                               <th className="py-1.5 pr-4 font-medium text-right">อุ่นแคช</th>
+                              <th className="py-1.5 pr-4 font-medium text-right">เขียนแคชใหม่</th>
                               <th className="py-1.5 font-medium text-right">รวม</th>
                             </tr>
                           </thead>
@@ -213,6 +228,12 @@ export default function ModelUsageTab() {
                                 </td>
                                 <td className="py-1.5 pr-4 text-right whitespace-nowrap text-muted">
                                   ฿{m.prewarmCostThb.toFixed(2)}
+                                </td>
+                                <td className="py-1.5 pr-4 text-right whitespace-nowrap text-muted">
+                                  ฿{m.cacheWriteCostThb.toFixed(2)}
+                                  {m.coldWrites > 0 && (
+                                    <span className="ml-1 text-xs">({m.coldWrites} ครั้ง)</span>
+                                  )}
                                 </td>
                                 <td className="py-1.5 text-right whitespace-nowrap font-semibold text-fg">
                                   ฿{m.totalCostThb.toFixed(2)}

@@ -15,6 +15,8 @@ export type ModelAgg = {
   imports: number;
   importCostThb: number;
   prewarmCostThb: number;
+  cacheWriteCostThb: number; // ค่าเขียนแคชใหม่ (ซ้อนอยู่ในต้นทุนตอบ+อุ่นแล้ว ไม่ใช่ยอดบวกเพิ่ม)
+  coldWrites: number; // จุดแคชใหม่กี่ครั้ง
   totalCostThb: number;
 };
 export type ShopModelUsage = {
@@ -53,6 +55,8 @@ export async function GET(request: Request) {
       imports: 0,
       importCostThb: 0,
       prewarmCostThb: 0,
+      cacheWriteCostThb: 0,
+      coldWrites: 0,
       totalCostThb: 0,
     };
     cur.replies += r.replies;
@@ -60,6 +64,8 @@ export async function GET(request: Request) {
     cur.imports += r.imports;
     cur.importCostThb += r.importCostThb;
     cur.prewarmCostThb += r.prewarmCostThb;
+    cur.cacheWriteCostThb += r.cacheWriteCostThb;
+    cur.coldWrites += r.coldWrites;
     cur.totalCostThb += r.totalCostThb;
     map.set(r.model, cur);
   };

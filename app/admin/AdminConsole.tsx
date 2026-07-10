@@ -8,6 +8,7 @@ import HomeTab from "./HomeTab";
 import AllowlistTab from "./AllowlistTab";
 import StatusTab from "./StatusTab";
 import ModelUsageTab from "./ModelUsageTab";
+import UpsellDailyTab from "./UpsellDailyTab";
 
 function genId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -48,7 +49,7 @@ export default function AdminConsole({
   const [products, setProducts] = useState<Product[]>([]);
   const [save, setSave] = useState<SaveState>("idle");
   const [tab, setTab] = useState<
-    "home" | "shops" | "allowlist" | "status" | "models"
+    "home" | "shops" | "allowlist" | "status" | "models" | "sales"
   >("home");
 
   const selected = list.find((s) => s.id === selectedId) ?? null;
@@ -164,6 +165,7 @@ export default function AdminConsole({
             ["allowlist", "อีเมลที่อนุญาต"],
             ["status", "สถานะระบบ"],
             ["models", "โมเดล AI"],
+            ["sales", "ยอดขาย AI"],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -195,6 +197,8 @@ export default function AdminConsole({
       {tab === "status" && <StatusTab />}
 
       {tab === "models" && <ModelUsageTab />}
+
+      {tab === "sales" && <UpsellDailyTab />}
 
       {tab === "shops" && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[18rem_1fr]">

@@ -87,6 +87,47 @@ export async function soldSummary(
   return { count: Number(row?.count ?? 0), totalSoldValue: Number(row?.total ?? 0) };
 }
 
+export type DailyUpsellRow = {
+  day: string; // YYYY-MM-DD (เวลาไทย)
+  shopId: string;
+  offered: number; // AI เสนอพ่วงกี่ครั้ง
+  estValue: number; // มูลค่าที่เสนอรวม (ประมาณ — จากราคาตอนเสนอ)
+  sold: number; // ปิดได้จริงกี่ครั้ง (แมตช์ออเดอร์แล้ว)
+  soldValue: number; // ยอดขายจริงรวม (บาท)
+};
+
+/** ยอดพ่วงของ AI รายวัน แยกรายร้าน ตั้งแต่ sinceMs — สำหรับแท็บยอดขายในแอดมิน */
+export async function dailyUpsellByShop(sinceMs: number): Promise<DailyUpsellRow[]> {
+  const rows = await query<{
+    shop_id: string;
+    day: string;
+    offered: number;
+    est_total: number;
+    sold: number;
+    sold_total: number;
+  }>(
+    `SELECT shop_id,
+            to_char(to_timestamp(created_at / 1000) AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM-DD') AS day,
+            COUNT(*)::int AS offered,
+            COALESCE(SUM(est_value), 0)::int AS est_total,
+            COUNT(*) FILTER (WHERE sold = true)::int AS sold,
+            COALESCE(SUM(sold_value) FILTER (WHERE sold = true), 0)::int AS sold_total
+       FROM upsell_events
+      WHERE created_at >= $1
+      GROUP BY shop_id, day
+      ORDER BY day DESC`,
+    [sinceMs],
+  );
+  return rows.map((r) => ({
+    day: r.day,
+    shopId: r.shop_id,
+    offered: Number(r.offered),
+    estValue: Number(r.est_total),
+    sold: Number(r.sold),
+    soldValue: Number(r.sold_total),
+  }));
+}
+
 /** ล้างเหตุการณ์พ่วงทั้งหมดของร้าน (รีเซ็ตตอนสลับจาก mock → ของจริง) */
 export async function clearUpsells(shopId: string): Promise<void> {
   await query("DELETE FROM upsell_events WHERE shop_id = $1", [shopId]);

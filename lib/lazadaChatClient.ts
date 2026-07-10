@@ -224,6 +224,34 @@ export async function sendMessage(
   }
 }
 
+/**
+ * ส่ง "การ์ดสินค้า" (template_id 10006) — ลูกค้ากดแล้วเปิดหน้าสินค้า/หยิบใส่ตะกร้าได้เลย
+ * ใช้ตามหลังข้อความแนะนำสินค้า (feedback: AI แนะนำแล้วลูกค้าหาสินค้าไม่เจอ)
+ */
+export async function sendItemCard(
+  accessToken: string,
+  sessionId: string,
+  itemId: string,
+): Promise<SendResult> {
+  if (isMock(accessToken) || !sessionId || sessionId.startsWith("mock-")) {
+    return { ok: true, messageId: "" };
+  }
+  if (!itemId) return { ok: false, messageId: "" };
+  try {
+    const data = await signedCall(
+      "/im/message/send",
+      accessToken,
+      { session_id: sessionId, template_id: "10006", item_id: itemId },
+      "POST",
+    );
+    const ok = Number(data.code ?? 0) === 0 || data.code === "0";
+    const d = (data.data ?? {}) as Record<string, unknown>;
+    return { ok, messageId: ok ? String(d.message_id ?? "") : "" };
+  } catch {
+    return { ok: false, messageId: "" };
+  }
+}
+
 export type LazadaAccount = { accountId: string; name: string };
 
 /** ตรวจ token + ดึงข้อมูลร้าน/บัญชี Lazada — null ถ้า token ใช้ไม่ได้ */

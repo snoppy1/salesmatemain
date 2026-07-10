@@ -21,7 +21,8 @@ import { recordUpsell } from "./upsellRepo";
 import { replyMessage, pushMessage } from "./lineClient";
 import { sendMessage as fbSendMessage } from "./facebookClient";
 import { sendMessage as ttSendMessage } from "./tiktokClient";
-import { sendMessage as lzSendMessage } from "./lazadaChatClient";
+import { sendMessage as lzSendMessage, sendItemCard as lzSendItemCard } from "./lazadaChatClient";
+import { pickMentionedLazadaProducts } from "./productCards";
 import { sendMessage as spSendMessage } from "./shopeeChatClient";
 import { getChannelByShop as getLineChannel } from "./lineChannelRepo";
 import { getChannelByShop as getFbChannel } from "./facebookChannelRepo";
@@ -135,6 +136,7 @@ export async function processAutoReply(
     const target = await getSendTarget(shopId, conversationId);
     const extUserId = target?.lineUserId ?? "";
     let lzMessageId = ""; // message_id จาก Lazada — เก็บเป็น ext_id กัน webhook echo ซ้ำ
+    let lzCardCtx: { token: string; sessionId: string } | null = null; // ส่งการ์ดสินค้าตามหลังข้อความ (เฉพาะ Lazada)
 
     if (convo.channel === "facebook") {
       const fb = await getFbChannel(shopId);
@@ -147,6 +149,9 @@ export async function processAutoReply(
       // Lazada ส่งด้วย IM session_id จริง (ไม่ใช่ buyer_id)
       const sent = await lzSendMessage(lz?.access_token ?? "", target?.sessionId ?? "", result.message);
       lzMessageId = sent.messageId;
+      if (sent.ok) {
+        lzCardCtx = { token: lz?.access_token ?? "", sessionId: target?.sessionId ?? "" };
+      }
     } else if (convo.channel === "shopee") {
       const sp = await getSpChannel(shopId);
       await spSendMessage(
@@ -168,6 +173,20 @@ export async function processAutoReply(
 
     // aiGenerated=true → นับเป็นข้อความที่ AI ตอบ (โควตา/ต้นทุน) + เคลียร์ pending ด้วย
     await addAdminMessage(shopId, conversationId, result.message, lzMessageId || undefined, true);
+
+    // Lazada: ส่ง "การ์ดสินค้า" ของตัวที่ AI เอ่ยถึงตามหลังข้อความ — ลูกค้ากดเปิดหน้าสินค้าได้เลย
+    // (feedback: AI แนะนำสินค้าแต่ลูกค้าหาไม่เจอ) best-effort: การ์ดพลาดไม่กระทบข้อความหลักที่ส่งไปแล้ว
+    if (lzCardCtx) {
+      const cards = pickMentionedLazadaProducts(result.message, result.upsellProduct, shopData.products);
+      for (const card of cards) {
+        const cs = await lzSendItemCard(lzCardCtx.token, lzCardCtx.sessionId, card.externalId ?? "");
+        if (cs.ok) {
+          await addAdminMessage(
+            shopId, conversationId, `[การ์ดสินค้า] ${card.name}`, cs.messageId || undefined, true,
+          ).catch(() => {});
+        }
+      }
+    }
 
     // วัดยอดพ่วง: บันทึกทุกครั้งที่ AI เสนอพ่วงและส่งถึงลูกค้าแล้ว (นับจำนวนแม้ไม่ได้ใส่ตัวเลขมูลค่า)
     if (result.shouldUpsell) {

@@ -95,13 +95,13 @@ export type ModelUsageRow = {
   shopId: string;
   model: string;
   replies: number; // จำนวนครั้งที่ตอบลูกค้า (ไม่นับ prewarm/นำเข้า)
-  replyCostThb: number; // ต้นทุนของการตอบ
+  replyCostThb: number; // ต้นทุนตอบแท้ๆ ต่อข้อความ (input+output+อ่านแคช) — ไม่รวมค่าเขียนแคช
   imports: number; // จำนวนงานนำเข้าสินค้า (ย่อคำอธิบาย/สกัดข้อมูล — เกิดตอนดึงสินค้าเข้า ไม่ใช่แชต)
   importCostThb: number; // ต้นทุนงานนำเข้า
-  prewarmCostThb: number; // ต้นทุนอุ่นแคช
-  cacheWriteCostThb: number; // ค่า "เขียนแคชใหม่" ล้วนๆ (ส่วนหนึ่งของต้นทุนตอบ+อุ่น ไม่ใช่ยอดบวกเพิ่ม)
-  coldWrites: number; // จำนวนครั้งที่ต้องจุดแคชใหม่ (เขียนก้อนใหญ่)
-  totalCostThb: number; // รวมทั้งหมด
+  prewarmCostThb: number; // ต้นทุนอุ่นแคช (รวมค่าจุดของระบบอุ่นเอง)
+  cacheWriteCostThb: number; // ค่า "เขียนแคชใหม่" ที่เกิดจากข้อความแชต (แยกออกจากต้นทุนตอบแล้ว)
+  coldWrites: number; // จำนวนครั้งที่ข้อความแชตต้องจุดแคชใหม่
+  totalCostThb: number; // รวมทั้งหมด (ตอบ+นำเข้า+อุ่น+เขียน)
 };
 
 export async function modelUsageRowsSince(sinceMs: number): Promise<ModelUsageRow[]> {
@@ -109,24 +109,26 @@ export async function modelUsageRowsSince(sinceMs: number): Promise<ModelUsageRo
     shop_id: string;
     model: string;
     replies: number;
-    reply_cost: number;
+    r_in: string;
+    r_out: string;
+    r_read: string;
     imports: number;
     import_cost: number;
     prewarm_cost: number;
     w5m_tokens: string;
-    w1h_tokens: string;
     cold_writes: number;
     total_cost: number;
   }>(
     `SELECT shop_id, model,
         count(*) FILTER (WHERE kind NOT IN ('prewarm', 'import'))::int AS replies,
-        COALESCE(sum(cost_thb) FILTER (WHERE kind NOT IN ('prewarm', 'import')), 0)::float8 AS reply_cost,
+        COALESCE(sum(in_tokens) FILTER (WHERE kind NOT IN ('prewarm', 'import')), 0)::bigint AS r_in,
+        COALESCE(sum(out_tokens) FILTER (WHERE kind NOT IN ('prewarm', 'import')), 0)::bigint AS r_out,
+        COALESCE(sum(cache_read) FILTER (WHERE kind NOT IN ('prewarm', 'import')), 0)::bigint AS r_read,
         count(*) FILTER (WHERE kind = 'import')::int AS imports,
         COALESCE(sum(cost_thb) FILTER (WHERE kind = 'import'), 0)::float8 AS import_cost,
         COALESCE(sum(cost_thb) FILTER (WHERE kind = 'prewarm'), 0)::float8 AS prewarm_cost,
-        COALESCE(sum(cache_write) FILTER (WHERE kind <> 'prewarm'), 0)::bigint AS w5m_tokens,
-        COALESCE(sum(cache_write) FILTER (WHERE kind = 'prewarm'), 0)::bigint AS w1h_tokens,
-        count(*) FILTER (WHERE cache_write > 1000)::int AS cold_writes,
+        COALESCE(sum(cache_write) FILTER (WHERE kind NOT IN ('prewarm', 'import')), 0)::bigint AS w5m_tokens,
+        count(*) FILTER (WHERE cache_write > 1000 AND kind NOT IN ('prewarm', 'import'))::int AS cold_writes,
         COALESCE(sum(cost_thb), 0)::float8 AS total_cost
        FROM ai_usage
       WHERE created_at >= $1
@@ -137,11 +139,17 @@ export async function modelUsageRowsSince(sinceMs: number): Promise<ModelUsageRo
     shopId: r.shop_id,
     model: r.model,
     replies: Number(r.replies),
-    replyCostThb: Number(r.reply_cost),
+    // ต้นทุนตอบแท้ๆ คิดจาก token จริง (ไม่รวมเขียนแคช — แยกแสดงเป็นคอลัมน์ของตัวเอง)
+    replyCostThb: costThb(r.model, {
+      inputTokens: Number(r.r_in),
+      outputTokens: Number(r.r_out),
+      cacheWriteTokens: 0,
+      cacheReadTokens: Number(r.r_read),
+    }),
     imports: Number(r.imports),
     importCostThb: Number(r.import_cost),
     prewarmCostThb: Number(r.prewarm_cost),
-    cacheWriteCostThb: cacheWriteCostThb(r.model, Number(r.w5m_tokens), Number(r.w1h_tokens)),
+    cacheWriteCostThb: cacheWriteCostThb(r.model, Number(r.w5m_tokens), 0),
     coldWrites: Number(r.cold_writes),
     totalCostThb: Number(r.total_cost),
   }));

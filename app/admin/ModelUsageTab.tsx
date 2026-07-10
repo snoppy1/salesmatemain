@@ -126,6 +126,11 @@ export default function ModelUsageTab() {
                     <td className="px-4 py-3 text-right">{m.replies.toLocaleString()}</td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       ฿{m.replyCostThb.toFixed(2)}
+                      {m.replies > 0 && (
+                        <span className="ml-1 text-xs text-muted">
+                          (฿{(m.replyCostThb / m.replies).toFixed(2)}/ข้อความ)
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap text-muted">
                       {m.imports > 0 ? `฿${m.importCostThb.toFixed(2)}` : "-"}
@@ -163,8 +168,9 @@ export default function ModelUsageTab() {
             </table>
           </div>
           <p className="text-xs text-muted">
-            * เขียนแคชใหม่ = ค่า &quot;จุดแคช&quot; ตอนไม่มีแคชเดิม (ข้อความแรกของวัน/หลังร้านเงียบ) —
-            ยอดนี้ซ้อนอยู่ในต้นทุนตอบ+อุ่นแคชแล้ว ไม่ใช่ค่าใช้จ่ายเพิ่ม ตัวเลขในวงเล็บคือจำนวนครั้งที่จุดใหม่
+            * ต้นทุนตอบ = ค่าตอบแท้ๆ ต่อข้อความ (ไม่รวมค่าเขียนแคช) · เขียนแคชใหม่ = ค่า &quot;จุดแคช&quot;
+            ตอนข้อความมาแล้วไม่มีแคชเดิม (วงเล็บ = กี่ครั้ง) · อุ่นแคชรวมค่าจุดของระบบอุ่นเองแล้ว —
+            ต้นทุนตอบ + นำเข้า + อุ่นแคช + เขียนแคชใหม่ ≈ รวมต้นทุน
           </p>
 
           {/* แยกรายร้าน — คลิกเพื่อดูโมเดลของร้านนั้น */}
@@ -222,6 +228,11 @@ export default function ModelUsageTab() {
                                 <td className="py-1.5 pr-4 text-right">{m.replies.toLocaleString()}</td>
                                 <td className="py-1.5 pr-4 text-right whitespace-nowrap">
                                   ฿{m.replyCostThb.toFixed(2)}
+                                  {m.replies > 0 && (
+                                    <span className="ml-1 text-xs text-muted">
+                                      (฿{(m.replyCostThb / m.replies).toFixed(2)}/ขค.)
+                                    </span>
+                                  )}
                                 </td>
                                 <td className="py-1.5 pr-4 text-right whitespace-nowrap text-muted">
                                   {m.imports > 0 ? `฿${m.importCostThb.toFixed(2)}` : "-"}

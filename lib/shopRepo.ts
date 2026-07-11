@@ -224,8 +224,10 @@ export async function listActiveShopIds(since: number): Promise<string[]> {
 }
 
 /**
- * ร้านที่ "คุ้มค่าอุ่นแคช": กำลังคุยอยู่ (มีแชตหลัง activeSinceMs) และ traffic ถึงเกณฑ์
+ * ร้านที่ "คุ้มค่าอุ่นแคช": AI ได้ตอบจริงหลัง activeSinceMs และ traffic ถึงเกณฑ์
  * (ลูกค้าทัก ≥ minCustMsgs24h ใน 24 ชม.) — ร้านเงียบปล่อยจ่าย cold-start เองถูกกว่าอุ่นทิ้ง
+ * เงื่อนไข "AI ตอบจริง" (ไม่ใช่แค่ลูกค้าทัก): คืนที่ลูกค้าทักแต่ AI ไม่ได้ตอบ (รอตอบ/โหมด manual)
+ * เคยทำให้อุ่นเฝ้าทิ้งทั้งคืน ฿7+/คืน ทั้งที่ไม่มีการตอบมาใช้แคชเลย
  */
 export async function listWarmableShopIds(
   activeSinceMs: number,
@@ -235,10 +237,11 @@ export async function listWarmableShopIds(
   const rows = await query<{ shop_id: string }>(
     `SELECT c.shop_id
        FROM conversations c
-      WHERE c.last_message_at > $1
+       JOIN messages m ON m.conversation_id = c.id
+      WHERE m.ai_generated = true AND m.created_at > $1
       GROUP BY c.shop_id
-     HAVING (SELECT count(*) FROM messages m JOIN conversations c2 ON c2.id = m.conversation_id
-              WHERE c2.shop_id = c.shop_id AND m.sender = 'customer' AND m.created_at >= $2) >= $3`,
+     HAVING (SELECT count(*) FROM messages m2 JOIN conversations c2 ON c2.id = m2.conversation_id
+              WHERE c2.shop_id = c.shop_id AND m2.sender = 'customer' AND m2.created_at >= $2) >= $3`,
     [activeSinceMs, dayAgo, minCustMsgs24h],
   );
   return rows.map((r) => r.shop_id);

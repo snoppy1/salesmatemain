@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentSuperadmin } from "@/lib/superAuth";
-import { modelUsageRowsSince } from "@/lib/aiUsageRepo";
+import { modelUsageRowsSince, dailyCacheWriteRows } from "@/lib/aiUsageRepo";
+import { cacheWriteCostThb } from "@/lib/aiPricing";
 import { bangkokDayStartMs } from "@/lib/adminStats";
 import { query } from "@/lib/db";
 
@@ -39,11 +40,32 @@ export async function GET(request: Request) {
   const days = [1, 7, 30].includes(daysRaw) ? daysRaw : 7;
   const sinceMs = bangkokDayStartMs() - (days - 1) * DAY;
 
-  const [rows, shopRows] = await Promise.all([
+  const [rows, dailyRows, shopRows] = await Promise.all([
     modelUsageRowsSince(sinceMs),
+    dailyCacheWriteRows(sinceMs),
     query<{ id: string; name: string }>("SELECT id, name FROM shops"),
   ]);
   const shopName = new Map(shopRows.map((s) => [s.id, s.name]));
+
+  // จุดแคชรายวันต่อร้าน (รวมทุกโมเดล) — ตัวชี้สุขภาพแคช
+  const dailyMap = new Map<
+    string,
+    { day: string; shopId: string; chatWrites: number; prewarmWrites: number; costThb: number }
+  >();
+  for (const r of dailyRows) {
+    const key = `${r.day}|${r.shopId}`;
+    const cur = dailyMap.get(key) ?? {
+      day: r.day, shopId: r.shopId, chatWrites: 0, prewarmWrites: 0, costThb: 0,
+    };
+    cur.chatWrites += r.chatWrites;
+    cur.prewarmWrites += r.prewarmWrites;
+    cur.costThb += cacheWriteCostThb(r.model, r.w5mTokens, r.w1hTokens);
+    dailyMap.set(key, cur);
+  }
+  const dailyWrites = [...dailyMap.values()]
+    .filter((d) => d.chatWrites + d.prewarmWrites > 0)
+    .sort((a, b) => (a.day === b.day ? b.costThb - a.costThb : b.day.localeCompare(a.day)))
+    .map((d) => ({ ...d, shopName: shopName.get(d.shopId) ?? "(ไม่พบร้าน)" }));
 
   // รวมทุกร้าน แยกตามโมเดล
   const overallMap = new Map<string, ModelAgg>();
@@ -98,6 +120,7 @@ export async function GET(request: Request) {
     days,
     overall,
     byShop,
+    dailyWrites,
     totals: {
       replies: overall.reduce((a, x) => a + x.replies, 0),
       costThb: overall.reduce((a, x) => a + x.totalCostThb, 0),

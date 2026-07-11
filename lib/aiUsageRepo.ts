@@ -63,6 +63,49 @@ export async function shopsWarmedSince(sinceMs: number): Promise<Set<string>> {
   return new Set(rows.map((r) => r.shop_id));
 }
 
+export type DailyCacheWriteRow = {
+  day: string; // YYYY-MM-DD (เวลาไทย)
+  shopId: string;
+  model: string;
+  chatWrites: number; // จุดแคชจากข้อความแชต (5m TTL)
+  prewarmWrites: number; // จุดแคชจากระบบอุ่น (1h TTL)
+  w5mTokens: number; // token ที่เขียนฝั่งแชต
+  w1hTokens: number; // token ที่เขียนฝั่งอุ่น
+};
+
+/** จำนวนครั้ง "จุดแคชใหม่" รายวัน แยกร้าน/โมเดล — ตัวชี้สุขภาพแคช (จุดบ่อยผิดปกติ = มีอะไรล้างแคช) */
+export async function dailyCacheWriteRows(sinceMs: number): Promise<DailyCacheWriteRow[]> {
+  const rows = await query<{
+    shop_id: string;
+    model: string;
+    day: string;
+    chat_writes: number;
+    prewarm_writes: number;
+    w5m: string;
+    w1h: string;
+  }>(
+    `SELECT shop_id, model,
+            to_char(to_timestamp(created_at / 1000) AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM-DD') AS day,
+            count(*) FILTER (WHERE cache_write > 1000 AND kind NOT IN ('prewarm', 'import'))::int AS chat_writes,
+            count(*) FILTER (WHERE cache_write > 1000 AND kind = 'prewarm')::int AS prewarm_writes,
+            COALESCE(sum(cache_write) FILTER (WHERE kind NOT IN ('prewarm', 'import')), 0)::bigint AS w5m,
+            COALESCE(sum(cache_write) FILTER (WHERE kind = 'prewarm'), 0)::bigint AS w1h
+       FROM ai_usage
+      WHERE created_at >= $1
+      GROUP BY shop_id, model, day`,
+    [sinceMs],
+  );
+  return rows.map((r) => ({
+    day: r.day,
+    shopId: r.shop_id,
+    model: r.model,
+    chatWrites: Number(r.chat_writes),
+    prewarmWrites: Number(r.prewarm_writes),
+    w5mTokens: Number(r.w5m),
+    w1hTokens: Number(r.w1h),
+  }));
+}
+
 /** ต้นทุนรวม (บาท) ของร้านหนึ่งตั้งแต่ sinceMs */
 export async function costForShopSince(shopId: string, sinceMs: number): Promise<number> {
   const row = await queryOne<{ c: number }>(

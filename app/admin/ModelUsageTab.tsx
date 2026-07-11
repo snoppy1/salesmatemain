@@ -22,12 +22,27 @@ type ShopModelUsage = {
   totalCostThb: number;
   models: ModelAgg[];
 };
+type DailyWriteRow = {
+  day: string;
+  shopId: string;
+  shopName: string;
+  chatWrites: number;
+  prewarmWrites: number;
+  costThb: number;
+};
 type Data = {
   days: number;
   overall: ModelAgg[];
   byShop: ShopModelUsage[];
+  dailyWrites: DailyWriteRow[];
   totals: { replies: number; costThb: number };
 };
+
+const THAI_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+function thaiDay(day: string): string {
+  const [, m, d] = day.split("-").map(Number);
+  return `${d} ${THAI_MONTHS[(m ?? 1) - 1]}`;
+}
 
 /** ชื่อ + บทบาทของโมเดล (จาก router: Opus = เคสยาก, Sonnet = ทั่วไป) */
 const MODEL_INFO: Record<string, { name: string; tier: string }> = {
@@ -259,6 +274,59 @@ export default function ModelUsageTab() {
                 );
               })}
             </div>
+          </div>
+
+          {/* จุดแคชใหม่รายวัน — ตัวชี้สุขภาพแคช: จุดบ่อยผิดปกติ = มีอะไรไปล้างแคช */}
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-fg">จุดแคชใหม่รายวัน (กี่ครั้ง/วัน)</h4>
+            <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead>
+                  <tr className="border-b border-line text-left text-xs text-muted">
+                    <th className="px-4 py-3 font-medium">วัน</th>
+                    <th className="px-4 py-3 font-medium">ร้าน</th>
+                    <th className="px-4 py-3 font-medium text-right">จุดจากแชต</th>
+                    <th className="px-4 py-3 font-medium text-right">จุดจากระบบอุ่น</th>
+                    <th className="px-4 py-3 font-medium text-right">รวม (ครั้ง)</th>
+                    <th className="px-4 py-3 font-medium text-right">ค่าเขียนรวม</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.dailyWrites.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-6 text-center text-xs text-muted">
+                        ไม่มีการจุดแคชในช่วงนี้
+                      </td>
+                    </tr>
+                  )}
+                  {data.dailyWrites.map((d, i) => {
+                    const total = d.chatWrites + d.prewarmWrites;
+                    const showDay = i === 0 || data.dailyWrites[i - 1].day !== d.day;
+                    return (
+                      <tr key={`${d.day}-${d.shopId}`} className="border-b border-line last:border-0">
+                        <td className="px-4 py-2.5 whitespace-nowrap text-muted">
+                          {showDay ? thaiDay(d.day) : ""}
+                        </td>
+                        <td className="px-4 py-2.5 font-medium text-fg">{d.shopName || "(ไม่มีชื่อ)"}</td>
+                        <td className="px-4 py-2.5 text-right">{d.chatWrites || "-"}</td>
+                        <td className="px-4 py-2.5 text-right">{d.prewarmWrites || "-"}</td>
+                        <td className={`px-4 py-2.5 text-right font-semibold ${total >= 5 ? "text-amber-500" : "text-fg"}`}>
+                          {total}
+                          {total >= 5 && " ⚠️"}
+                        </td>
+                        <td className="px-4 py-2.5 text-right whitespace-nowrap text-muted">
+                          ฿{d.costThb.toFixed(2)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-xs text-muted">
+              ร้านคึกปกติควรจุด ~2-4 ครั้ง/วัน — ถ้าเกิน 5 ครั้ง (⚠️) ทั้งที่แชตไม่เยอะ
+              แปลว่ามีอะไรไปล้างแคชบ่อยผิดปกติ (เช่น แก้ข้อมูลร้าน/สินค้าถี่ๆ หรือราคาแกว่ง)
+            </p>
           </div>
         </>
       )}

@@ -66,6 +66,16 @@ export async function listUnsoldUpsells(shopId: string, sinceMs: number): Promis
   }));
 }
 
+/** ร้านที่มีพ่วง Lazada ค้างรอแมตช์ (ยังไม่ sold) ในช่วง sinceMs — ให้ cron ไล่แมตช์อัตโนมัติ */
+export async function shopsWithUnsoldLazadaUpsells(sinceMs: number): Promise<string[]> {
+  const rows = await query<{ shop_id: string }>(
+    `SELECT DISTINCT shop_id FROM upsell_events
+      WHERE sold = false AND channel = 'lazada' AND product <> '' AND created_at >= $1`,
+    [sinceMs],
+  );
+  return rows.map((r) => r.shop_id);
+}
+
 /** ทำเครื่องหมายว่าพ่วงนี้ขายได้จริง (จากการแมตช์ออเดอร์) */
 export async function markUpsellSold(id: string, soldValue: number, orderId: string): Promise<void> {
   await query(

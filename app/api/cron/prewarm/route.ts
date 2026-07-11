@@ -8,6 +8,9 @@ import { recordCronRun } from "@/lib/cronRunsRepo";
 import { shopsWarmedSince } from "@/lib/aiUsageRepo";
 import { listPromotions } from "@/lib/promotionsRepo";
 import { validNowPromotions } from "@/lib/promotions";
+import { shopsWithUnsoldLazadaUpsells } from "@/lib/upsellRepo";
+import { attributeUpsells } from "@/lib/upsellAttribution";
+import { getValidAccessToken } from "@/lib/connectionRepo";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // เผื่อ warm + refresh token + poll แชต Lazada
@@ -89,6 +92,18 @@ export async function GET(request: Request) {
     console.error("[cron/prewarm] lazada poll failed:", e instanceof Error ? e.message : e);
   }
 
+  // แมตช์พ่วงกับออเดอร์จริงอัตโนมัติ (เดิมรันเฉพาะตอนร้านเปิดหน้าวัดผล → ตัวเลข "ปิดได้จริง" ค้าง 0)
+  let matchedUpsells = 0;
+  try {
+    for (const shopId of await shopsWithUnsoldLazadaUpsells(Date.now() - 7 * 86400e3)) {
+      const token = await getValidAccessToken(shopId, "lazada");
+      if (!token || token.startsWith("mock")) continue;
+      matchedUpsells += await attributeUpsells(shopId, token).catch(() => 0);
+    }
+  } catch (e) {
+    console.error("[cron/prewarm] upsell attribution failed:", e instanceof Error ? e.message : e);
+  }
+
   // บันทึกผลไว้ให้หน้า "สถานะระบบ" — ok=false เมื่อต่ออายุ token ล้มเหลว
   await recordCronRun("prewarm", refreshErrors.length === 0, {
     warmed,
@@ -96,6 +111,7 @@ export async function GET(request: Request) {
     refreshedTokens,
     refreshErrors,
     polledMsgs,
+    matchedUpsells,
   });
 
   return NextResponse.json({
@@ -104,5 +120,6 @@ export async function GET(request: Request) {
     refreshedTokens,
     refreshErrors,
     polledMsgs,
+    matchedUpsells,
   });
 }

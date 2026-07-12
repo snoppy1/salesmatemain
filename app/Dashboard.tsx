@@ -386,12 +386,12 @@ export default function Dashboard({
       />
       {/* มือถือ: เมนูเป็นแถบล่าง (กันที่ด้วย pb-20) / จอใหญ่: rail ซ้าย */}
       <main className="pb-20 md:pb-0 md:pl-16">
-        {/* ภาพรวมเป็นแดชบอร์ด data-forward → กว้างได้ถึง 1440 ใช้พื้นที่จอกว้างเต็มกว่า
+        {/* ภาพรวมเป็นแดชบอร์ด data-forward → เต็มความกว้างจอ (เหมือน dashboard เต็มจอ) คุมสุดที่ 2560 กันจอ 4K ยืดเกิน
             ส่วนตั้งค่า/คลังสินค้าเป็นฟอร์ม → คง max-w-6xl ไว้ให้ measure อ่านง่าย ไม่ยืดจนล้า
-            padding เพิ่มขั้นตามจอ (มือถือ 16 → sm 24 → lg 32) กันเนื้อหาชิดขอบบนจอใหญ่ */}
+            padding เพิ่มขั้นตามจอ (มือถือ 16 → sm 24 → lg 32 → 2xl 48) กันเนื้อหาชิดขอบบนจอใหญ่ */}
         <div
-          className={`mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 ${
-            view === "overview" ? "max-w-[1440px]" : "max-w-6xl"
+          className={`mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 2xl:px-12 ${
+            view === "overview" ? "max-w-[2560px]" : "max-w-6xl"
           }`}
         >
           {view === "overview" && (

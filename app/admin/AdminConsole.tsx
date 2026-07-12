@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Product, Rule, Shop, ShopData, ShopSummary } from "@/lib/types";
+import type { ChannelConnection, ConnStatus } from "@/lib/adminConnectionStatus";
 import ThemeToggle from "@/components/ThemeToggle";
 import HomeTab from "./HomeTab";
 import AllowlistTab from "./AllowlistTab";
+import AccountsTab from "./AccountsTab";
 import StatusTab from "./StatusTab";
 import ModelUsageTab from "./ModelUsageTab";
 import UpsellDailyTab from "./UpsellDailyTab";
@@ -33,6 +35,41 @@ const CHANNEL_NAMES: Record<string, string> = {
   shopee: "Shopee",
 };
 
+/** สีจุดสถานะการเชื่อม (a11y: มีข้อความกำกับเสมอ ไม่พึ่งสีอย่างเดียว) */
+const CONN_DOT: Record<ConnStatus, string> = {
+  connected: "bg-emerald-500",
+  expiring: "bg-amber-500",
+  expired: "bg-red-500",
+  none: "bg-muted",
+};
+const CONN_TEXT: Record<ConnStatus, string> = {
+  connected: "text-emerald-600 dark:text-emerald-400",
+  expiring: "text-amber-600 dark:text-amber-400",
+  expired: "text-red-600 dark:text-red-400",
+  none: "text-muted",
+};
+
+/** จำนวนวันที่เหลือก่อน token หมดอายุ (ปัดขึ้น, ไม่ต่ำกว่า 0) */
+function connDaysLeft(expiresAt: number | null): number | null {
+  if (expiresAt == null) return null;
+  return Math.max(0, Math.ceil((expiresAt - Date.now()) / 86400000));
+}
+
+/** ข้อความสถานะการเชื่อมของแต่ละช่องทาง */
+function connLabel(c: { status: ConnStatus; expiresAt: number | null }): string {
+  const days = connDaysLeft(c.expiresAt);
+  switch (c.status) {
+    case "connected":
+      return days != null ? `เชื่อมแล้ว · token เหลือ ${days} วัน` : "เชื่อมแล้ว";
+    case "expiring":
+      return days != null ? `ใกล้หมด · เหลือ ${days} วัน` : "ใกล้หมด";
+    case "expired":
+      return "หลุด/หมดอายุ";
+    default:
+      return "ยังไม่เชื่อม";
+  }
+}
+
 type LoadState =
   | { kind: "none" }
   | { kind: "loading" }
@@ -58,9 +95,11 @@ export default function AdminConsole({
   const [products, setProducts] = useState<Product[]>([]);
   // ช่องทางในกล่องแชตของร้าน + โหมดตอบต่อช่อง (off = กดส่งเอง, safe/full = AI ตอบเอง)
   const [inboxApps, setInboxApps] = useState<{ channel: string; level: string }[]>([]);
+  // สถานะการเชื่อมต่อรายแพลตฟอร์มของร้านที่เลือก (เชื่อมแล้ว/ใกล้หมด/หลุด/ยังไม่เชื่อม)
+  const [connections, setConnections] = useState<ChannelConnection[]>([]);
   const [save, setSave] = useState<SaveState>("idle");
   const [tab, setTab] = useState<
-    "home" | "shops" | "allowlist" | "status" | "models" | "sales"
+    "home" | "shops" | "allowlist" | "accounts" | "status" | "models" | "sales"
   >("home");
 
   const selected = list.find((s) => s.id === selectedId) ?? null;
@@ -77,11 +116,13 @@ export default function AdminConsole({
       }
       const data = (await res.json()) as ShopData & {
         inboxApps?: { channel: string; level: string }[];
+        connections?: ChannelConnection[];
       };
       setShop(data.shop);
       setRules(data.rules ?? []);
       setProducts(data.products ?? []);
       setInboxApps(data.inboxApps ?? []);
+      setConnections(data.connections ?? []);
       setLoad({ kind: "ready" });
     } catch {
       setLoad({ kind: "error", message: "โหลดข้อมูลร้านไม่สำเร็จ" });
@@ -177,6 +218,7 @@ export default function AdminConsole({
             ["home", "หน้าแรก"],
             ["shops", "ร้านค้า"],
             ["allowlist", "สิทธิ์กล่องแชต"],
+            ["accounts", "บัญชีผู้ใช้"],
             ["status", "สถานะระบบ"],
             ["models", "โมเดล AI"],
             ["sales", "ยอดขาย AI"],
@@ -207,6 +249,8 @@ export default function AdminConsole({
       )}
 
       {tab === "allowlist" && <AllowlistTab />}
+
+      {tab === "accounts" && <AccountsTab />}
 
       {tab === "status" && <StatusTab />}
 
@@ -283,6 +327,7 @@ export default function AdminConsole({
               <ShopEditor
                 selected={selected}
                 inboxApps={inboxApps}
+                connections={connections}
                 shop={shop}
                 setShop={(patch) => {
                   setShop((s) => ({ ...s, ...patch }));
@@ -391,6 +436,7 @@ function DangerZone({
 function ShopEditor({
   selected,
   inboxApps,
+  connections,
   shop,
   setShop,
   rules,
@@ -406,6 +452,7 @@ function ShopEditor({
 }: {
   selected: ShopSummary;
   inboxApps: { channel: string; level: string }[];
+  connections: ChannelConnection[];
   shop: Shop;
   setShop: (patch: Partial<Shop>) => void;
   rules: Rule[];
@@ -427,6 +474,9 @@ function ShopEditor({
         : save === "error"
           ? "บันทึกไม่สำเร็จ ลองใหม่"
           : "บันทึกการแก้ไข";
+
+  // ค้นสถานะการเชื่อมตาม channel (ช่องทางในกล่องแชตอ้างอิงคีย์เดียวกับ connections)
+  const connByChannel = new Map(connections.map((c) => [c.channel, c]));
 
   return (
     <div>
@@ -453,7 +503,7 @@ function ShopEditor({
         </button>
       </div>
 
-      {/* ช่องทางที่ร้านใช้ + โหมดตอบของแต่ละช่อง */}
+      {/* ช่องทางที่ร้านใช้ + สถานะการเชื่อม + โหมดตอบของแต่ละช่อง */}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {inboxApps.length === 0 && (
           <span className="rounded-full border border-dashed border-line px-3 py-1 text-xs text-muted">
@@ -462,12 +512,26 @@ function ShopEditor({
         )}
         {inboxApps.map((a) => {
           const ai = a.level === "safe" || a.level === "full";
+          const conn = connByChannel.get(a.channel);
+          const status: ConnStatus = conn?.status ?? "none";
           return (
             <span
               key={a.channel}
-              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface2 px-3 py-1 text-xs"
+              className="inline-flex items-center gap-2 rounded-full border border-line bg-surface2 px-3 py-1 text-xs"
             >
               <span className="font-medium text-fg">{CHANNEL_NAMES[a.channel] ?? a.channel}</span>
+              <span className="inline-flex items-center gap-1">
+                <span
+                  className={`inline-block h-1.5 w-1.5 rounded-full ${CONN_DOT[status]}`}
+                  aria-hidden="true"
+                />
+                <span className={CONN_TEXT[status]}>
+                  {connLabel(conn ?? { status, expiresAt: null })}
+                </span>
+              </span>
+              <span className="text-muted/60" aria-hidden="true">
+                ·
+              </span>
               <span className={ai ? "text-emerald-500" : "text-muted"}>
                 {ai ? "🤖 AI ตอบเอง" : "✋ กดส่งเอง"}
               </span>

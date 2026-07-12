@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentSuperadmin } from "@/lib/superAuth";
 import { getShopData, saveShopData, shopExists, deleteShop } from "@/lib/shopRepo";
 import { listInboxApps } from "@/lib/inboxAppsRepo";
+import { getShopConnections } from "@/lib/adminConnectionStatus";
 import type { ShopData } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -18,9 +19,14 @@ export async function GET(
   if (!(await shopExists(id))) {
     return NextResponse.json({ error: "ไม่พบร้านนี้" }, { status: 404 });
   }
-  // แนบช่องทางในกล่องแชต + โหมดตอบของแต่ละช่อง (ให้แอดมินเห็นว่าร้านใช้โหมดไหนกับแพลตฟอร์มไหน)
-  const [data, inboxApps] = await Promise.all([getShopData(id), listInboxApps(id)]);
-  return NextResponse.json({ ...data, inboxApps });
+  // แนบช่องทางในกล่องแชต + โหมดตอบของแต่ละช่อง + สถานะการเชื่อมต่อรายแพลตฟอร์ม
+  // (ให้แอดมินเห็นว่าร้านใช้โหมดไหน + เชื่อมแล้ว/ใกล้หมด/หลุด/ยังไม่เชื่อม)
+  const [data, inboxApps, connections] = await Promise.all([
+    getShopData(id),
+    listInboxApps(id),
+    getShopConnections(id),
+  ]);
+  return NextResponse.json({ ...data, inboxApps, connections });
 }
 
 export async function PUT(

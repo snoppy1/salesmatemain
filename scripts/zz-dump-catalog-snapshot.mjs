@@ -25,13 +25,14 @@ if (!shop) throw new Error("ไม่พบร้าน: " + shopLike);
 
 const products = (
   await p.query(
-    `SELECT name, COALESCE(description,'') AS description, COALESCE(price,'') AS price,
+    `SELECT name, ai_name, COALESCE(description,'') AS description, COALESCE(price,'') AS price,
             enabled, stock
      FROM products WHERE shop_id = $1 ORDER BY sort_order ASC`,
     [shop.id],
   )
 ).rows.map((r) => ({
   name: r.name,
+  aiName: r.ai_name ?? undefined,
   description: r.description,
   price: r.price,
   enabled: r.enabled,

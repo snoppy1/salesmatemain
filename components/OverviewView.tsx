@@ -72,7 +72,7 @@ export default function OverviewView({
   const pending = data?.pendingNow ?? 0;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div>
         <h2 className="text-xl font-bold tracking-tight text-fg">ภาพรวมร้าน</h2>
         <p className="mt-0.5 text-sm text-muted">
@@ -147,7 +147,7 @@ export default function OverviewView({
       <MonthMeter />
 
       {/* กราฟ + ช่องทาง: แท่ง = เทียบปริมาณรายวัน / จุดสถานะ = ช่องทางที่ AI เฝ้าอยู่ */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-3 lg:grid-cols-3">
         {error ? (
           <div className="flex items-center gap-2 rounded-2xl border border-line bg-surface px-4 py-6 text-sm text-muted lg:col-span-2">
             โหลดกราฟไม่สำเร็จ

@@ -467,7 +467,7 @@ function Sidebar({
 
   return (
     /* มือถือ: แถบล่างแนวนอน (นิ้วโป้งเอื้อมถึง) / จอใหญ่: sidebar ซ้ายเปิดค้าง 256px */
-    <aside className="group fixed inset-x-0 bottom-0 z-40 flex h-16 flex-row items-stretch overflow-hidden border-t border-line bg-surface md:inset-x-auto md:inset-y-0 md:bottom-auto md:left-0 md:h-auto md:w-64 md:flex-col md:border-r md:border-t-0">
+    <aside className="group fixed inset-x-0 bottom-0 z-40 flex h-16 flex-row items-stretch overflow-hidden border-t border-line bg-surface md:inset-x-auto md:inset-y-0 md:left-0 md:h-auto md:w-64 md:flex-col md:border-r md:border-t-0">
       {/* โลโก้ (เฉพาะจอใหญ่) — ข้อความ SalesMate เลื่อนออกมาตอน hover/focus */}
       <div className="hidden h-16 items-center gap-3 px-3 md:flex">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -522,8 +522,8 @@ function Sidebar({
         </div>
       </nav>
 
-      {/* ซ้ายล่าง (เฉพาะจอใหญ่): ข้อมูลทดลอง + บัญชี + ออกจากระบบ + ธีม */}
-      <div className="hidden border-t border-line p-2 md:block">
+      {/* ซ้ายล่าง (เฉพาะจอใหญ่): ดันไปล่างสุดของแถบ (mt-auto) — ข้อมูลทดลอง + บัญชี + ออกจากระบบ + ธีม */}
+      <div className="hidden border-t border-line p-2 md:block md:mt-auto">
         <button
           type="button"
           onClick={onOpenSettings}

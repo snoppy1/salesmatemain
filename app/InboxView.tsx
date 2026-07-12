@@ -526,11 +526,15 @@ export default function InboxView({
         if (activeId) setReasonFor(activeId, "จำลองลูกค้าไม่สำเร็จ ลองใหม่");
         return;
       }
-      const d = (await r.json()) as { conversationId: string };
+      const d = (await r.json()) as { conversationId: string; aiLimitReached?: boolean };
       setSimText("");
       setActiveId(d.conversationId);
       await loadConversations();
       await loadDetail(d.conversationId);
+      // โหมดทดลองจำกัด AI ตอบ 5 ข้อความ/บทสนทนา — บอกให้ผู้ทดลองรู้ว่าทำไม AI ไม่ตอบต่อ
+      if (d.aiLimitReached) {
+        setReasonFor(d.conversationId, "โหมดทดลอง: AI ตอบได้ 5 ข้อความต่อบทสนทนา — เชื่อมร้านจริงเพื่อใช้ได้ไม่จำกัด");
+      }
     } catch {
       if (activeId) setReasonFor(activeId, "จำลองลูกค้าไม่สำเร็จ — เช็คอินเทอร์เน็ตแล้วลองใหม่");
     }

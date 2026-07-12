@@ -7,8 +7,12 @@ import {
   getConversationMode,
 } from "@/lib/inboxRepo";
 import { processAutoReply } from "@/lib/autoReply";
+import { queryOne } from "@/lib/db";
 
 export const runtime = "nodejs";
+
+// โหมดทดลอง (mock): จำกัด AI ตอบได้กี่ข้อความต่อบทสนทนา — กันเผาเครดิตตอนเดโม (ปรับผ่าน env ได้)
+const MOCK_AI_MSG_CAP = Number(process.env.MOCK_AI_MSG_CAP || 5);
 
 /**
  * แชทจำลอง: จำลองว่าลูกค้าทักเข้ามา (ใช้ทดสอบ flow โดยไม่ต้องมี LINE จริง)
@@ -77,8 +81,16 @@ export async function POST(request: Request) {
   }
 
   // โหมด auto → ให้ AI ตอบเอง (หลังตอบ response เพื่อให้ข้อความลูกค้าขึ้นทันที)
+  // แชทจำลอง = โหมดทดลอง → จำกัด AI ตอบไม่เกิน MOCK_AI_MSG_CAP ข้อความต่อบทสนทนา
   const mode = await getConversationMode(conversationId);
   if (mode === "auto") {
+    const aiCount = await queryOne<{ n: number }>(
+      "SELECT count(*)::int AS n FROM messages WHERE conversation_id = $1 AND ai_generated = true",
+      [conversationId],
+    );
+    if (Number(aiCount?.n ?? 0) >= MOCK_AI_MSG_CAP) {
+      return NextResponse.json({ conversationId, aiLimitReached: true });
+    }
     const cid = conversationId;
     after(() => processAutoReply(admin.shopId, cid, ""));
   }

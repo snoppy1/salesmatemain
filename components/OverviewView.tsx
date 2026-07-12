@@ -356,7 +356,7 @@ function MessagesBarChart({ days }: { days: OverviewDay[] | null }) {
     return (
       <div className="h-full animate-pulse rounded-2xl border border-line bg-surface p-5">
         <div className="h-4 w-40 rounded bg-surface2" />
-        <div className="mt-4 h-[190px] rounded bg-surface2" />
+        <div className="mt-4 h-40 rounded bg-surface2 sm:h-44" />
       </div>
     );
   }
@@ -417,9 +417,12 @@ function MessagesBarChart({ days }: { days: OverviewDay[] | null }) {
           </div>
         )}
 
+        {/* ความสูงคงที่ (ไม่โตตามความกว้างจอ) — preserveAspectRatio none ให้แท่งเต็มความกว้างที่ความสูงเท่าเดิม
+            ป้ายชื่อวันย้ายไปเป็น HTML ด้านล่าง กันตัวอักษรยืดเพี้ยนตอน svg ถูกยืดแนวนอน */}
         <svg
-          viewBox={`0 0 ${BW} ${BH}`}
-          className="w-full"
+          viewBox={`0 0 ${BW} ${B_BASE_Y}`}
+          preserveAspectRatio="none"
+          className="h-40 w-full sm:h-44"
           role="img"
           aria-label="กราฟแท่งเทียบข้อความลูกค้าทักกับข้อความที่ AI ตอบ รายวัน 7 วันล่าสุด"
           onMouseLeave={() => setHover(null)}
@@ -474,16 +477,6 @@ function MessagesBarChart({ days }: { days: OverviewDay[] | null }) {
                     style={{ animationDelay: `${60 + i * 45}ms` }}
                   />
                 )}
-                <text
-                  x={gx + groupW / 2}
-                  y={BH - 6}
-                  textAnchor="middle"
-                  className="fill-[var(--text-muted)]"
-                  fontSize="11"
-                  fontWeight={d.isToday ? 700 : 400}
-                >
-                  {d.label}
-                </text>
               </g>
             );
           })}
@@ -494,6 +487,20 @@ function MessagesBarChart({ days }: { days: OverviewDay[] | null }) {
             ยังไม่มีบทสนทนาในช่วงนี้ ตัวเลขจะเริ่มนับเมื่อลูกค้าทักเข้ามา
           </p>
         )}
+
+        {/* ป้ายชื่อวัน (HTML — ไม่ยืดเพี้ยนตาม svg) เรียงตรงกับคอลัมน์แท่ง */}
+        <div className="mt-1.5 flex px-1">
+          {days.map((d, i) => (
+            <span
+              key={i}
+              className={`flex-1 text-center text-[11px] ${
+                d.isToday ? "font-bold text-fg" : "text-muted"
+              }`}
+            >
+              {d.label}
+            </span>
+          ))}
+        </div>
       </div>
 
       {/* ตารางข้อมูลสำหรับ screen reader (ทางเลือกไม่พึ่งสี/กราฟ) */}
@@ -824,9 +831,10 @@ function TrendChartCard<T extends ChartDay>({
           </div>
         )}
 
+        {/* ล็อกความสูงสูงสุด กันกราฟสูงเวอร์ตามความกว้างจอ (จุด/ตัวเลขยังคงสัดส่วน ไม่เพี้ยน) */}
         <svg
           viewBox={`0 0 ${W} ${H}`}
-          className="w-full"
+          className="mx-auto block max-h-[240px] w-full"
           role="img"
           aria-label={`กราฟเส้น${title} 7 วันล่าสุด`}
           onMouseLeave={() => setHover(null)}

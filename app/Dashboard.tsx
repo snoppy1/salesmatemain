@@ -384,8 +384,8 @@ export default function Dashboard({
         settings={mockSettings}
         onToggleAll={setAllMock}
       />
-      {/* มือถือ: เมนูเป็นแถบล่าง (กันที่ด้วย pb-20) / จอใหญ่: rail ซ้าย */}
-      <main className="pb-20 md:pb-0 md:pl-16">
+      {/* มือถือ: เมนูเป็นแถบล่าง (กันที่ด้วย pb-20) / จอใหญ่: sidebar ซ้ายเปิดค้าง 256px + เว้นช่องกับเนื้อหา */}
+      <main className="pb-20 md:pb-0 md:pl-[17rem]">
         {/* ภาพรวมเป็นแดชบอร์ด data-forward → เต็มความกว้างจอ (เหมือน dashboard เต็มจอ) คุมสุดที่ 2560 กันจอ 4K ยืดเกิน
             ส่วนตั้งค่า/คลังสินค้าเป็นฟอร์ม → คง max-w-6xl ไว้ให้ measure อ่านง่าย ไม่ยืดจนล้า
             padding เพิ่มขั้นตามจอ (มือถือ 16 → sm 24 → lg 32 → 2xl 48) กันเนื้อหาชิดขอบบนจอใหญ่ */}
@@ -462,13 +462,12 @@ function Sidebar({
     { key: "settings", label: "ตั้งค่าร้าน", icon: <IconStore /> },
   ];
 
-  // ป้ายเมนู: จอใหญ่โผล่ตอน hover "หรือ" ตอนโฟกัสด้วยคีย์บอร์ด (กันผู้ใช้คีย์บอร์ด tab ผ่านป้ายล่องหน)
-  const railLabel =
-    "whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100";
+  // ป้ายเมนู: จอใหญ่แสดงตลอด (sidebar เปิดค้าง)
+  const railLabel = "whitespace-nowrap";
 
   return (
-    /* มือถือ: แถบล่างแนวนอน (นิ้วโป้งเอื้อมถึง) / จอใหญ่: rail ซ้าย เลื่อนกว้างตอน hover */
-    <aside className="group fixed inset-x-0 bottom-0 z-40 flex h-16 flex-row items-stretch overflow-hidden border-t border-line bg-surface transition-[width] duration-200 ease-out motion-reduce:transition-none md:inset-x-auto md:inset-y-0 md:bottom-auto md:left-0 md:h-auto md:w-16 md:flex-col md:border-r md:border-t-0 md:hover:w-64">
+    /* มือถือ: แถบล่างแนวนอน (นิ้วโป้งเอื้อมถึง) / จอใหญ่: sidebar ซ้ายเปิดค้าง 256px */
+    <aside className="group fixed inset-x-0 bottom-0 z-40 flex h-16 flex-row items-stretch overflow-hidden border-t border-line bg-surface md:inset-x-auto md:inset-y-0 md:bottom-auto md:left-0 md:h-auto md:w-64 md:flex-col md:border-r md:border-t-0">
       {/* โลโก้ (เฉพาะจอใหญ่) — ข้อความ SalesMate เลื่อนออกมาตอน hover/focus */}
       <div className="hidden h-16 items-center gap-3 px-3 md:flex">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -477,7 +476,7 @@ function Sidebar({
           alt="SalesMate"
           className="h-10 w-10 shrink-0 object-contain"
         />
-        <span className="whitespace-nowrap text-lg font-bold tracking-tight text-fg opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+        <span className="whitespace-nowrap text-lg font-bold tracking-tight text-fg">
           SalesMate
         </span>
       </div>
@@ -537,7 +536,7 @@ function Sidebar({
         <div className="flex items-center gap-3 rounded-lg px-3 py-1 text-muted">
           <span className={`truncate text-xs ${railLabel}`}>@{username}</span>
         </div>
-        <div className="flex items-center gap-2 px-3 pb-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+        <div className="flex items-center gap-2 px-3 pb-1">
           <button
             type="button"
             onClick={onLogout}

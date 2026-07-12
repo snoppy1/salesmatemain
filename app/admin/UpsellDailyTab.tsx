@@ -12,11 +12,12 @@ type Row = {
   estValue: number;
   sold: number;
   soldValue: number;
+  cards: number;
 };
 type Data = {
   days: number;
   rows: Row[];
-  totals: { offered: number; estValue: number; sold: number; soldValue: number };
+  totals: { offered: number; estValue: number; sold: number; soldValue: number; cards: number };
 };
 
 const RANGES: { days: number; label: string }[] = [
@@ -78,10 +79,11 @@ export default function UpsellDailyTab() {
 
       {data && (
         <>
-          {/* สรุปทั้งช่วง */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {/* สรุปทั้งช่วง — กรวย: เสนอ → ส่งการ์ด (ของถึงมือลูกค้า) → ซื้อจริง */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
             {[
               { label: "AI เสนอพ่วง", value: `${data.totals.offered.toLocaleString()} ครั้ง` },
+              { label: "ส่งการ์ดสินค้า (Lazada)", value: `${data.totals.cards.toLocaleString()} ใบ` },
               { label: "มูลค่าที่เสนอ (ประมาณ)", value: `฿${data.totals.estValue.toLocaleString()}` },
               { label: "ปิดได้จริง", value: `${data.totals.sold.toLocaleString()} ครั้ง` },
               { label: "ยอดขายจริงจากพ่วง", value: `฿${data.totals.soldValue.toLocaleString()}` },
@@ -112,6 +114,7 @@ export default function UpsellDailyTab() {
                       <tr className="border-b border-line text-left text-xs text-muted">
                         <th className="px-4 py-2 font-medium">ร้าน</th>
                         <th className="px-4 py-2 font-medium text-right">เสนอพ่วง</th>
+                        <th className="px-4 py-2 font-medium text-right">ส่งการ์ด</th>
                         <th className="px-4 py-2 font-medium text-right">มูลค่าที่เสนอ (ประมาณ)</th>
                         <th className="px-4 py-2 font-medium text-right">ปิดได้จริง</th>
                         <th className="px-4 py-2 font-medium text-right">ยอดขายจริง</th>
@@ -121,9 +124,14 @@ export default function UpsellDailyTab() {
                       {rows.map((r) => (
                         <tr key={`${r.day}-${r.shopId}`} className="border-b border-line last:border-0">
                           <td className="px-4 py-2 font-medium text-fg">{r.shopName || "(ไม่มีชื่อ)"}</td>
-                          <td className="px-4 py-2 text-right">{r.offered.toLocaleString()} ครั้ง</td>
+                          <td className="px-4 py-2 text-right">
+                            {r.offered > 0 ? `${r.offered.toLocaleString()} ครั้ง` : "-"}
+                          </td>
+                          <td className="px-4 py-2 text-right">
+                            {r.cards > 0 ? `${r.cards.toLocaleString()} ใบ` : "-"}
+                          </td>
                           <td className="px-4 py-2 text-right whitespace-nowrap text-muted">
-                            ฿{r.estValue.toLocaleString()}
+                            {r.estValue > 0 ? `฿${r.estValue.toLocaleString()}` : "-"}
                           </td>
                           <td className="px-4 py-2 text-right">
                             {r.sold > 0 ? `${r.sold.toLocaleString()} ครั้ง` : "-"}
@@ -142,6 +150,8 @@ export default function UpsellDailyTab() {
 
           <p className="text-xs text-muted">
             &quot;มูลค่าที่เสนอ&quot; เป็นตัวเลขประมาณจากราคาสินค้าตอน AI เสนอ ·
+            &quot;ส่งการ์ด&quot; = การ์ดสินค้าที่ยื่นถึงมือลูกค้าในแชต Lazada (ขากลางของกรวย เสนอ→เห็นของ→ซื้อ;
+            Lazada ไม่บอกว่าลูกค้ากดการ์ดไหม) ·
             &quot;ปิดได้จริง/ยอดขายจริง&quot; นับเฉพาะที่แมตช์กับออเดอร์จริงแล้วเท่านั้น
           </p>
         </>

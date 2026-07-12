@@ -66,6 +66,23 @@ export async function listUnsoldUpsells(shopId: string, sinceMs: number): Promis
   }));
 }
 
+/** จำนวน "การ์ดสินค้า" ที่ส่งให้ลูกค้า รายวันรายร้าน — ขากลางของกรวย เสนอ→เห็นของ→ซื้อ
+ *  (นับจากข้อความ [การ์ดสินค้า] ที่ระบบบันทึกตอนส่งการ์ดจริงสำเร็จ) */
+export async function dailyCardSendsByShop(
+  sinceMs: number,
+): Promise<{ day: string; shopId: string; cards: number }[]> {
+  const rows = await query<{ shop_id: string; day: string; cards: number }>(
+    `SELECT c.shop_id,
+            to_char(to_timestamp(m.created_at / 1000) AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM-DD') AS day,
+            COUNT(*)::int AS cards
+       FROM messages m JOIN conversations c ON c.id = m.conversation_id
+      WHERE m.created_at >= $1 AND m.ai_generated = true AND m.text LIKE '[การ์ดสินค้า]%'
+      GROUP BY c.shop_id, day`,
+    [sinceMs],
+  );
+  return rows.map((r) => ({ day: r.day, shopId: r.shop_id, cards: Number(r.cards) }));
+}
+
 /** ร้านที่มีพ่วง Lazada ค้างรอแมตช์ (ยังไม่ sold) ในช่วง sinceMs — ให้ cron ไล่แมตช์อัตโนมัติ */
 export async function shopsWithUnsoldLazadaUpsells(sinceMs: number): Promise<string[]> {
   const rows = await query<{ shop_id: string }>(

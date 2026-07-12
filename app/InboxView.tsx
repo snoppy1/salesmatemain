@@ -145,8 +145,12 @@ function sendBaseFor(channel: string | undefined): string {
 
 export default function InboxView({
   mockSettings = {},
+  genderSet = true,
+  requireGenderThen,
 }: {
   mockSettings?: MockSettings;
+  genderSet?: boolean; // ร้านตั้งเพศ AI แล้วหรือยัง
+  requireGenderThen?: (action: () => void) => void; // ยังไม่ตั้งเพศ → เด้งถามก่อนแล้วค่อยทำต่อ
 }) {
   // เริ่มจาก cache ที่เคยโหลดไว้ (สลับหน้ากลับมาไม่ต้องเริ่มศูนย์)
   const [conversations, setConversations] =
@@ -330,8 +334,16 @@ export default function InboxView({
     if (activeIdRef.current) void loadDetail(activeIdRef.current);
   }
 
-  // เพิ่มแอปเข้ากล่องแชต
-  async function addApp(channel: string) {
+  // เพิ่มแอปเข้ากล่องแชต — ถ้ายังไม่ตั้งเพศ AI ให้เด้งถามก่อน แล้วค่อยเพิ่มกล่องต่อ
+  function addApp(channel: string) {
+    if (!genderSet && requireGenderThen) {
+      requireGenderThen(() => void doAddApp(channel));
+      return;
+    }
+    void doAddApp(channel);
+  }
+
+  async function doAddApp(channel: string) {
     try {
       const r = await fetch("/api/inbox/apps", {
         method: "POST",

@@ -89,11 +89,24 @@ export default function Dashboard({
   const [metricsKey, setMetricsKey] = useState(0); // bump เพื่อให้การ์ดวัดยอดโหลดใหม่
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<number | null>(null);
-  // บังคับเลือกเพศผู้ช่วย AI ครั้งแรก (ร้านที่ยังไม่เคยตั้ง) — โมดัลปิดไม่ได้จนกว่าจะเลือก
+  // เลือกเพศผู้ช่วย AI — ไม่เด้งตอนเข้าเว็บ แต่เด้งถามตอนกดสร้างกล่องแชตครั้งแรกที่ยังไม่ตั้งเพศ
   const [genderSaving, setGenderSaving] = useState(false);
-  const needGender = shop.gender !== "male" && shop.gender !== "female";
+  const [showGenderModal, setShowGenderModal] = useState(false);
+  const genderSet = shop.gender === "male" || shop.gender === "female";
+  const afterGenderRef = useRef<(() => void) | null>(null); // งานที่จะทำต่อหลังเลือกเพศ (เช่น เพิ่มกล่องที่กดค้างไว้)
 
-  // เลือกเพศตอน onboard → บันทึกทันที (payload ตรงๆ กัน stale closure) แล้ว state อัปเดต → โมดัลปิดเอง
+  // ต้องเลือกเพศก่อนทำ action → เปิดโมดัล เก็บ action ไว้ทำต่อเมื่อเลือกเสร็จ
+  function requireGenderThen(action: () => void) {
+    afterGenderRef.current = action;
+    setShowGenderModal(true);
+  }
+
+  function cancelGenderModal() {
+    afterGenderRef.current = null;
+    setShowGenderModal(false);
+  }
+
+  // เลือกเพศ → บันทึกทันที (payload ตรงๆ กัน stale closure) → ปิดโมดัล → ทำ action ที่ค้างไว้ต่อ
   async function chooseGender(g: "male" | "female") {
     if (genderSaving) return;
     setGenderSaving(true);
@@ -109,6 +122,11 @@ export default function Dashboard({
         return;
       }
       setShop(nextShop);
+      setGenderSaving(false);
+      setShowGenderModal(false);
+      const next = afterGenderRef.current;
+      afterGenderRef.current = null;
+      next?.();
     } catch {
       setGenderSaving(false);
     }
@@ -408,8 +426,12 @@ export default function Dashboard({
         settings={mockSettings}
         onToggleAll={setAllMock}
       />
-      {needGender && (
-        <GenderOnboardModal saving={genderSaving} onChoose={chooseGender} />
+      {showGenderModal && (
+        <GenderOnboardModal
+          saving={genderSaving}
+          onChoose={chooseGender}
+          onCancel={cancelGenderModal}
+        />
       )}
       {/* มือถือ: เมนูเป็นแถบล่าง (กันที่ด้วย pb-20) / จอใหญ่: sidebar ซ้ายเปิดค้าง 256px + เว้นช่องกับเนื้อหา */}
       <main className="pb-20 md:pb-0 md:pl-[17rem]">
@@ -427,7 +449,13 @@ export default function Dashboard({
               onGoSettings={() => setView("settings")}
             />
           )}
-          {view === "inbox" && <InboxView mockSettings={mockSettings} />}
+          {view === "inbox" && (
+            <InboxView
+              mockSettings={mockSettings}
+              genderSet={genderSet}
+              requireGenderThen={requireGenderThen}
+            />
+          )}
           {view === "settings" && (
             <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
               <SettingsView
@@ -666,9 +694,11 @@ function MockSettingsModal({
 function GenderOnboardModal({
   saving,
   onChoose,
+  onCancel,
 }: {
   saving: boolean;
   onChoose: (g: "male" | "female") => void;
+  onCancel: () => void;
 }) {
   const opts: {
     key: "male" | "female";
@@ -680,22 +710,26 @@ function GenderOnboardModal({
     { key: "male", label: "ผู้ชาย", ending: "ครับ" },
   ];
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+      onClick={saving ? undefined : onCancel}
+    >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="gender-onboard-title"
         className="w-full max-w-md rounded-2xl border border-line bg-surface p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
       >
         <h3
           id="gender-onboard-title"
           className="text-lg font-bold text-fg"
         >
-          เลือกก่อนเริ่มใช้ — ผู้ช่วย AI ของร้านพูดแบบไหน?
+          ก่อนสร้างกล่องแชต — ผู้ช่วย AI ของร้านพูดแบบไหน?
         </h3>
         <p className="mt-2 text-sm leading-relaxed text-muted">
-          เพศของผู้ช่วยจะคุมคำลงท้ายทุกข้อความที่ตอบลูกค้า
-          เปลี่ยนภายหลังได้ที่หน้า “ตั้งค่าร้าน”
+          เพศของผู้ช่วยจะคุมคำลงท้ายทุกข้อความที่ตอบลูกค้า (ครับ/ค่ะ)
+          เลือกครั้งเดียว เปลี่ยนภายหลังได้ที่หน้า “ตั้งค่าร้าน”
         </p>
         <div className="mt-5 grid gap-3">
           {opts.map((o) => (
@@ -726,8 +760,16 @@ function GenderOnboardModal({
             </button>
           ))}
         </div>
-        {saving && (
+        {saving ? (
           <p className="mt-3 text-center text-xs text-muted">กำลังบันทึก…</p>
+        ) : (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="mt-3 w-full rounded-lg px-3 py-2 text-center text-sm font-medium text-muted transition hover:text-fg"
+          >
+            ยกเลิก
+          </button>
         )}
       </div>
     </div>

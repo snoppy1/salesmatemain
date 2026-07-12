@@ -22,6 +22,8 @@ export default {
           DEFAULT: "rgb(var(--accent-rgb) / <alpha-value>)",
           contrast: "var(--accent-contrast)",
         },
+        // สีรอง "เนื้อทราย" — ป้ายไอคอน/ชิป/แท่งกราฟฝั่งการกระทำของ AI (คู่กับ accent เขียว)
+        sand: "rgb(var(--sand-rgb) / <alpha-value>)",
       },
       fontFamily: {
         sans: [

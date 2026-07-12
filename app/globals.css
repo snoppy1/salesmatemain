@@ -15,6 +15,10 @@
   --accent: #059669;
   --accent-rgb: 5 150 105; /* = --accent (ให้ Tailwind ใส่ alpha ได้) */
   --accent-contrast: #ffffff;
+  /* สีรอง "เนื้อทราย" (warm sand) — ป้ายไอคอน/แท่งกราฟฝั่งการกระทำของ AI คู่กับ emerald
+     ค่าจูนผ่าน dataviz validator ร่วมกับ --chart-msgs/--chart-upsell และผ่าน 4.5:1 บนพื้นสว่าง */
+  --sand: #a26a2c;
+  --sand-rgb: 162 106 44;
   /* สีกราฟ (ผ่าน dataviz validator ทั้ง 2 โหมด: lightness/chroma/CVD/contrast) */
   --chart-msgs: #2563eb;
   --chart-upsell: #059669;
@@ -33,6 +37,8 @@ html.dark {
   --accent: #34d399;
   --accent-rgb: 52 211 153;
   --accent-contrast: #04140d;
+  --sand: #bd854a;
+  --sand-rgb: 189 133 74;
   --chart-msgs: #4f8ef0;
   --chart-upsell: #1fae86;
   --chart-ai: #c08427;
@@ -93,6 +99,18 @@ body {
 }
 .chart-fade {
   animation: chart-fade 0.4s ease 0.5s both;
+}
+
+/* ---------- กราฟแท่ง: แท่งโตขึ้นจากเส้นฐาน (เล่าเหตุ-ผล: ค่ามากแท่งยิ่งสูง) ---------- */
+@keyframes bar-rise {
+  from {
+    transform: scaleY(0);
+  }
+}
+.chart-bar {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: bar-rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* ---------- หน้า auth (login/signup/forgot): ลูกเล่นเข้าหน้า + แสงตามเมาส์ ---------- */

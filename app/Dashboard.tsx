@@ -16,6 +16,8 @@ import type {
   MockSettings,
 } from "@/lib/types";
 import ThemeToggle from "@/components/ThemeToggle";
+import { SiFacebook, SiLine, SiShopee, SiTiktok } from "react-icons/si";
+import { LazadaMark } from "@/components/BrandMarks";
 import InboxView from "./InboxView";
 import UpsellMetric from "@/components/UpsellMetric";
 import OverviewView from "@/components/OverviewView";
@@ -385,7 +387,12 @@ export default function Dashboard({
       {/* มือถือ: เมนูเป็นแถบล่าง (กันที่ด้วย pb-20) / จอใหญ่: rail ซ้าย */}
       <main className="pb-20 md:pb-0 md:pl-16">
         <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
-          {view === "overview" && <OverviewView onGoInbox={() => setView("inbox")} />}
+          {view === "overview" && (
+            <OverviewView
+              onGoInbox={() => setView("inbox")}
+              onGoSettings={() => setView("settings")}
+            />
+          )}
           {view === "inbox" && <InboxView mockSettings={mockSettings} />}
           {view === "settings" && (
             <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
@@ -588,7 +595,7 @@ function MockSettingsModal({
             aria-label="ปิด"
             className="rounded-md p-1 text-muted transition hover:bg-surface2 hover:text-fg"
           >
-            ✕
+            <IconX />
           </button>
         </div>
         <p className="mb-3 text-xs text-muted">
@@ -649,6 +656,51 @@ function IconList() {
     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
     </svg>
+  );
+}
+function IconX() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M18 6L6 18M6 6l12 12" />
+    </svg>
+  );
+}
+function IconRefresh({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 12a9 9 0 11-2.64-6.36" />
+      <path d="M21 3v6h-6" />
+    </svg>
+  );
+}
+function IconLink({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+    </svg>
+  );
+}
+function IconSparkle({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3l1.9 5.8a2 2 0 001.3 1.3L21 12l-5.8 1.9a2 2 0 00-1.3 1.3L12 21l-1.9-5.8a2 2 0 00-1.3-1.3L3 12l5.8-1.9a2 2 0 001.3-1.3L12 3z" />
+    </svg>
+  );
+}
+function IconChevronDown({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+/** เลขลำดับขั้นตอน (แทน 1️⃣2️⃣ เดิม) — วงกลมจางสี accent อ่านชัดทั้งสองธีม */
+function StepBadge({ n }: { n: number }) {
+  return (
+    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[11px] font-bold tabular-nums text-accent">
+      {n}
+    </span>
   );
 }
 function IconGear() {
@@ -802,8 +854,9 @@ function LineConnectBox() {
   return (
     <div className="mt-6 rounded-xl border border-green-200 bg-green-50/50 p-4 dark:border-green-900/60 dark:bg-green-950/20">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-green-800 dark:text-green-300">
-          💬 เชื่อม LINE OA{" "}
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-green-800 dark:text-green-300">
+          <SiLine className="h-4 w-4 shrink-0" aria-hidden="true" />
+          เชื่อม LINE OA
           {status?.mock && (
             <span className="text-xs font-normal text-green-600 dark:text-green-400">
               (โหมดทดลอง)
@@ -845,7 +898,7 @@ function LineConnectBox() {
         <div className="mt-3 space-y-3">
           <div className="space-y-3 text-xs text-muted">
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-              ℹ️ ต้องมี <b>LINE Official Account (บัญชีทางการของร้าน)</b> ก่อน — ยังไม่มี สมัครฟรีที่{" "}
+              ต้องมี <b>LINE Official Account (บัญชีทางการของร้าน)</b> ก่อน — ยังไม่มี สมัครฟรีที่{" "}
               <a
                 href="https://manager.line.biz"
                 target="_blank"
@@ -857,8 +910,9 @@ function LineConnectBox() {
             </p>
 
             <div>
-              <p className="mb-1 font-semibold text-fg">
-                1️⃣ เอารหัส 2 ตัวจากเว็บ LINE Developers
+              <p className="mb-1 flex items-center gap-1.5 font-semibold text-fg">
+                <StepBadge n={1} />
+                เอารหัส 2 ตัวจากเว็บ LINE Developers
               </p>
               <ol className="list-decimal space-y-1.5 pl-5">
                 <li>
@@ -884,8 +938,9 @@ function LineConnectBox() {
             </div>
 
             <div>
-              <p className="mb-1 font-semibold text-fg">
-                2️⃣ วางลิงก์รับข้อความ (Webhook)
+              <p className="mb-1 flex items-center gap-1.5 font-semibold text-fg">
+                <StepBadge n={2} />
+                วางลิงก์รับข้อความ (Webhook)
               </p>
               <p>
                 ยังอยู่แท็บ <b>Messaging API</b> → เอาลิงก์ข้างล่างนี้ไปวางช่อง{" "}
@@ -906,8 +961,9 @@ function LineConnectBox() {
             </div>
 
             <div>
-              <p className="mb-1 font-semibold text-fg">
-                3️⃣ ปิดบอทอัตโนมัติเดิม (กันตอบชนกับ AI)
+              <p className="mb-1 flex items-center gap-1.5 font-semibold text-fg">
+                <StepBadge n={3} />
+                ปิดบอทอัตโนมัติเดิม (กันตอบชนกับ AI)
               </p>
               <p>
                 กลับไปที่{" "}
@@ -924,8 +980,11 @@ function LineConnectBox() {
               </p>
             </div>
 
-            <p className="font-medium text-fg">
-              4️⃣ เอา <b>Channel secret</b> + <b>access token</b> มาวาง 2 ช่องล่างนี้ แล้วกด “เชื่อม LINE” ✅
+            <p className="flex items-center gap-1.5 font-medium text-fg">
+              <StepBadge n={4} />
+              <span>
+                เอา <b>Channel secret</b> + <b>access token</b> มาวาง 2 ช่องล่างนี้ แล้วกด “เชื่อม LINE”
+              </span>
             </p>
           </div>
 
@@ -998,7 +1057,7 @@ function FacebookConnectBox() {
     if (fb) {
       const reason = sp.get("reason");
       const map: Record<string, string> = {
-        connected: "เชื่อม Facebook สำเร็จ 🎉",
+        connected: "เชื่อม Facebook สำเร็จ",
         choose: "คุณมีหลายเพจ — เลือกเพจที่จะใช้ด้านล่าง",
         nopage: "ไม่พบเพจที่คุณเป็นแอดมิน — สร้างเพจก่อนแล้วลองใหม่",
         error: reason ? `เชื่อมไม่สำเร็จ: ${reason}` : "เชื่อมไม่สำเร็จ ลองใหม่อีกครั้ง",
@@ -1027,7 +1086,7 @@ function FacebookConnectBox() {
         return;
       }
       setPages([]);
-      setNotice("เชื่อม Facebook สำเร็จ 🎉");
+      setNotice("เชื่อม Facebook สำเร็จ");
       await loadStatus();
     } catch {
       setErr("เลือกเพจไม่สำเร็จ ลองใหม่");
@@ -1082,8 +1141,9 @@ function FacebookConnectBox() {
   return (
     <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-900/60 dark:bg-blue-950/20">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-blue-800 dark:text-blue-300">
-          📘 เชื่อม Facebook (Messenger){" "}
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-blue-800 dark:text-blue-300">
+          <SiFacebook className="h-4 w-4 shrink-0" aria-hidden="true" />
+          เชื่อม Facebook (Messenger)
           {status?.mock && (
             <span className="text-xs font-normal text-blue-600 dark:text-blue-400">
               (โหมดทดลอง)
@@ -1178,7 +1238,7 @@ function FacebookConnectBox() {
             </summary>
             {status && !status.configured && (
               <p className="mt-2 rounded bg-amber-50 px-2 py-1.5 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-                ⚠️ ยังไม่ได้ตั้ง env <code>FB_APP_ID</code>, <code>FB_APP_SECRET</code>,{" "}
+                ยังไม่ได้ตั้ง env <code>FB_APP_ID</code>, <code>FB_APP_SECRET</code>,{" "}
                 <code>FB_VERIFY_TOKEN</code> — ปุ่มเชื่อมจะใช้ไม่ได้ (mock ใส่ token ขึ้นต้น mock- ได้)
               </p>
             )}
@@ -1298,8 +1358,9 @@ function TiktokConnectBox() {
   return (
     <div className="mt-6 rounded-xl border border-line bg-surface2 p-4">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-fg">
-          🎵 เชื่อมแชต TikTok{" "}
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-fg">
+          <SiTiktok className="h-4 w-4 shrink-0" aria-hidden="true" />
+          เชื่อมแชต TikTok
           {status?.mock && (
             <span className="text-xs font-normal text-muted">
               (โหมดทดลอง)
@@ -1339,7 +1400,7 @@ function TiktokConnectBox() {
       ) : (
         <div className="mt-3 space-y-3">
           <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-            ℹ️ แชต TikTok ต้องสมัครเป็น TikTok Shop Partner ก่อน (API จำกัดกว่าเจ้าอื่น) —
+            แชต TikTok ต้องสมัครเป็น TikTok Shop Partner ก่อน (API จำกัดกว่าเจ้าอื่น) —
             ตอนนี้ใส่ token ขึ้นต้น <code>mock-</code> เพื่อทดลองก่อนได้ พอได้สิทธิ์จริงค่อยใส่ token จริง
           </p>
 
@@ -1457,8 +1518,9 @@ function LazadaConnectBox() {
   return (
     <div className="mt-6 rounded-xl border border-line bg-surface2 p-4">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-fg">
-          🛍️ เชื่อมแชต Lazada{" "}
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-fg">
+          <LazadaMark className="h-4 w-4 shrink-0" />
+          เชื่อมแชต Lazada
           {status?.mock && (
             <span className="text-xs font-normal text-muted">
               (โหมดทดลอง)
@@ -1539,7 +1601,8 @@ function LazadaConnectBox() {
             href="/api/lazada/connect/start"
             className="inline-flex items-center gap-2 rounded-lg bg-[#0F146E] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0a0e52]"
           >
-            🛍️ เชื่อม Lazada (เข้าสู่ระบบ)
+            <LazadaMark className="h-4 w-4" />
+            เชื่อม Lazada (เข้าสู่ระบบ)
           </a>
           <ol className="list-decimal space-y-1 pl-5 text-xs text-muted">
             <li>กดปุ่มด้านบน → ล็อกอินบัญชี <b>Lazada Seller</b> ของร้าน</li>
@@ -1671,8 +1734,9 @@ function ShopeeConnectBox() {
   return (
     <div className="mt-6 rounded-xl border border-line bg-surface2 p-4">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-fg">
-          🛒 เชื่อมแชต Shopee{" "}
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-fg">
+          <SiShopee className="h-4 w-4 shrink-0" aria-hidden="true" />
+          เชื่อมแชต Shopee
           {status?.mock && (
             <span className="text-xs font-normal text-muted">
               (โหมดทดลอง)
@@ -1712,7 +1776,7 @@ function ShopeeConnectBox() {
       ) : (
         <div className="mt-3 space-y-3">
           <p className="rounded-lg bg-accent/10 px-3 py-2 text-xs text-accent">
-            ✅ Shopee เปิด Chat API กว้างที่สุดในสาม marketplace — ใช้ Access Token + Shop ID จากการเชื่อม Shopee
+            Shopee เปิด Chat API กว้างที่สุดในสาม marketplace — ใช้ Access Token + Shop ID จากการเชื่อม Shopee
             (โหมดทดลองใส่ token ขึ้นต้น <code>mock-</code> ได้เลย ไม่ต้องใส่ Shop ID)
           </p>
 
@@ -1856,9 +1920,10 @@ function CatalogView({
           type="button"
           onClick={() => void onSync()}
           disabled={syncing}
-          className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-contrast transition hover:opacity-90 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-contrast transition hover:opacity-90 disabled:opacity-50"
         >
-          {syncing ? "กำลังซิงค์…" : "🔄 ซิงค์สต็อก"}
+          <IconRefresh className={syncing ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"} />
+          {syncing ? "กำลังซิงค์…" : "ซิงค์สต็อก"}
         </button>
         <span className="text-xs text-muted">
           {lastSync
@@ -2198,7 +2263,7 @@ function SaveButton({ save, onSave }: { save: SaveState; onSave: () => void }) {
 type MktConfig = {
   platform: string;
   label: string;
-  emoji: string;
+  Icon: (props: { className?: string }) => React.ReactElement;
   box: string;
   title: string;
   mockText: string;
@@ -2209,7 +2274,7 @@ const MARKETPLACES: MktConfig[] = [
   {
     platform: "lazada",
     label: "Lazada",
-    emoji: "🛒",
+    Icon: LazadaMark,
     box: "border-orange-200 bg-orange-50/50 dark:border-orange-900/60 dark:bg-orange-950/20",
     title: "text-orange-800 dark:text-orange-300",
     mockText: "text-orange-600 dark:text-orange-400",
@@ -2218,7 +2283,7 @@ const MARKETPLACES: MktConfig[] = [
   {
     platform: "shopee",
     label: "Shopee",
-    emoji: "🛍️",
+    Icon: (p) => <SiShopee className={p.className} aria-hidden="true" />,
     box: "border-red-200 bg-red-50/50 dark:border-red-900/60 dark:bg-red-950/20",
     title: "text-red-800 dark:text-red-300",
     mockText: "text-red-600 dark:text-red-400",
@@ -2227,7 +2292,7 @@ const MARKETPLACES: MktConfig[] = [
   {
     platform: "tiktok",
     label: "TikTok Shop",
-    emoji: "🎵",
+    Icon: (p) => <SiTiktok className={p.className} aria-hidden="true" />,
     box: "border-line bg-surface2",
     title: "text-fg",
     mockText: "text-muted",
@@ -2311,8 +2376,9 @@ function MarketplaceBox({
   return (
     <div className={`rounded-xl border p-3 ${cfg.box}`}>
       <div className="flex items-center justify-between gap-2">
-        <span className={`text-sm font-semibold ${cfg.title}`}>
-          {cfg.emoji} เชื่อมต่อร้านค้า {cfg.label}{" "}
+        <span className={`flex items-center gap-1.5 text-sm font-semibold ${cfg.title}`}>
+          <cfg.Icon className="h-4 w-4 shrink-0" />
+          เชื่อมต่อร้านค้า {cfg.label}
           {mock && (
             <span className={`text-xs font-normal ${cfg.mockText}`}>(โหมดทดลอง)</span>
           )}
@@ -2404,10 +2470,13 @@ function ImportUrlBox({
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between text-left"
       >
-        <span className="text-sm font-semibold text-sky-800 dark:text-sky-300">
-          🔗 วางลิงก์สินค้า — AI ดึงชื่อ/ราคา/รูป จากหน้าเว็บให้เอง
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-sky-800 dark:text-sky-300">
+          <IconLink className="h-4 w-4 shrink-0" />
+          วางลิงก์สินค้า — AI ดึงชื่อ/ราคา/รูป จากหน้าเว็บให้เอง
         </span>
-        <span className="text-sky-700 dark:text-sky-400">{open ? "▲" : "▼"}</span>
+        <IconChevronDown
+          className={`h-4 w-4 shrink-0 text-sky-700 transition-transform dark:text-sky-400 ${open ? "rotate-180" : ""}`}
+        />
       </button>
 
       {open && (
@@ -2485,10 +2554,13 @@ function ImportBox({
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between text-left"
       >
-        <span className="text-sm font-semibold text-accent">
-          ✨ นำเข้าอัตโนมัติ — วางข้อความ AI แยกเป็นรายการสินค้าให้เอง
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-accent">
+          <IconSparkle className="h-4 w-4 shrink-0" />
+          นำเข้าอัตโนมัติ — วางข้อความ AI แยกเป็นรายการสินค้าให้เอง
         </span>
-        <span className="text-accent">{open ? "▲" : "▼"}</span>
+        <IconChevronDown
+          className={`h-4 w-4 shrink-0 text-accent transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </button>
 
       {open && (

@@ -28,6 +28,10 @@ export function proxy(req: NextRequest) {
   // ----- โซนร้าน -----
   const isShopAuthPage =
     pathname === "/login" || pathname === "/signup" || pathname === "/forgot";
+  // หน้าแรกของคนยังไม่ล็อกอิน = landing page (rewrite ภายใน — URL ยังเป็น / สวยๆ)
+  if (!hasShop && pathname === "/") {
+    return NextResponse.rewrite(new URL("/landing.html", req.url));
+  }
   if (!hasShop && !isShopAuthPage) return redirectTo(req, "/login");
   if (hasShop && isShopAuthPage) return redirectTo(req, "/");
   return NextResponse.next();

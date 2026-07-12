@@ -25,6 +25,7 @@ type RuleRow = {
 type ProductRow = {
   id: string;
   name: string;
+  ai_name: string | null;
   description: string;
   price: string;
   image_url: string | null;
@@ -145,7 +146,7 @@ export async function getShopData(shopId: string): Promise<ShopData> {
   );
 
   const productRows = await query<ProductRow>(
-    `SELECT id, name, description, price, image_url, source, external_id, enabled,
+    `SELECT id, name, ai_name, description, price, image_url, source, external_id, enabled,
             stock, stock_by_platform
      FROM products WHERE shop_id = $1 ORDER BY sort_order ASC`,
     [shopId],
@@ -169,6 +170,7 @@ export async function getShopData(shopId: string): Promise<ShopData> {
     products: productRows.map((p) => ({
       id: p.id,
       name: p.name,
+      aiName: p.ai_name ?? undefined,
       description: p.description,
       price: p.price,
       image: p.image_url ?? undefined,
@@ -271,6 +273,7 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
   const cleanProduct = (p: Partial<Product>): ProductRow => ({
     id: typeof p.id === "string" && p.id ? p.id : newId(),
     name: (p.name ?? "").toString(),
+    ai_name: p.aiName ? p.aiName.toString() : null,
     description: (p.description ?? "").toString(),
     price: (p.price ?? "").toString(),
     image_url: p.image ? p.image.toString() : null,
@@ -285,6 +288,19 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
   const products = Array.isArray(data.products)
     ? data.products.map(cleanProduct)
     : [];
+
+  // ai_name: DELETE+INSERT ทำให้หาย → เก็บรักษาโดยจับคู่ด้วยชื่อเดิม (client บางทางไม่ได้ส่ง aiName กลับมา)
+  // ชื่อสินค้าเปลี่ยน = ai_name เดิมใช้ไม่ได้แล้ว → ปล่อย null ให้รอบ import หน้าล้างใหม่
+  {
+    const oldNames = await query<{ name: string; ai_name: string | null }>(
+      "SELECT name, ai_name FROM products WHERE shop_id = $1 AND ai_name IS NOT NULL",
+      [shopId],
+    );
+    const oldAi = new Map(oldNames.map((r) => [r.name, r.ai_name]));
+    for (const p of products) {
+      if (!p.ai_name) p.ai_name = oldAi.get(p.name) ?? null;
+    }
+  }
 
   // embedding: DELETE+INSERT ทำให้ vector เดิมหาย → เก็บไว้โดยจับคู่ด้วยเนื้อหา (name+desc)
   // ตัวที่เนื้อหาเปลี่ยน/เพิ่มใหม่ค่อย embed ใหม่ (best-effort; พลาด = null → retrieval fallback keyword)
@@ -331,10 +347,10 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
     for (let i = 0; i < products.length; i++) {
       const p = products[i];
       await client.query(
-        `INSERT INTO products (id, shop_id, name, description, price, image_url, source, external_id, enabled, stock, stock_by_platform, sort_order, embedding)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb)`,
+        `INSERT INTO products (id, shop_id, name, ai_name, description, price, image_url, source, external_id, enabled, stock, stock_by_platform, sort_order, embedding)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb)`,
         [
-          p.id, shopId, p.name, p.description, p.price, p.image_url, p.source,
+          p.id, shopId, p.name, p.ai_name, p.description, p.price, p.image_url, p.source,
           p.external_id, p.enabled, p.stock,
           p.stock_by_platform ? JSON.stringify(p.stock_by_platform) : null,
           i,

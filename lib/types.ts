@@ -13,7 +13,8 @@ export type Admin = {
 
 export type Product = {
   id: string;
-  name: string; // ชื่อสินค้า
+  name: string; // ชื่อสินค้า (ตามที่ร้าน/Lazada ตั้ง — ใช้แสดงผล/แมตช์ออเดอร์)
+  aiName?: string; // ชื่อฉบับย่อสำหรับ AI (ล้างคำโฆษณา/อีโมจิแล้ว) — ว่าง = ใช้ name
   description: string; // คำอธิบายสินค้า
   price: string; // ราคา (ว่างได้)
   image?: string; // รูปสินค้า (data URL ที่อัปโหลด หรือ URL จาก marketplace) — ว่างได้

@@ -26,6 +26,25 @@ function modelCodeTokens(nameLower: string): string[] {
   return out;
 }
 
+/**
+ * แปลงชื่อสินค้าที่ AI พูดถึง (มักเป็นชื่อฉบับย่อ aiName) กลับเป็น "ชื่อเต็มจริง" ของสินค้า
+ * ใช้ก่อนบันทึกยอดพ่วง — ตัวแมตช์ออเดอร์เทียบชื่อกับรายการในออเดอร์ Lazada (ชื่อเต็ม) แบบ contains
+ * หาไม่เจอ → คืนข้อความเดิม (พฤติกรรมเดิม)
+ */
+export function resolveUpsellProductName(products: Product[], said: string): string {
+  const q = said.trim().toLowerCase();
+  if (!q) return said;
+  for (const p of products) {
+    if (p.enabled === false || !p.name.trim()) continue;
+    const n = p.name.trim().toLowerCase();
+    const a = (p.aiName ?? "").trim().toLowerCase();
+    if (n.includes(q) || q.includes(n) || (a && (a.includes(q) || q.includes(a)))) {
+      return p.name.trim();
+    }
+  }
+  return said;
+}
+
 export function pickMentionedLazadaProducts(
   replyText: string,
   upsellProduct: string,
@@ -47,7 +66,8 @@ export function pickMentionedLazadaProducts(
   );
 
   const scored = candidates.map((p, i) => {
-    const nameLower = p.name.toLowerCase();
+    // AI เห็นชื่อฉบับย่อ (aiName) — จับคู่จากทั้งชื่อเดิมและชื่อฉบับ AI
+    const nameLower = `${p.name} ${p.aiName ?? ""}`.toLowerCase();
     let score = 0;
     for (const code of modelCodeTokens(nameLower)) {
       if (replyNoSpace.includes(code)) score += 2;

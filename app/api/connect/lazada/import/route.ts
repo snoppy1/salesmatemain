@@ -3,7 +3,7 @@ import { getCurrentAdmin } from "@/lib/auth";
 import { getValidAccessToken } from "@/lib/connectionRepo";
 import { fetchCatalog } from "@/lib/marketplace";
 import { getMockSettings, isMockEnabled } from "@/lib/shopRepo";
-import { compressDescriptions } from "@/lib/descCompress";
+import { compressDescriptions, compressNames } from "@/lib/descCompress";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // ย่อคำอธิบายหลายตัวด้วย AI อาจใช้เวลาหลายวินาที
@@ -34,13 +34,14 @@ export async function POST() {
   }
 
   const named = items.filter((it) => it.name.trim());
-  // ย่อคำอธิบายตอนดึงเข้า: เก็บสเปก ตัดน้ำ (ลด token ตอน AI ตอบ) — best-effort ไม่ทำให้ import พัง
-  const shortDescs = await compressDescriptions(
-    named.map((it) => it.description),
-    admin.shopId,
-  );
+  // ย่อคำอธิบาย + ล้างชื่อสำหรับ AI ตอนดึงเข้า (ลด token ตอนตอบ) — best-effort ไม่ทำให้ import พัง
+  const [shortDescs, aiNames] = await Promise.all([
+    compressDescriptions(named.map((it) => it.description), admin.shopId),
+    compressNames(named.map((it) => it.name), admin.shopId),
+  ]);
   const products = named.map((it, idx) => ({
     name: it.name,
+    aiName: aiNames[idx] || undefined,
     price: it.price,
     description: shortDescs[idx],
     image: it.image,

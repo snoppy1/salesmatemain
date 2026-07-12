@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { pickMentionedLazadaProducts } from "@/lib/productCards";
+import { pickMentionedLazadaProducts, resolveUpsellProductName } from "@/lib/productCards";
 import type { Product } from "@/lib/types";
 
 function prod(id: string, name: string, stock = 10, over: Partial<Product> = {}): Product {
@@ -55,6 +55,34 @@ describe("pickMentionedLazadaProducts: ส่งการ์ดเฉพาะ�
       "รับเครื่องชาร์จเพิ่มไหมคะ", "Liitokala Lii-S8 เครื่องชาร์จถ่าน ราง 8 ช่อง", CATALOG,
     );
     expect(picked.map((p) => p.id)).toEqual(["s8"]);
+  });
+
+  it("resolveUpsellProductName: AI พูดชื่อฉบับย่อ → ได้ชื่อเต็มจริงกลับ (ให้ตัวแมตช์ออเดอร์ใช้)", () => {
+    const products: Product[] = [
+      {
+        id: "x",
+        name: "✅ รับประกันศูนย์1ปี ✅ Liitokala Lii-S8 เครื่องชาร์จถ่าน ราง 8 ช่อง สำหรับ ถ่าน18650",
+        aiName: "Liitokala Lii-S8 เครื่องชาร์จถ่าน 8 ช่อง",
+        description: "", price: "1199", stock: 5,
+      },
+    ];
+    expect(resolveUpsellProductName(products, "Liitokala Lii-S8 เครื่องชาร์จถ่าน 8 ช่อง"))
+      .toBe(products[0].name);
+    // ไม่รู้จัก → คืนค่าเดิม
+    expect(resolveUpsellProductName(products, "สินค้าปริศนา")).toBe("สินค้าปริศนา");
+  });
+
+  it("การ์ด: จับคู่จากโค้ดรุ่นใน aiName ได้ แม้ reply ใช้ชื่อย่อ", () => {
+    const products: Product[] = [
+      {
+        id: "y",
+        name: "เครื่องชาร์จถ่านคุณภาพสูงของแท้ประกันศูนย์ไทย รุ่นใหม่ล่าสุด",
+        aiName: "XTAR VC4SL เครื่องชาร์จถ่าน 4 ช่อง",
+        description: "", price: "935", stock: 3, source: "lazada", externalId: "ext-y",
+      },
+    ];
+    const picked = pickMentionedLazadaProducts("แนะนำ XTAR VC4SL ค่ะ ราคา 935 บาท", "", products);
+    expect(picked.map((p) => p.id)).toEqual(["y"]);
   });
 
   it("เอ่ยหลายตัว → ไม่เกิน 2 การ์ด", () => {

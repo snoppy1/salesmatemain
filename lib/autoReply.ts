@@ -22,7 +22,7 @@ import { replyMessage, pushMessage } from "./lineClient";
 import { sendMessage as fbSendMessage } from "./facebookClient";
 import { sendMessage as ttSendMessage } from "./tiktokClient";
 import { sendMessage as lzSendMessage, sendItemCard as lzSendItemCard } from "./lazadaChatClient";
-import { pickMentionedLazadaProducts } from "./productCards";
+import { pickMentionedLazadaProducts, resolveUpsellProductName } from "./productCards";
 import { sendMessage as spSendMessage } from "./shopeeChatClient";
 import { getChannelByShop as getLineChannel } from "./lineChannelRepo";
 import { getChannelByShop as getFbChannel } from "./facebookChannelRepo";
@@ -195,7 +195,8 @@ export async function processAutoReply(
         shopId,
         conversationId,
         channel: convo.channel,
-        product: result.upsellProduct,
+        // AI เห็น/พูดชื่อฉบับย่อ — แปลงกลับเป็นชื่อเต็มจริงก่อนบันทึก (ตัวแมตช์ออเดอร์เทียบกับชื่อเต็ม)
+        product: resolveUpsellProductName(shopData.products, result.upsellProduct),
         estValue: result.estAddedValue,
       }).catch(() => {});
     }

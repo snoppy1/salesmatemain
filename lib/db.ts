@@ -109,6 +109,8 @@ async function ensureSchema(): Promise<void> {
     -- จำนวนสต็อกคงเหลือ (รวม/ที่ใช้ตอบลูกค้า) + แยกรายแพลตฟอร์ม (เช่น {"lazada":12,"shopee":8})
     ALTER TABLE products ADD COLUMN IF NOT EXISTS stock INTEGER;
     ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_by_platform JSONB;
+    -- ชื่อฉบับย่อสำหรับ AI (ล้างคำโฆษณา/อีโมจิจากชื่อ Lazada แล้ว) — NULL = ใช้ name เดิม
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS ai_name TEXT;
     -- เปิด/ปิดรายการ (false = หมดสต็อก/ปิดใช้ AI ไม่เอาไปคิด)
     ALTER TABLE products ADD COLUMN IF NOT EXISTS enabled BOOLEAN NOT NULL DEFAULT true;
     ALTER TABLE rules ADD COLUMN IF NOT EXISTS enabled BOOLEAN NOT NULL DEFAULT true;

@@ -133,3 +133,47 @@ describe("ดัชนีย่อ: ยุบสินค้าหมดเป�
     expect(a.promo).toBe(b.promo);
   });
 });
+
+describe("ชื่อฉบับ AI (aiName): AI เห็นชื่อสะอาด ชื่อจริงไม่โดนแตะ", () => {
+  const SPAM = "✅ รับประกันศูนย์1ปี ✅ Liitokala Lii-S12 เครื่องชาร์จถ่าน ราง 12 ช่อง สำหรับ ถ่าน18650 ถ่าน21700 ของแท้ คุณภาพสูง จัดส่งไว";
+  const CLEAN = "Liitokala Lii-S12 เครื่องชาร์จถ่าน 12 ช่อง 18650/21700";
+  function withAi(extra: Partial<Product> = {}): Product[] {
+    const arr: Product[] = Array.from({ length: RETRIEVAL_MIN_PRODUCTS + 2 }, (_, i) => ({
+      id: `${i}`, name: `ของทั่วไป ${i}`, description: `desc-${i}`, price: "50", stock: 5,
+    }));
+    arr.push({ id: "t", name: SPAM, aiName: CLEAN, description: "ชาร์จได้ 12 ช่องพร้อมกัน", price: "1250", stock: 36, ...extra });
+    return arr;
+  }
+
+  it("ดัชนีย่อใช้ aiName แทนชื่อสแปม", () => {
+    const { stable } = buildUserContentParts({
+      shopName: "ร้าน", shopVoice: "", shopMemory: "", products: withAi(), customerMsg: "สวัสดี",
+    });
+    expect(stable).toContain(CLEAN);
+    expect(stable).not.toContain("รับประกันศูนย์1ปี");
+  });
+
+  it("บล็อกรายละเอียด (retrieval) ก็ใช้ aiName", () => {
+    const { customer } = buildUserContentParts({
+      shopName: "ร้าน", shopVoice: "", shopMemory: "", products: withAi(), customerMsg: "Lii-S12 ราคาเท่าไหร่",
+    });
+    expect(customer).toContain(CLEAN);
+    expect(customer).not.toContain("รับประกันศูนย์1ปี");
+  });
+
+  it("ของหมดที่มี aiName → ส่วนของหมดใช้ชื่อสะอาด", () => {
+    const { stable } = buildUserContentParts({
+      shopName: "ร้าน", shopVoice: "", shopMemory: "", products: withAi({ stock: 0 }), customerMsg: "สวัสดี",
+    });
+    const outSection = stable.split("[สินค้าที่ของหมดชั่วคราว")[1] ?? "";
+    expect(outSection).toContain("Liitokala Lii-S12");
+    expect(outSection).not.toContain("รับประกันศูนย์1ปี");
+  });
+
+  it("ไม่มี aiName → ใช้ชื่อเดิมเหมือนเดิมทุกไบต์", () => {
+    const products = withAi();
+    const noAi = products.map((p) => ({ ...p, aiName: undefined }));
+    const a = buildUserContentParts({ shopName: "ร้าน", shopVoice: "", shopMemory: "", products: noAi, customerMsg: "x" });
+    expect(a.stable).toContain("รับประกันศูนย์1ปี"); // fallback ชื่อเดิม
+  });
+});

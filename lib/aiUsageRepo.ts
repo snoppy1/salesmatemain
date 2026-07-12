@@ -54,12 +54,16 @@ export async function recordUsageFromResponse(
   await recordAiUsage(shopId, model, kind, extractUsage(usageRaw));
 }
 
-/** ร้านที่แคชของโมเดลนี้ยังอุ่นอยู่ (มีการอ่าน/เขียนใน sinceMs) — prewarm จะเป็น "อ่านต่ออายุ" ถูกๆ แน่นอน
- *  แคชตายแล้วห้ามให้ prewarm จุดเอง (จ่าย 2x ทิ้งบ่อย) — ให้ข้อความจริงถัดไปเป็นคนจุด */
+/** ร้านที่แคชของโมเดลนี้ "อ่านได้จริง" ใน sinceMs (มี cache_read) — prewarm จะเป็นการอ่านต่ออายุถูกๆ แน่นอน
+ *  ใช้เฉพาะ cache_read ไม่นับ cache_write เพราะ:
+ *  - cache_read = พิสูจน์ว่า prefix ปัจจุบันแคชอยู่ + อ่านได้จริง (แคชมีชีวิต) → prewarm อ่านซ้ำได้แน่
+ *  - cache_write = แค่เพิ่งเขียน prefix ใหม่ (ยังไม่มีใครอ่านซ้ำ) ถ้าสินค้าเปลี่ยน prefix เปลี่ยนอีก
+ *    prewarm จะเขียนทับ (cold 2x) ทิ้ง — เจอจริงกับร้านคลังใหญ่ที่ stock ข้าม 0 บ่อย
+ *  แคชที่ยังไม่ถูกอ่านซ้ำ → ปล่อยให้ข้อความจริงถัดไปเป็นคนเขียน ไม่ให้ prewarm จุดเอง */
 export async function shopsCacheAliveSince(sinceMs: number, model: string): Promise<Set<string>> {
   const rows = await query<{ shop_id: string }>(
     `SELECT DISTINCT shop_id FROM ai_usage
-      WHERE created_at >= $1 AND model = $2 AND (cache_write > 0 OR cache_read > 0)`,
+      WHERE created_at >= $1 AND model = $2 AND cache_read > 0`,
     [sinceMs, model],
   );
   return new Set(rows.map((r) => r.shop_id));

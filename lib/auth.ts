@@ -116,13 +116,13 @@ export async function getCurrentAdmin(): Promise<Admin | null> {
     return null;
   }
 
-  const admin = await queryOne<{ id: string; shop_id: string; username: string }>(
-    "SELECT id, shop_id, username FROM admins WHERE id = $1",
+  const admin = await queryOne<{ id: string; shop_id: string; username: string; email: string | null }>(
+    "SELECT id, shop_id, username, email FROM admins WHERE id = $1",
     [session.admin_id],
   );
   if (!admin) return null;
 
-  return { id: admin.id, shopId: admin.shop_id, username: admin.username };
+  return { id: admin.id, shopId: admin.shop_id, username: admin.username, email: admin.email };
 }
 
 /* ---------- cookie helpers ---------- */

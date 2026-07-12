@@ -176,7 +176,7 @@ export default function AdminConsole({
           [
             ["home", "หน้าแรก"],
             ["shops", "ร้านค้า"],
-            ["allowlist", "อีเมลที่อนุญาต"],
+            ["allowlist", "สิทธิ์กล่องแชต"],
             ["status", "สถานะระบบ"],
             ["models", "โมเดล AI"],
             ["sales", "ยอดขาย AI"],

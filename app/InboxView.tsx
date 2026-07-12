@@ -167,6 +167,8 @@ export default function InboxView({
   const [drafting, setDrafting] = useState(false);
   const [choosing, setChoosing] = useState(false);
   const [apps, setApps] = useState<InboxApp[]>(() => appsCache);
+  // สิทธิ์เปิดกล่องแชต (beta gate ใหม่ — สมัครได้ทุกคน แต่เพิ่มแอปแชตต้องได้รับสิทธิ์)
+  const [chatAllowed, setChatAllowed] = useState(true);
   const [sending, setSending] = useState(false);
   const [simText, setSimText] = useState("");
   const [search, setSearch] = useState(""); // ค้นหาชื่อแชต (ในรายการบทสนทนาของแพลตฟอร์มที่เลือก)
@@ -285,9 +287,10 @@ export default function InboxView({
     try {
       const r = await fetch("/api/inbox/apps");
       if (!r.ok) return;
-      const d = (await r.json()) as { apps: InboxApp[] };
+      const d = (await r.json()) as { apps: InboxApp[]; chatAllowed?: boolean };
       appsCache = d.apps;
       setApps(d.apps);
+      setChatAllowed(d.chatAllowed !== false);
     } catch {
       /* เงียบไว้ */
     }
@@ -335,7 +338,13 @@ export default function InboxView({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ channel }),
       });
-      if (!r.ok) return;
+      if (!r.ok) {
+        // ติดสิทธิ์/ผิดพลาด → บอกเหตุผลตรงๆ (เดิมเงียบ ผู้ใช้ไม่รู้ว่าทำไมกดแล้วไม่มีอะไรเกิด)
+        const e = (await r.json().catch(() => null)) as { error?: string } | null;
+        if (e?.error) window.alert(e.error);
+        if (r.status === 403) setChatAllowed(false);
+        return;
+      }
       const d = (await r.json()) as { apps: InboxApp[] };
       appsCache = d.apps;
       setApps(d.apps);
@@ -540,6 +549,7 @@ export default function InboxView({
         <AppList
           apps={apps}
           conversations={conversations}
+          chatAllowed={chatAllowed}
           onPick={pickPlatform}
           onChangeLevel={changeLevel}
           onAddApp={addApp}
@@ -884,6 +894,7 @@ export default function InboxView({
 function AppList({
   apps,
   conversations,
+  chatAllowed,
   onPick,
   onChangeLevel,
   onAddApp,
@@ -891,6 +902,7 @@ function AppList({
 }: {
   apps: InboxApp[];
   conversations: ConversationSummary[];
+  chatAllowed: boolean;
   onPick: (channel: string) => void;
   onChangeLevel: (channel: string, level: AutoLevel) => void;
   onAddApp: (channel: string) => void;
@@ -916,7 +928,19 @@ function AppList({
         <UpsellMetric layout="row" />
       </div>
 
-      {apps.length === 0 ? (
+      {!chatAllowed && apps.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+          <div className="max-w-md rounded-2xl border border-line bg-surface p-6">
+            <p className="text-2xl">🔒</p>
+            <h3 className="mt-2 text-sm font-semibold text-fg">กล่องแชตยังไม่เปิดใช้สำหรับบัญชีนี้</h3>
+            <p className="mt-2 text-sm text-muted">
+              ตอนนี้คุณสำรวจระบบได้ทุกส่วน (เพิ่มสินค้า ตั้งค่าร้าน ดูหน้าต่างๆ)
+              ส่วนการเชื่อมแชตจริงกับ LINE / Facebook / Lazada อยู่ในช่วงทดลองแบบจำกัดสิทธิ์
+              — ติดต่อทีมงานเพื่อขอเปิดสิทธิ์ได้เลย
+            </p>
+          </div>
+        </div>
+      ) : apps.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
           <p className="text-sm text-muted">
             ยังไม่มีแอป — เริ่มด้วยการเพิ่มแอปที่คุณใช้
@@ -991,12 +1015,14 @@ function AppList({
               </div>
             );
           })}
-          <AddAppButton
-            available={available}
-            adding={adding}
-            setAdding={setAdding}
-            onAddApp={onAddApp}
-          />
+          {chatAllowed && (
+            <AddAppButton
+              available={available}
+              adding={adding}
+              setAdding={setAdding}
+              onAddApp={onAddApp}
+            />
+          )}
         </div>
       )}
     </div>

@@ -7,8 +7,6 @@ import {
   findAdminByGoogle,
   linkGoogleId,
 } from "@/lib/auth";
-import { isEmailAllowed } from "@/lib/allowlistRepo";
-
 export const runtime = "nodejs";
 
 function redirectUri(request: Request): string {
@@ -71,10 +69,7 @@ export async function GET(request: Request) {
     if (admin) {
       await linkGoogleId(admin.id, googleId);
     } else {
-      // beta gate: คนใหม่ต้องอยู่ใน allowlist ก่อน
-      if (!(await isEmailAllowed(email))) {
-        return NextResponse.redirect(`${origin}/login?e=not_invited`);
-      }
+      // สมัครได้ทุกคน — สิทธิ์ "เปิดกล่องแชต" เช็คตอนเพิ่มแอปแทน
       const adminId = await createAccount({
         shopName: info.name ? `ร้านของ ${info.name}` : "ร้านของฉัน",
         username: email,

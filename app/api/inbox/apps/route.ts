@@ -1,20 +1,36 @@
 import { NextResponse } from "next/server";
 import { getCurrentAdmin } from "@/lib/auth";
 import { listInboxApps, addInboxApp, removeInboxApp } from "@/lib/inboxAppsRepo";
+import { isEmailAllowed } from "@/lib/allowlistRepo";
+import type { Admin } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 const VALID_CHANNELS = ["line", "facebook", "tiktok", "lazada", "shopee"];
 
+/** สิทธิ์เปิดกล่องแชต (beta gate ย้ายจากตอนสมัคร) — เช็คจากอีเมลบัญชีใน allowlist */
+async function chatAllowed(admin: Admin): Promise<boolean> {
+  return isEmailAllowed(admin.email || admin.username);
+}
+
 export async function GET() {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
-  return NextResponse.json({ apps: await listInboxApps(admin.shopId) });
+  return NextResponse.json({
+    apps: await listInboxApps(admin.shopId),
+    chatAllowed: await chatAllowed(admin),
+  });
 }
 
 export async function POST(request: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
+  if (!(await chatAllowed(admin))) {
+    return NextResponse.json(
+      { error: "บัญชีนี้ยังไม่ได้รับสิทธิ์เปิดใช้กล่องแชต กรุณาติดต่อทีมงานเพื่อขอเปิดสิทธิ์" },
+      { status: 403 },
+    );
+  }
   let body: { channel?: string };
   try {
     body = await request.json();

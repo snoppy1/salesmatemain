@@ -9,6 +9,7 @@ export type Admin = {
   id: string;
   shopId: string;
   username: string;
+  email?: string | null; // ใช้เช็คสิทธิ์เปิดกล่องแชต (allowlist)
 };
 
 export type Product = {

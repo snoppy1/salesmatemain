@@ -8,8 +8,6 @@ import {
   isValidEmail,
   validatePasswordStrength,
 } from "@/lib/auth";
-import { isEmailAllowed } from "@/lib/allowlistRepo";
-
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
@@ -43,14 +41,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // beta gate: เฉพาะอีเมลที่ได้รับอนุญาตเท่านั้นที่สมัครได้
-  if (!(await isEmailAllowed(email))) {
-    return NextResponse.json(
-      { error: "อีเมลนี้ยังไม่ได้รับสิทธิ์ทดลองใช้ กรุณาติดต่อทีมงาน" },
-      { status: 403 },
-    );
-  }
-
+  // สมัครได้ทุกคน (เปิดให้ดู/ลองระบบ) — สิทธิ์ที่ต้องขอคือ "เปิดกล่องแชต" เช็คตอนเพิ่มแอปแทน
   const adminId = await createAccount({
     shopName,
     username: email, // ใช้อีเมลเป็นตัวระบุล็อกอิน

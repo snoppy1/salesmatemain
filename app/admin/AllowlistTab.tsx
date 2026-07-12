@@ -72,9 +72,10 @@ export default function AllowlistTab() {
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-line bg-surface p-4">
-        <h2 className="text-sm font-semibold text-fg">เพิ่มอีเมลที่อนุญาตให้สมัคร</h2>
+        <h2 className="text-sm font-semibold text-fg">เพิ่มอีเมลที่ได้รับสิทธิ์เปิดกล่องแชต</h2>
         <p className="mt-1 text-xs text-muted">
-          เฉพาะอีเมลในรายการนี้เท่านั้นที่สมัครบัญชีใหม่ได้ (บัญชีที่มีอยู่แล้วไม่กระทบ)
+          ตอนนี้ใครก็สมัคร/เข้าดูเว็บได้ — แต่เฉพาะอีเมลในรายการนี้เท่านั้นที่ &quot;เพิ่มแอปในกล่องแชต&quot;
+          เพื่อเชื่อมแชตจริงได้ (บัญชีที่ยังไม่มีสิทธิ์จะเห็นหน้าล็อกพร้อมข้อความติดต่อทีมงาน)
         </p>
         <form onSubmit={add} className="mt-3 flex flex-col gap-2 sm:flex-row">
           <input

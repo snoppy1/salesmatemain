@@ -89,6 +89,30 @@ export default function Dashboard({
   const [metricsKey, setMetricsKey] = useState(0); // bump เพื่อให้การ์ดวัดยอดโหลดใหม่
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<number | null>(null);
+  // บังคับเลือกเพศผู้ช่วย AI ครั้งแรก (ร้านที่ยังไม่เคยตั้ง) — โมดัลปิดไม่ได้จนกว่าจะเลือก
+  const [genderSaving, setGenderSaving] = useState(false);
+  const needGender = shop.gender !== "male" && shop.gender !== "female";
+
+  // เลือกเพศตอน onboard → บันทึกทันที (payload ตรงๆ กัน stale closure) แล้ว state อัปเดต → โมดัลปิดเอง
+  async function chooseGender(g: "male" | "female") {
+    if (genderSaving) return;
+    setGenderSaving(true);
+    const nextShop: Shop = { ...shop, gender: g };
+    try {
+      const res = await fetch("/api/shop", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ shop: nextShop, products } satisfies ShopData),
+      });
+      if (!res.ok) {
+        setGenderSaving(false);
+        return;
+      }
+      setShop(nextShop);
+    } catch {
+      setGenderSaving(false);
+    }
+  }
 
   // โหลดตั้งค่า "ข้อมูลทดลอง (mock)" ต่อร้าน
   useEffect(() => {
@@ -384,6 +408,9 @@ export default function Dashboard({
         settings={mockSettings}
         onToggleAll={setAllMock}
       />
+      {needGender && (
+        <GenderOnboardModal saving={genderSaving} onChoose={chooseGender} />
+      )}
       {/* มือถือ: เมนูเป็นแถบล่าง (กันที่ด้วย pb-20) / จอใหญ่: sidebar ซ้ายเปิดค้าง 256px + เว้นช่องกับเนื้อหา */}
       <main className="pb-20 md:pb-0 md:pl-[17rem]">
         {/* ภาพรวมเป็นแดชบอร์ด data-forward → เต็มความกว้างจอ (เหมือน dashboard เต็มจอ) คุมสุดที่ 2560 กันจอ 4K ยืดเกิน
@@ -633,6 +660,80 @@ function MockSettingsModal({
   );
 }
 
+/* ---------------- โมดัล: บังคับเลือกเพศผู้ช่วย AI ครั้งแรก ---------------- */
+
+/** ปิดไม่ได้จนกว่าจะเลือก (ไม่มีปุ่มปิด/กดพื้นหลังไม่ปิด) — เชียร์ "ผู้หญิง" ตาม default เดิม แต่ต้องกดยืนยัน */
+function GenderOnboardModal({
+  saving,
+  onChoose,
+}: {
+  saving: boolean;
+  onChoose: (g: "male" | "female") => void;
+}) {
+  const opts: {
+    key: "male" | "female";
+    label: string;
+    ending: string;
+    recommended?: boolean;
+  }[] = [
+    { key: "female", label: "ผู้หญิง", ending: "ค่ะ / คะ", recommended: true },
+    { key: "male", label: "ผู้ชาย", ending: "ครับ" },
+  ];
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="gender-onboard-title"
+        className="w-full max-w-md rounded-2xl border border-line bg-surface p-6 shadow-2xl"
+      >
+        <h3
+          id="gender-onboard-title"
+          className="text-lg font-bold text-fg"
+        >
+          เลือกก่อนเริ่มใช้ — ผู้ช่วย AI ของร้านพูดแบบไหน?
+        </h3>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          เพศของผู้ช่วยจะคุมคำลงท้ายทุกข้อความที่ตอบลูกค้า
+          เปลี่ยนภายหลังได้ที่หน้า “ตั้งค่าร้าน”
+        </p>
+        <div className="mt-5 grid gap-3">
+          {opts.map((o) => (
+            <button
+              key={o.key}
+              type="button"
+              disabled={saving}
+              onClick={() => onChoose(o.key)}
+              className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition disabled:opacity-60 ${
+                o.recommended
+                  ? "border-accent bg-accent/10 hover:bg-accent/15"
+                  : "border-line bg-app hover:bg-surface2"
+              }`}
+            >
+              <span className="flex flex-col">
+                <span className="text-sm font-semibold text-fg">
+                  {o.label}
+                </span>
+                <span className="text-xs text-muted">
+                  ลงท้ายด้วย “{o.ending}”
+                </span>
+              </span>
+              {o.recommended && (
+                <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-accent-contrast">
+                  แนะนำ
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+        {saving && (
+          <p className="mt-3 text-center text-xs text-muted">กำลังบันทึก…</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function IconChart() {
   return (
     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -720,6 +821,45 @@ function IconGear() {
 
 /* ---------------- หมวด: ตั้งค่าร้าน ---------------- */
 
+/** เลือกเพศผู้ช่วย AI (คุมคำลงท้าย ครับ/ค่ะ) — segmented 2 ปุ่ม ไม่ใช้อีโมจิ ใช้ design token */
+function GenderSelect({
+  value,
+  onChange,
+}: {
+  value?: "male" | "female";
+  onChange: (g: "male" | "female") => void;
+}) {
+  const opts: { key: "male" | "female"; label: string; ending: string }[] = [
+    { key: "male", label: "ผู้ชาย", ending: "ครับ" },
+    { key: "female", label: "ผู้หญิง", ending: "ค่ะ" },
+  ];
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {opts.map((o) => {
+        const active = value === o.key;
+        return (
+          <button
+            key={o.key}
+            type="button"
+            onClick={() => onChange(o.key)}
+            aria-pressed={active}
+            className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+              active
+                ? "border-accent bg-accent/15 text-accent"
+                : "border-line bg-app text-fg hover:bg-surface2"
+            }`}
+          >
+            {o.label}{" "}
+            <span className={active ? "text-accent/80" : "text-muted"}>
+              ({o.ending})
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function SettingsView({
   shop,
   updateShop,
@@ -759,6 +899,16 @@ function SettingsView({
               rows={3}
               className={inputClass}
             />
+          </Field>
+
+          <Field label="AI ตอบเป็น">
+            <GenderSelect
+              value={shop.gender}
+              onChange={(g) => updateShop({ gender: g })}
+            />
+            <p className="mt-1 text-xs text-muted">
+              คุมคำลงท้ายของผู้ช่วย — ผู้ชายลงท้าย “ครับ”, ผู้หญิงลงท้าย “ค่ะ/คะ”
+            </p>
           </Field>
         </div>
 

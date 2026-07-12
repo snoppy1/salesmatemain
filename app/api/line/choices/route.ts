@@ -51,6 +51,7 @@ export async function POST(request: Request) {
       shopName: shopData.shop.name,
       shopVoice: shopData.shop.voice,
       shopMemory: shopData.shop.memory,
+      shopGender: shopData.shop.gender,
       products: shopData.products,
       promotions,
       customerMsg: ctx.text,

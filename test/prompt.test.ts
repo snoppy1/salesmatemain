@@ -27,6 +27,36 @@ describe("buildUserContent promotions block", () => {
   });
 });
 
+describe("เพศของผู้ช่วย: คำลงท้ายใน stable (แคช)", () => {
+  const base = {
+    shopName: "ร้าน", shopVoice: "", shopMemory: "", products: [], customerMsg: "hi",
+  };
+
+  it("male → stable ระบุลงท้ายด้วย ครับ", () => {
+    const { stable } = buildUserContentParts({ ...base, shopGender: "male" });
+    expect(stable).toContain("[เพศ/คำลงท้ายของผู้ช่วย]");
+    expect(stable).toContain("ผู้ชาย — ลงท้ายด้วย ครับ เท่านั้น");
+    expect(stable).not.toContain("ผู้หญิง — ลงท้ายด้วย ค่ะ/คะ");
+  });
+
+  it("female → stable ระบุลงท้ายด้วย ค่ะ/คะ", () => {
+    const { stable } = buildUserContentParts({ ...base, shopGender: "female" });
+    expect(stable).toContain("[เพศ/คำลงท้ายของผู้ช่วย]");
+    expect(stable).toContain("ผู้หญิง — ลงท้ายด้วย ค่ะ/คะ เท่านั้น");
+  });
+
+  it("ไม่ระบุ (undefined) = หญิง (คงพฤติกรรมเดิมของร้านเก่า)", () => {
+    const { stable } = buildUserContentParts(base);
+    expect(stable).toContain("ผู้หญิง — ลงท้ายด้วย ค่ะ/คะ เท่านั้น");
+  });
+
+  it("input เดิม (เพศเดียวกัน) → stable ไบต์ตรง (prewarm/reply แคชตรงกัน)", () => {
+    const a = buildUserContentParts({ ...base, shopGender: "male" });
+    const b = buildUserContentParts({ ...base, shopGender: "male" });
+    expect(a.stable).toBe(b.stable);
+  });
+});
+
 describe("buildUserContentParts two-tier catalog (retrieval)", () => {
   function prod(id: string, name: string, description: string): Product {
     return { id, name, description, price: "100" };

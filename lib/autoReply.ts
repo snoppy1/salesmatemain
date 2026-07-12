@@ -109,6 +109,7 @@ export async function processAutoReply(
       shopName: shopData.shop.name,
       shopVoice: shopData.shop.voice,
       shopMemory: shopData.shop.memory,
+      shopGender: shopData.shop.gender,
       products: shopData.products,
       promotions,
       customerMsg: ctx.text,

@@ -557,6 +557,38 @@ function ShopEditor({
             className={inputClass}
           />
         </Field>
+        <Field label="AI ตอบเป็น (เพศคำลงท้าย)">
+          <div className="grid grid-cols-2 gap-2">
+            {(
+              [
+                ["male", "ผู้ชาย (ครับ)"],
+                ["female", "ผู้หญิง (ค่ะ)"],
+              ] as const
+            ).map(([key, label]) => {
+              const active = shop.gender === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setShop({ gender: key })}
+                  aria-pressed={active}
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                    active
+                      ? "border-accent bg-accent/15 text-accent"
+                      : "border-line bg-app text-fg hover:bg-surface2"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          {!shop.gender && (
+            <p className="mt-1 text-xs text-muted">
+              ยังไม่ได้เลือก — ค่าเริ่มต้นคือผู้หญิง (ค่ะ)
+            </p>
+          )}
+        </Field>
         <Field label="สิ่งที่ AI ควรจำ (ข้อมูล/นโยบายร้าน)">
           <textarea
             value={shop.memory}

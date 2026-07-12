@@ -31,6 +31,7 @@ export async function PUT(request: Request) {
       name: body?.shop?.name ?? "",
       voice: body?.shop?.voice ?? "",
       memory: body?.shop?.memory ?? "",
+      gender: body?.shop?.gender, // undefined → COALESCE คงค่าเดิม (ดู saveShopData)
     },
     rules: Array.isArray(body?.rules) ? body.rules : [],
     products: Array.isArray(body?.products) ? body.products : [],

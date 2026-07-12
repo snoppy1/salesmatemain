@@ -53,6 +53,7 @@ export async function GET(request: Request) {
         shopName: d.shop.name,
         shopVoice: d.shop.voice,
         shopMemory: d.shop.memory,
+        shopGender: d.shop.gender, // ต้องตรงกับตอนตอบจริง ไม่งั้น stable ไม่ตรง → อุ่นแคชทิ้ง
         products: d.products,
         promotions,
         customerMsg: ".",

@@ -134,8 +134,13 @@ export function isMockEnabled(
 }
 
 export async function getShopData(shopId: string): Promise<ShopData> {
-  const shop = await queryOne<{ name: string; voice: string; ai_memory: string }>(
-    "SELECT name, voice, ai_memory FROM shops WHERE id = $1",
+  const shop = await queryOne<{
+    name: string;
+    voice: string;
+    ai_memory: string;
+    ai_gender: string | null;
+  }>(
+    "SELECT name, voice, ai_memory, ai_gender FROM shops WHERE id = $1",
     [shopId],
   );
 
@@ -157,6 +162,11 @@ export async function getShopData(shopId: string): Promise<ShopData> {
       name: shop?.name ?? "",
       voice: shop?.voice ?? "",
       memory: shop?.ai_memory ?? "",
+      // null (ยังไม่เลือก) → undefined; ค่าไม่ถูกต้องอื่นๆ ก็ปล่อย undefined (default หญิง)
+      gender:
+        shop?.ai_gender === "male" || shop?.ai_gender === "female"
+          ? shop.ai_gender
+          : undefined,
     },
     rules: ruleRows.map((r) => ({
       id: r.id,
@@ -325,13 +335,19 @@ export async function saveShopData(shopId: string, data: ShopData): Promise<Shop
     // memory: undefined = ผู้เรียกไม่ได้ส่งมา → คงค่าเดิม (COALESCE); "" = ตั้งใจล้างค่า
     const memoryParam =
       data.shop?.memory === undefined ? null : data.shop.memory.toString();
+    // gender: undefined/ค่าไม่ถูกต้อง → null → COALESCE คงค่าเดิม (เหมือน ai_memory)
+    const genderParam =
+      data.shop?.gender === "male" || data.shop?.gender === "female"
+        ? data.shop.gender
+        : null;
     await client.query(
-      "UPDATE shops SET name = $1, voice = $2, ai_memory = COALESCE($4, ai_memory) WHERE id = $3",
+      "UPDATE shops SET name = $1, voice = $2, ai_memory = COALESCE($4, ai_memory), ai_gender = COALESCE($5, ai_gender) WHERE id = $3",
       [
         (data.shop?.name ?? "").toString(),
         (data.shop?.voice ?? "").toString(),
         shopId,
         memoryParam,
+        genderParam,
       ],
     );
     await client.query("DELETE FROM rules WHERE shop_id = $1", [shopId]);

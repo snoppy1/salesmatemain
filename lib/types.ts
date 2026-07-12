@@ -3,6 +3,8 @@ export type Shop = {
   voice: string;
   /** ข้อมูล/นโยบายร้านที่อยากให้ AI จำไว้ตอบลูกค้าได้เอง (ค่าส่ง/จ่ายเงิน/รับประกัน/เวลาทำการ ฯลฯ) */
   memory: string;
+  /** เพศของผู้ช่วย AI คุมคำลงท้าย: male=ครับ / female=ค่ะ-คะ (undefined = ยังไม่เลือก → default หญิง) */
+  gender?: "male" | "female";
 };
 
 export type Admin = {
@@ -97,6 +99,8 @@ export type GenerateRequest = {
   shopName: string;
   shopVoice: string;
   shopMemory: string; // ข้อมูล/นโยบายร้านที่ร้านอยากให้ AI จำ (ดู Shop.memory)
+  shopGender?: "male" | "female"; // เพศผู้ช่วย AI คุมคำลงท้าย (undefined = default หญิง) — ต้องอยู่ใน stable แคช
+
   products: Product[];
   promotions?: Promotion[]; // โปรโมชั่นที่ใช้ได้ตอนนี้ (กรองแล้ว) ให้ AI แนะนำ
   customerMsg: string; // ข้อความ + บริบทจากลูกค้า รวมในช่องเดียว

@@ -59,7 +59,8 @@ export async function GET(request: Request) {
     };
     cur.chatWrites += r.chatWrites;
     cur.prewarmWrites += r.prewarmWrites;
-    cur.costThb += cacheWriteCostThb(r.model, r.w5mTokens, r.w1hTokens);
+    // ทุกเส้นทางเขียนแบบ 1h แล้ว (แถวเก่ายุค 5m แสดงสูงเกินจริงเล็กน้อย ชั่วคราวจนพ้นหน้าต่าง 7 วัน)
+    cur.costThb += cacheWriteCostThb(r.model, 0, r.w5mTokens + r.w1hTokens);
     dailyMap.set(key, cur);
   }
   const dailyWrites = [...dailyMap.values()]

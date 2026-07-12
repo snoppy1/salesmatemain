@@ -5,7 +5,8 @@ import { listAllChannels, updateChannelTokens } from "@/lib/lazadaChannelRepo";
 import { refreshImToken } from "@/lib/lazadaChatClient";
 import { pollAllLazada } from "@/lib/lazadaPoll";
 import { recordCronRun } from "@/lib/cronRunsRepo";
-import { shopsWarmedSince } from "@/lib/aiUsageRepo";
+import { shopsWarmedSince, shopsCacheAliveSince } from "@/lib/aiUsageRepo";
+import { CHAT_SONNET } from "@/lib/modelRouter";
 import { listPromotions } from "@/lib/promotionsRepo";
 import { validNowPromotions } from "@/lib/promotions";
 import { shopsWithUnsoldLazadaUpsells } from "@/lib/upsellRepo";
@@ -28,16 +29,19 @@ export async function GET(request: Request) {
   }
 
   // อุ่นแบบ adaptive ต่อร้าน (traffic แต่ละร้านไม่เท่ากัน):
-  // - กำลังคุยอยู่ (มีแชตใน 1 ชม.ล่าสุด) และ traffic ถึงเกณฑ์ (ลูกค้าทัก ≥15 ข้อความ/24 ชม.)
-  //   ร้านเงียบไม่อุ่น — จ่าย cold-start ตอนมีแชตจริงถูกกว่าอุ่นทิ้งทั้งวัน (ข้อมูลจริง: จ่ายอุ่น ฿28 เซฟแค่ ฿2)
+  // - AI ตอบจริงใน 1 ชม.ล่าสุด และ traffic ถึงเกณฑ์ (ลูกค้าทัก ≥15 ข้อความ/24 ชม.)
+  // - "อ่านต่ออายุเท่านั้น": อุ่นเฉพาะร้านที่แคช Sonnet ยังอุ่น (มีอ่าน/เขียนใน 55 นาที)
+  //   แคชตายแล้วไม่จุดเอง (เคยจ่าย 2x จุดทิ้งบ่อย) — ให้ข้อความจริงถัดไปจุดแบบ 1h เอง
   // - กันยิงซ้ำ: ข้ามร้านที่เพิ่งอุ่นใน 10 นาที (เคยเจอ trigger ซ้อนยิง 4 ครั้ง/นาที)
   const PREWARM_WINDOW_MS = Number(process.env.PREWARM_ACTIVE_WINDOW_MS ?? 60 * 60 * 1000);
   const PREWARM_MIN_MSGS_24H = Number(process.env.PREWARM_MIN_MSGS_24H ?? 15);
-  const [warmableIds, recentlyWarmed] = await Promise.all([
+  const CACHE_ALIVE_MS = 55 * 60 * 1000; // อายุแคช 1 ชม. เผื่อ 5 นาที
+  const [warmableIds, recentlyWarmed, cacheAlive] = await Promise.all([
     listWarmableShopIds(Date.now() - PREWARM_WINDOW_MS, PREWARM_MIN_MSGS_24H),
     shopsWarmedSince(Date.now() - 10 * 60 * 1000),
+    shopsCacheAliveSince(Date.now() - CACHE_ALIVE_MS, CHAT_SONNET),
   ]);
-  const ids = warmableIds.filter((id) => !recentlyWarmed.has(id));
+  const ids = warmableIds.filter((id) => !recentlyWarmed.has(id) && cacheAlive.has(id));
   let warmed = 0;
   for (const id of ids) {
     try {

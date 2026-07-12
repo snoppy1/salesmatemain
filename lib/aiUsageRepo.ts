@@ -33,8 +33,8 @@ export async function recordAiUsage(
         usage.outputTokens,
         usage.cacheWriteTokens,
         usage.cacheReadTokens,
-        // ฝั่งตอบแชตเขียนแคชแบบ 5 นาที (1.25×) — มีแต่ prewarm ที่ใช้ 1 ชม. (2×)
-        costThb(model, usage, kind === "prewarm" ? "1h" : "5m"),
+        // ทุกเส้นทางเขียนแคชแบบ 1 ชม. (2×) แล้ว — กันจุดเตาซ้ำซ้อนระหว่างแชตกับ prewarm
+        costThb(model, usage, "1h"),
         Date.now(),
       ],
     );
@@ -52,6 +52,17 @@ export async function recordUsageFromResponse(
 ): Promise<void> {
   if (!shopId) return; // ไม่รู้ว่าเป็นร้านไหน → ข้าม (ไม่ทำให้ AI ล้ม)
   await recordAiUsage(shopId, model, kind, extractUsage(usageRaw));
+}
+
+/** ร้านที่แคชของโมเดลนี้ยังอุ่นอยู่ (มีการอ่าน/เขียนใน sinceMs) — prewarm จะเป็น "อ่านต่ออายุ" ถูกๆ แน่นอน
+ *  แคชตายแล้วห้ามให้ prewarm จุดเอง (จ่าย 2x ทิ้งบ่อย) — ให้ข้อความจริงถัดไปเป็นคนจุด */
+export async function shopsCacheAliveSince(sinceMs: number, model: string): Promise<Set<string>> {
+  const rows = await query<{ shop_id: string }>(
+    `SELECT DISTINCT shop_id FROM ai_usage
+      WHERE created_at >= $1 AND model = $2 AND (cache_write > 0 OR cache_read > 0)`,
+    [sinceMs, model],
+  );
+  return new Set(rows.map((r) => r.shop_id));
 }
 
 /** ร้านที่ถูกอุ่นแคชไปแล้วตั้งแต่ sinceMs — ใช้กัน prewarm ยิงซ้ำถี่ๆ (เคยเจอ 4 ครั้ง/นาที) */
@@ -192,7 +203,7 @@ export async function modelUsageRowsSince(sinceMs: number): Promise<ModelUsageRo
     imports: Number(r.imports),
     importCostThb: Number(r.import_cost),
     prewarmCostThb: Number(r.prewarm_cost),
-    cacheWriteCostThb: cacheWriteCostThb(r.model, Number(r.w5m_tokens), 0),
+    cacheWriteCostThb: cacheWriteCostThb(r.model, 0, Number(r.w5m_tokens)),
     coldWrites: Number(r.cold_writes),
     totalCostThb: Number(r.total_cost),
   }));

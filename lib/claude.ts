@@ -84,11 +84,13 @@ async function callClaudeRaw(
   const { stable, promo, customer } = buildUserContentParts(req);
   const imgs = req.imageUrls ?? [];
   // Prompt caching 3 breakpoints: system / (ร้าน+คลัง) / โปรฯ — โปรเปลี่ยนแล้วแคชคลังยังรอด
-  // TTL 5m ฝั่งตอบ (write 1.25x แทน 2x; การอ่านต่ออายุเอง บทสนทนาต่อเนื่องไม่หลุด) — prewarm ใช้ 1h
+  // TTL 1h ทุกจุด: เคยใช้ 5m ฝั่งตอบ (write ถูกกว่า) แต่เจอ "จุดเตาซ้ำซ้อน" — แชตเขียน 5m
+  // → ดับก่อน cron 30 นาทีมาถึง → prewarm เขียน 1h ซ้ำ (จ่าย ฿4.4+฿6.2 ต่อ 1 cold start)
+  // เขียน 1h จากแชตเลย: แพงขึ้นนิดเดียว แต่ prewarm เหลือหน้าที่ "อ่านต่ออายุ" ฿0.3 — ไม่มีจุดซ้ำ
   // แคชไม่เปลี่ยนคำตอบ (โมเดลเห็นข้อความเดิมเป๊ะ) แค่ลดต้นทุน token ส่วนที่ซ้ำ; รูปต่อท้าย customer
   const content = [
-    { type: "text", text: stable, cache_control: { type: "ephemeral", ttl: "5m" } },
-    { type: "text", text: promo, cache_control: { type: "ephemeral", ttl: "5m" } },
+    { type: "text", text: stable, cache_control: { type: "ephemeral", ttl: "1h" } },
+    { type: "text", text: promo, cache_control: { type: "ephemeral", ttl: "1h" } },
     { type: "text", text: customer },
     ...imgs.map((url) => ({ type: "image", source: { type: "url", url } })),
   ];
@@ -106,7 +108,7 @@ async function callClaudeRaw(
         model,
         max_tokens: 900,
         system: [
-          { type: "text", text: systemPrompt, cache_control: { type: "ephemeral", ttl: "5m" } },
+          { type: "text", text: systemPrompt, cache_control: { type: "ephemeral", ttl: "1h" } },
         ],
         messages: [{ role: "user", content }],
       }),
@@ -290,7 +292,7 @@ export async function generateReplyWithTools(
             {
               type: "text",
               text: ORDER_REPLY_SYSTEM_PROMPT,
-              cache_control: { type: "ephemeral", ttl: "5m" },
+              cache_control: { type: "ephemeral", ttl: "1h" },
             },
           ],
           tools,
@@ -323,8 +325,8 @@ export async function generateReplyWithTools(
   const { stable, promo, customer } = buildUserContentParts(req);
   const finalText = await runToolLoop({
     initialContent: [
-      { type: "text", text: stable, cache_control: { type: "ephemeral", ttl: "5m" } },
-      { type: "text", text: promo, cache_control: { type: "ephemeral", ttl: "5m" } },
+      { type: "text", text: stable, cache_control: { type: "ephemeral", ttl: "1h" } },
+      { type: "text", text: promo, cache_control: { type: "ephemeral", ttl: "1h" } },
       { type: "text", text: `\n\n${customer}` },
     ],
     callModel,

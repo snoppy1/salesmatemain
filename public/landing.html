@@ -20,631 +20,654 @@
 <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&family=Chakra+Petch:wght@600;700&display=swap" rel="stylesheet" />
 <style>
   :root {
-    --bg:            #0E1217;
-    --bg-soft:       #141A21;
-    --surface:       #161D26;
-    --surface-2:     #1B232E;
-    --border:        rgba(255,255,255,.08);
-    --border-strong: rgba(255,255,255,.14);
-    --text:          #F1F5F9;
-    --muted:         #97A6B8;
-    --primary:       #34D399;
-    --primary-strong:#10B981;
-    --primary-ink:   #04240F;
-    --primary-soft:  rgba(52,211,153,.12);
-    --ring:          #34D399;
-    --s1: 8px; --s2: 16px; --s3: 24px; --s4: 32px; --s5: 48px; --s6: 64px; --s7: 96px;
-    --radius: 16px;
-    --ease: cubic-bezier(.22,.61,.36,1);
+    --bg:#0A0D11; --surface:#141A21; --surface-2:#1B232E;
+    --border:rgba(255,255,255,.08); --border-strong:rgba(255,255,255,.15);
+    --text:#F1F5F9; --muted:#97A6B8;
+    --green:#34D399; --green-ink:#04240F; --green-soft:rgba(52,211,153,.12);
+    --cream:#F5DFC0; --cream-ink:#211A10; --cream-soft:rgba(237,226,206,.1);
+    --ease:cubic-bezier(.22,.61,.36,1);
   }
-  * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
-  body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font-family: "Anuphan", system-ui, -apple-system, "Segoe UI", sans-serif;
-    font-size: 17px; line-height: 1.6; -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
-    background-image:
-      radial-gradient(900px 600px at 82% 28%, rgba(52,211,153,.10), transparent 62%),
-      linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px);
-    background-size: auto, 44px 44px, 44px 44px;
-  }
-  a { color: inherit; text-decoration: none; }
-  h1,h2,h3 { font-family: "Anuphan", system-ui, sans-serif; letter-spacing: -.01em; text-wrap: balance; }
-  p { text-wrap: pretty; }
-  .wrap { width: min(1180px, 92vw); margin: 0 auto; }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font-family:"Anuphan",system-ui,-apple-system,"Segoe UI",sans-serif;
+    font-size:17px; line-height:1.6; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+  a { color:inherit; text-decoration:none; }
+  a:hover { color:var(--green); }
+  h1,h2,h3 { letter-spacing:-.01em; text-wrap:balance; margin:0; }
+  p { text-wrap:pretty; }
+  .wrap { width:min(1180px,92vw); margin:0 auto; }
+  /* โลโก้เป็น mask — เปลี่ยนสีตาม currentColor ของจุดที่วาง */
+  .logo-mark { display:inline-block; background:currentColor;
+    -webkit-mask:url(/salesmate-logo.svg) center / contain no-repeat;
+    mask:url(/salesmate-logo.svg) center / contain no-repeat; }
 
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: var(--s1);
-    height: 50px; padding: 0 22px; border-radius: 12px; cursor: pointer;
-    font-family: inherit; font-weight: 700; font-size: 16px;
-    border: 1px solid transparent; white-space: nowrap;
-    transition: transform .2s var(--ease), box-shadow .2s var(--ease), background .2s var(--ease), border-color .2s var(--ease);
-  }
-  .btn-primary { background: var(--primary); color: var(--primary-ink); box-shadow: 0 10px 26px -12px rgba(52,211,153,.5); }
-  .btn-primary:hover { transform: translateY(-2px); background: #4ADEAA; box-shadow: 0 16px 34px -12px rgba(52,211,153,.55); }
-  .btn-ghost { background: transparent; color: var(--text); border-color: var(--border-strong); }
-  .btn-ghost:hover { transform: translateY(-2px); border-color: var(--primary); background: var(--primary-soft); }
-  .btn-sm { height: 42px; padding: 0 16px; font-size: 15px; }
-  .btn:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:52px; padding:0 26px;
+    border-radius:999px; cursor:pointer; font-family:inherit; font-weight:700; font-size:16px;
+    border:1px solid transparent; white-space:nowrap; position:relative; overflow:hidden;
+    transition:transform .25s var(--ease), box-shadow .25s var(--ease), background .25s var(--ease), border-color .25s var(--ease); }
+  .btn-green { background:var(--green); color:var(--green-ink); box-shadow:0 12px 30px -12px rgba(52,211,153,.55); }
+  .btn-green:hover { transform:translateY(-2px) scale(1.02); background:#4ADEAA; color:var(--green-ink); }
+  .btn-cream { background:var(--cream); color:var(--cream-ink); box-shadow:0 12px 30px -14px rgba(237,226,206,.35); }
+  .btn-cream:hover { transform:translateY(-2px) scale(1.02); color:var(--cream-ink); }
+  .btn-ghost { background:transparent; color:var(--text); border-color:var(--border-strong); }
+  .btn-ghost:hover { transform:translateY(-2px); border-color:var(--green); background:var(--green-soft); color:var(--text); }
+  .btn-sm { height:42px; padding:0 18px; font-size:15px; }
+  .btn:focus-visible { outline:3px solid var(--green); outline-offset:2px; }
+  .btn:active { transform:scale(.97); }
 
-  nav { position: sticky; top: 0; z-index: 40; background: rgba(14,18,23,.72); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); transition: box-shadow .3s var(--ease), border-color .3s var(--ease); }
-  .nav-in { display: flex; align-items: center; justify-content: space-between; height: 72px; }
-  .brand { display: flex; align-items: center; gap: 10px; font-family: "Chakra Petch", "Anuphan", sans-serif; font-weight: 700; font-size: 20px; }
-  .brand-mark { width: 30px; height: 30px; border-radius: 8px; background: var(--primary-soft); display: grid; place-items: center; color: var(--primary); font-weight: 700; font-size: 15px; }
-  .brand-logo { height: 32px; width: auto; display: block; }
-  .nav-actions { display: flex; align-items: center; gap: var(--s1); }
+  nav.v2nav { position:fixed; top:0; left:0; right:0; z-index:50; transition:background .3s var(--ease), border-color .3s var(--ease); border-bottom:1px solid transparent;
+    background:linear-gradient(180deg, rgba(10,13,17,.72) 0%, transparent 100%); }
+  nav.v2nav.solid { background:rgba(10,13,17,.78); backdrop-filter:blur(14px); border-bottom-color:var(--border); }
+  .nav-in { display:flex; align-items:center; justify-content:space-between; height:70px; }
+  .brand { display:flex; align-items:center; gap:10px; font-family:"Chakra Petch","Anuphan",sans-serif; font-weight:700; font-size:19px; color:var(--cream); }
+  .brand:hover { color:var(--cream); }
+  .brand .logo-mark { width:30px; height:26px; color:var(--green); }
+  .nav-actions { display:flex; align-items:center; gap:8px; }
+  .nav-prog { position:absolute; left:0; bottom:-1px; height:2px; width:100%; transform:scaleX(0); transform-origin:0 50%;
+    background:linear-gradient(90deg, var(--green), var(--cream)); }
 
-  .hero { display: grid; grid-template-columns: 1.05fr .95fr; align-items: center; gap: var(--s5); padding: var(--s7) 0 160px; }
-  .eyebrow {
-    display: inline-flex; align-items: center; gap: var(--s1); padding: 7px 14px; border-radius: 999px;
-    background: var(--primary-soft); border: 1px solid rgba(52,211,153,.3); color: var(--primary);
-    font-size: 14px; font-weight: 500;
-  }
-  .eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); }
-  h1 { font-size: clamp(46px, 6.6vw, 84px); line-height: 1.14; margin: var(--s3) 0 0; font-weight: 700; }
-  h1 .accent { color: var(--primary); }
-  .lead { color: var(--muted); font-size: clamp(17px, 1.7vw, 20px); max-width: 36ch; margin: var(--s3) 0 0; }
-  .cta-row { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); }
-  .trust { margin-top: var(--s4); }
-  .trust-label { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
-  .chips { display: flex; flex-wrap: wrap; gap: var(--s1); }
-  .chips span {
-    display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 8px;
-    background: var(--surface); border: 1px solid var(--border); font-size: 13px; font-weight: 500; color: var(--muted);
-    transition: transform .2s var(--ease), border-color .2s var(--ease), color .2s var(--ease);
-  }
-  .chips span:hover { transform: translateY(-2px); border-color: rgba(52,211,153,.4); color: var(--text); }
+  .act { position:relative; }
+  .act-view { position:sticky; top:0; height:100vh; overflow:hidden; }
 
-  .showcase { position: relative; display: grid; place-items: center; width: 100%; }
-  .showcase::before {
-    content: ""; position: absolute; inset: -10% 4%; border-radius: 50%;
-    background: radial-gradient(ellipse at center, rgba(52,211,153,.30), transparent 66%);
-    filter: blur(34px); z-index: 0;
-  }
-  .deck { position: relative; z-index: 1; width: min(440px, 94%); aspect-ratio: 1 / 1; }
-  .shot {
-    position: absolute; inset: 0; margin: auto;
-    width: 88%; aspect-ratio: 16 / 11;
-    background: var(--surface); border: 1px solid var(--border-strong); border-radius: 16px;
-    overflow: hidden; box-shadow: 0 26px 54px -22px rgba(0,0,0,.75);
-    display: flex; flex-direction: column; backface-visibility: hidden; will-change: transform;
-    transition: transform .5s var(--ease), box-shadow .3s var(--ease);
-  }
-  .shot.s1 { transform: translate(-9%, -11%) rotate(-7deg) scale(.9);  z-index: 1; }
-  .shot.s2 { transform: translate(-2%, -5%)  rotate(-3deg) scale(.95); z-index: 2; }
-  .shot.s3 { transform: translate(5%, 2%)    rotate(2deg);             z-index: 3; }
-  .showcase:hover .shot.s1 { transform: translate(-32%, 4%) rotate(-11deg); }
-  .showcase:hover .shot.s2 { transform: translate(0, -13%) scale(1.07); z-index: 4;
-    box-shadow: 0 38px 70px -22px rgba(52,211,153,.42), 0 28px 56px -22px rgba(0,0,0,.8); }
-  .showcase:hover .shot.s3 { transform: translate(32%, 4%) rotate(11deg); }
+  /* ===== ACT 1 : 3D type room ===== */
+  .room { position:absolute; inset:0; perspective:1000px; perspective-origin:50% 50%; }
+  .scene { position:absolute; inset:0; transform-style:preserve-3d; will-change:transform; }
+  .face { position:absolute; overflow:hidden; display:flex; }
+  .face .track { font-family:"Anuphan",system-ui,sans-serif; font-weight:700; color:var(--cream); white-space:nowrap; line-height:1.2; letter-spacing:.01em; will-change:transform; }
+  .face .track .g { color:var(--green); }
+  /* ผนังเอียงลึกเกือบตั้งฉาก — มองทะลุเข้าไปในจอ */
+  .f-top { left:0; right:0; top:0; height:100vh; transform-origin:50% 0; transform:rotateX(-78deg); align-items:flex-start; justify-content:center; }
+  .f-bottom { left:0; right:0; bottom:0; height:105vh; transform-origin:50% 100%; transform:rotateX(78deg); align-items:flex-end; justify-content:center; text-align:center; }
+  .f-left { top:0; bottom:0; left:0; width:75vw; transform-origin:0 50%; transform:rotateY(78deg); align-items:center; justify-content:center; text-align:center; }
+  .f-right { top:0; bottom:0; right:0; width:75vw; transform-origin:100% 50%; transform:rotateY(-78deg); align-items:center; justify-content:center; text-align:center; }
+  .f-top .track { font-size:min(42vh,16vw); font-family:"Chakra Petch","Anuphan",sans-serif; letter-spacing:.02em; }
+  .f-bottom .track { font-size:min(38vh,15vw); white-space:normal; line-height:1.1; }
+  .f-left .track, .f-right .track { font-size:min(27vh,17vw); white-space:normal; line-height:1.08; }
+  .hero-core { position:absolute; inset:0; display:grid; place-items:center; text-align:center; z-index:5; will-change:transform,opacity; }
+  .hero-core .logo-mark { width:110px; height:88px; color:var(--green); filter:drop-shadow(0 14px 34px rgba(52,211,153,.35)); }
+  .hero-core h1 { font-size:clamp(38px,4.6vw,66px); font-weight:700; color:var(--text); margin-top:26px; }
+  .hero-core h1 .c { color:var(--cream); }
+  .hero-core h1 .g { color:var(--green); }
+  .hero-core .sub { color:var(--muted); font-size:clamp(16px,1.6vw,19px); max-width:44ch; margin:18px auto 0; }
+  .hero-core .cta-row { display:flex; gap:14px; justify-content:center; margin-top:32px; flex-wrap:wrap; }
+  .hero-veil { position:absolute; inset:0; z-index:4; pointer-events:none;
+    background:radial-gradient(58% 52% at 50% 50%, rgba(10,13,17,.88) 0%, rgba(10,13,17,.55) 46%, transparent 72%); }
+  .scroll-hint { position:absolute; left:50%; bottom:22px; transform:translateX(-50%); color:var(--muted); font-size:12.5px;
+    display:flex; flex-direction:column; align-items:center; gap:6px; z-index:6; }
+  .scroll-hint svg { animation:hint-bob 1.8s ease-in-out infinite; color:var(--cream); }
+  @keyframes hint-bob { 0%,100% { transform:translateY(0); opacity:.9; } 50% { transform:translateY(6px); opacity:.5; } }
 
-  .shot .bar { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; background: rgba(255,255,255,.035); border-bottom: 1px solid var(--border); flex: none; }
-  .shot .bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--border-strong); }
-  .shot .bar i.r { background: #FF5F57; } .shot .bar i.y { background: #FEBC2E; } .shot .bar i.g { background: #28C840; }
-  .shot .body { flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 9px; min-height: 0; }
-  .shot .bub { max-width: 82%; padding: 8px 11px; border-radius: 12px; font-size: 12.5px; line-height: 1.35; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); }
-  .shot .bub.ai { align-self: flex-end; color: var(--primary-ink); background: var(--primary); border-color: transparent; font-weight: 600; }
-  .shot .big { font-family: "Chakra Petch", "Anuphan", sans-serif; font-variant-numeric: tabular-nums; font-size: 30px; font-weight: 700; color: var(--primary); letter-spacing: 0; }
-  .shot .tag { margin-top: auto; display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 700; color: var(--text); }
-  .shot .tag .d { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); flex: none; }
-
-  .hero-stats { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s3);
-    border-top: 1px solid var(--border); padding-top: var(--s4); margin-top: var(--s2); }
-  .stat b { display: block; font-family: "Chakra Petch", "Anuphan", sans-serif; font-variant-numeric: tabular-nums;
-    font-size: clamp(28px, 3.4vw, 40px); font-weight: 700; color: var(--primary); line-height: 1.1; }
-  .stat span { display: block; color: var(--muted); font-size: 14.5px; margin-top: 4px; }
-  .stats-src { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; margin-top: -6px; }
-  @media (max-width: 720px) { .hero-stats { grid-template-columns: 1fr; gap: var(--s2); text-align: center; } .stats-src { text-align: center; } }
-
-  .chart { display: flex; gap: 7px; align-items: flex-end; height: 46px; margin-top: 2px; }
-  .chart i { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; gap: 3px; font-style: normal; }
-  .chart b { border-radius: 4px 4px 0 0; background: var(--primary-soft); }
-  .chart i:last-child b { background: var(--primary); }
-  .chart small { font-size: 9.5px; color: var(--muted); text-align: center; }
-  .delta { font-size: 12.5px; font-weight: 600; color: var(--primary); }
-
-  .inb { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); font-size: 11.5px; line-height: 1.3; }
-  .inb .av { width: 20px; height: 20px; border-radius: 6px; flex: none; display: grid; place-items: center; font-size: 8.5px; font-weight: 700; color: var(--primary); background: var(--primary-soft); }
-  .inb .who { font-weight: 700; color: var(--text); white-space: nowrap; }
-  .inb .txt { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-  .section { padding: var(--s6) 0; }
-  .sec-head { max-width: 620px; margin: 0 auto var(--s5); text-align: center; }
-  .sec-head h2 { font-size: clamp(28px, 3.6vw, 42px); margin: 0; }
-  .sec-head p { color: var(--muted); margin: var(--s2) 0 0; }
-
-  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s3); }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--s4); transition: transform .25s var(--ease), border-color .25s var(--ease), box-shadow .25s var(--ease); }
-  .card:hover { transform: translateY(-6px); border-color: rgba(52,211,153,.45); box-shadow: 0 24px 48px -26px rgba(0,0,0,.7); }
-  .card .ico { width: 46px; height: 46px; border-radius: 12px; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; margin-bottom: var(--s2); transition: transform .3s var(--ease); }
-  .card:hover .ico { transform: scale(1.08) rotate(-4deg); }
-  .card h3 { font-size: 20px; margin: 0 0 var(--s1); }
-  .card p { color: var(--muted); font-size: 15.5px; margin: 0; }
-
-  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s3); counter-reset: step; }
-  .step { position: relative; padding: var(--s4) var(--s3); background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--radius); transition: transform .25s var(--ease), border-color .25s var(--ease); }
-  .step:hover { transform: translateY(-4px); border-color: rgba(52,211,153,.35); }
-  .step .num { width: 38px; height: 38px; border-radius: 50%; background: var(--primary); color: var(--primary-ink); display: grid; place-items: center; font-family: "Chakra Petch", sans-serif; font-weight: 700; margin-bottom: var(--s2); }
-  .step h3 { font-size: 18px; margin: 0 0 6px; }
-  .step p { color: var(--muted); font-size: 15px; margin: 0; }
-
-  .cc { display: grid; grid-template-columns: 1.05fr .95fr; align-items: center; gap: var(--s5); }
-  .cc-h { font-size: clamp(36px, 5vw, 64px); line-height: 1.14; margin: 0; letter-spacing: -.01em; font-weight: 700; }
-  .cc-h .accent { color: var(--primary); }
-  .cc-sub { color: var(--muted); font-size: clamp(16px, 1.7vw, 19px); margin: var(--s3) 0 0; max-width: 40ch; }
-
-  .cc-phone { position: relative; display: grid; place-items: center; }
-  .cc-phone::before { content: ""; position: absolute; inset: 4% 8%; border-radius: 50%;
-    background: radial-gradient(ellipse at center, rgba(52,211,153,.22), transparent 66%); filter: blur(38px); z-index: 0; }
-  .phone { position: relative; z-index: 1; width: min(300px, 82%); aspect-ratio: 300 / 610;
-    background: #0B0F14; border: 1px solid var(--border-strong); border-radius: 38px; padding: 11px;
-    box-shadow: 0 44px 84px -28px rgba(0,0,0,.85); }
-  .phone-notch { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); width: 92px; height: 20px; background: #05080B; border-radius: 999px; z-index: 2; }
-  .phone-screen { height: 100%; background: linear-gradient(180deg, #131A22, #0E1217); border-radius: 28px; overflow: hidden; display: flex; flex-direction: column; }
-  .ph-head { display: flex; align-items: center; gap: 10px; padding: 30px 15px 12px; border-bottom: 1px solid var(--border); flex: none; }
-  .ph-head .ph-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); flex: none; }
-  .ph-head b { font-size: 14px; display: block; }
-  .ph-head small { color: var(--muted); font-size: 11.5px; }
-  .ph-chat { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 9px; padding: 14px; }
-  .msg { max-width: 84%; padding: 9px 12px; border-radius: 14px; font-size: 13px; line-height: 1.42; }
-  .msg.l { align-self: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-bottom-left-radius: 5px; }
-  .msg.r { align-self: flex-end; background: var(--primary); color: var(--primary-ink); border-bottom-right-radius: 5px; font-weight: 500; }
-  .msg.up { box-shadow: 0 10px 24px -10px rgba(52,211,153,.65); }
-  .ph-close { margin: 4px 14px 16px; padding: 9px 12px; border-radius: 10px; text-align: center; font-size: 12.5px; font-weight: 700; flex: none;
-    color: var(--primary); background: var(--primary-soft); border: 1px solid rgba(52,211,153,.35); }
-
-  /* motion: เลื่อนถึงค่อยเข้า → แชตเด้งทีละบับเบิล (orchestrated) */
-  .js .cc-text  { opacity: 0; transform: translateY(26px); }
-  .js .cc-phone { opacity: 0; transform: translateY(28px) scale(.97); }
-  .js .cc .msg, .js .cc .ph-close { opacity: 0; transform: translateY(10px); }
-  .cc.in .cc-text  { opacity: 1; transform: none; transition: opacity .7s var(--ease), transform .7s var(--ease); }
-  .cc.in .cc-phone { opacity: 1; transform: none; transition: opacity .85s var(--ease) .08s, transform .85s var(--ease) .08s; }
-  .cc.in .msg, .cc.in .ph-close { opacity: 1; transform: none;
-    transition: opacity .45s var(--ease), transform .5s cubic-bezier(.22,1,.36,1);
-    transition-delay: calc(var(--m) * .16s + .55s); }
-
-  @media (max-width: 880px) {
-    .cc { grid-template-columns: 1fr; gap: var(--s4); text-align: center; }
-    .cc-sub { margin-left: auto; margin-right: auto; }
-    .cc-phone { order: 2; }
+  /* ===== ACT 2 : floating results ===== */
+  .gal-head { position:absolute; inset:0; display:grid; place-items:center; text-align:center; z-index:3; pointer-events:none; }
+  .gal-head .kick { display:inline-flex; align-items:center; gap:8px; padding:7px 16px; border-radius:999px; font-size:13.5px; font-weight:600;
+    color:var(--cream); background:var(--cream-soft); border:1px solid rgba(237,226,206,.28); margin-bottom:20px; }
+  .gal-head h2 { font-family:"Chakra Petch","Anuphan",sans-serif; font-size:clamp(34px,4.4vw,62px); color:var(--cream); line-height:1.15; }
+  .gal-head h2 .g { color:var(--green); }
+  .gal-head p { color:var(--muted); margin:16px auto 0; max-width:42ch; }
+  .fcard { position:absolute; width:230px; border-radius:16px; background:var(--surface); border:1px solid var(--border-strong);
+    padding:16px; box-shadow:0 30px 60px -24px rgba(0,0,0,.8); will-change:transform,opacity; z-index:2; }
+  .fcard.cream { background:var(--cream); color:var(--cream-ink); border-color:transparent; }
+  .fcard.cream small { color:rgba(33,26,16,.62); }
+  .fcard b.num { display:block; font-family:"Chakra Petch","Anuphan",sans-serif; font-variant-numeric:tabular-nums; font-size:30px; color:var(--green); line-height:1.1; }
+  .fcard.cream b.num { color:var(--cream-ink); }
+  .fcard small { display:block; color:var(--muted); font-size:12.5px; margin-top:4px; line-height:1.45; }
+  .fcard .bub { display:block; padding:8px 11px; border-radius:12px; font-size:12.5px; line-height:1.4; background:var(--surface-2); border:1px solid var(--border); color:var(--muted); }
+  .fcard .bub.ai { background:var(--green); color:var(--green-ink); border-color:transparent; font-weight:600; margin-top:8px; }
+  .fcard .chips { display:flex; gap:6px; flex-wrap:wrap; }
+  .fcard .chips span { padding:4px 10px; border-radius:8px; background:var(--surface-2); border:1px solid var(--border); font-size:12px; color:var(--muted); }
+  .fcard .bars { display:flex; gap:6px; align-items:flex-end; height:52px; margin-top:8px; }
+  .fcard .bars b { flex:1; border-radius:3px 3px 0 0; background:var(--green-soft); transform-origin:bottom; }
+  .fcard .bars b:last-child { background:var(--green); }
+  .p1 { left:6%; top:12%; } .p2 { right:7%; top:9%; width:250px; }
+  .p3 { left:3%; bottom:14%; width:250px; } .p4 { right:5%; bottom:10%; }
+  .p5 { left:24%; bottom:4%; } .p6 { right:24%; top:2%; }
+  .p7 { left:3%; top:40%; width:190px; } .p8 { right:2%; top:44%; width:190px; }
+  .p9 { left:25%; top:5%; width:170px; } .p10 { right:26%; bottom:3%; width:240px; }
+  @media (max-width:880px) {
+    .fcard { width:180px; padding:12px; }
+    .p5,.p6,.p7,.p8,.p9,.p10 { display:none; }
   }
 
-  .ww-grid { max-width: 860px; margin: 0 auto; }
-  .ww-row { display: grid; grid-template-columns: 92px 1fr; gap: var(--s3); align-items: start; padding: var(--s4) 0; border-top: 1px solid var(--border); }
-  .ww-row:first-child { border-top: none; padding-top: 0; }
-  .ww-kicker { font-family: "Chakra Petch", sans-serif; font-weight: 700; font-size: 13px; letter-spacing: .14em;
-    display: inline-flex; align-items: center; height: 28px; padding: 0 13px; border-radius: 999px;
-    color: var(--primary); background: var(--primary-soft); border: 1px solid rgba(52,211,153,.3); }
-  .ww-row h3 { font-size: clamp(22px, 3vw, 32px); line-height: 1.3; margin: 0 0 10px; }
-  .ww-row p { color: var(--muted); font-size: 16.5px; margin: 0; max-width: 54ch; }
-  @media (max-width: 720px) { .ww-row { grid-template-columns: 1fr; gap: 12px; } }
-
-  /* per-letter reveal — ซ่อนไว้ตั้งแต่ paint แรก โผล่เฉพาะตอนเลื่อนมาถึง */
-  .js .reveal-chars { opacity: 0; }
-  .js .reveal-chars.in { opacity: 1; }
-  .js .reveal-chars:not(.split) { transition: opacity .7s var(--ease); }
-  .reveal-chars .ch { display: inline-block; opacity: 0; transform: translateY(.6em); filter: blur(8px); will-change: transform, opacity, filter; }
-  .reveal-chars.split.in .ch { animation: charRise .8s cubic-bezier(.16,.84,.30,1) both; animation-delay: calc(var(--i) * 42ms); }
-  @keyframes charRise {
-    from { opacity: 0; transform: translateY(.6em); filter: blur(8px); }
-    to   { opacity: 1; transform: none;            filter: blur(0); }
+  /* ===== ACT 3 : phone demo ===== */
+  .cc { display:grid; grid-template-columns:1.05fr .95fr; align-items:center; gap:48px; height:100vh; }
+  .cc-text h2 { font-family:"Chakra Petch","Anuphan",sans-serif; font-size:clamp(32px,4.2vw,58px); line-height:1.16; color:var(--cream); }
+  .cc-text h2 .g { color:var(--green); }
+  .cc-sub { color:var(--muted); font-size:clamp(16px,1.7vw,19px); margin:20px 0 0; max-width:40ch; }
+  .cc-prog { display:flex; align-items:center; gap:10px; margin-top:30px; color:var(--muted); font-size:13px; }
+  .cc-prog .bar { width:150px; height:3px; border-radius:99px; background:var(--border); overflow:hidden; }
+  .cc-prog .bar i { display:block; height:100%; background:linear-gradient(90deg,var(--green),var(--cream)); transform:scaleX(0); transform-origin:0 50%; }
+  .cc-phone { position:relative; display:grid; place-items:center; }
+  .phone { position:relative; z-index:1; width:min(300px,82%,42vh); aspect-ratio:300/610; background:#0B0F14;
+    border:1px solid var(--border-strong); border-radius:38px; padding:11px; box-shadow:0 44px 84px -28px rgba(0,0,0,.85); will-change:transform,opacity; }
+  .phone-notch { position:absolute; top:15px; left:50%; transform:translateX(-50%); width:92px; height:20px; background:#05080B; border-radius:999px; z-index:2; }
+  .phone-screen { height:100%; background:linear-gradient(180deg,#131A22,#0A0D11); border-radius:28px; overflow:hidden; display:flex; flex-direction:column; }
+  .ph-head { display:flex; align-items:center; gap:10px; padding:30px 15px 12px; border-bottom:1px solid var(--border); flex:none; }
+  .ph-head .ph-dot { width:9px; height:9px; border-radius:50%; background:var(--green); box-shadow:0 0 0 3px var(--green-soft); flex:none; animation:pulse-dot 2.4s ease-in-out infinite; }
+  .ph-head b { font-size:14px; display:block; } .ph-head small { color:var(--muted); font-size:11.5px; }
+  .ph-chat { flex:1; display:flex; flex-direction:column; justify-content:flex-end; gap:9px; padding:14px; }
+  .msg { max-width:84%; padding:9px 12px; border-radius:14px; font-size:13px; line-height:1.42; will-change:transform,opacity; }
+  .msg.l { align-self:flex-start; background:var(--surface-2); border:1px solid var(--border); border-bottom-left-radius:5px; }
+  .msg.r { align-self:flex-end; background:var(--green); color:var(--green-ink); border-bottom-right-radius:5px; font-weight:500; }
+  .msg.up { box-shadow:0 10px 24px -10px rgba(52,211,153,.65); }
+  .ph-close { margin:4px 14px 16px; padding:9px 12px; border-radius:10px; text-align:center; font-size:12.5px; font-weight:700; flex:none;
+    color:var(--cream-ink); background:var(--cream); will-change:transform,opacity; }
+  @keyframes pulse-dot { 0%,100% { box-shadow:0 0 0 0 rgba(52,211,153,.5); } 50% { box-shadow:0 0 0 7px rgba(52,211,153,0); } }
+  @media (max-width:880px) {
+    .cc { grid-template-columns:1fr; gap:24px; text-align:center; padding:80px 0 40px; height:auto; min-height:100vh; }
+    .cc-sub { margin:16px auto 0; } .cc-prog { justify-content:center; } .cc-phone { order:2; }
   }
 
-  .cta-band { position: relative; overflow: hidden; background: linear-gradient(135deg, rgba(52,211,153,.14), rgba(52,211,153,.04)); border: 1px solid rgba(52,211,153,.25); border-radius: 24px; padding: var(--s6) var(--s4); text-align: center; }
-  .cta-band h2 { font-size: clamp(26px, 3.4vw, 40px); margin: 0; }
-  .cta-band p { color: var(--muted); margin: var(--s2) auto var(--s4); max-width: 46ch; }
-  .cta-band .cta-note { font-size: 13.5px; line-height: 1.7; margin: var(--s3) auto 0; max-width: 52ch; }
+  /* ===== stats / features ===== */
+  .hero-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:40px 0; }
+  .stat b { display:block; font-family:"Chakra Petch","Anuphan",sans-serif; font-variant-numeric:tabular-nums; font-size:clamp(30px,3.6vw,44px); font-weight:700; color:var(--cream); line-height:1.1; }
+  .stat span { display:block; color:var(--muted); font-size:14.5px; margin-top:4px; }
+  .stats-src { color:var(--muted); font-size:12.5px; margin-top:14px; }
+  @media (max-width:720px) { .hero-stats { grid-template-columns:1fr; text-align:center; } .stats-src { text-align:center; } }
+  .grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:32px; will-change:transform,opacity; transition:border-color .25s var(--ease), box-shadow .25s var(--ease); }
+  .card:hover { border-color:rgba(52,211,153,.45); box-shadow:0 24px 48px -26px rgba(0,0,0,.7); }
+  .card .ico { width:46px; height:46px; border-radius:12px; background:var(--green-soft); color:var(--green); display:grid; place-items:center; margin-bottom:16px; }
+  .card h3 { font-size:20px; margin:0 0 8px; }
+  .card p { color:var(--muted); font-size:15.5px; margin:0; }
+  @media (max-width:880px) { .grid-3 { grid-template-columns:1fr; } }
+  .big-topic { text-align:center; padding:110px 0; }
+  .big-topic h2 { font-family:"Chakra Petch","Anuphan",sans-serif; font-size:clamp(38px,6vw,84px); line-height:1.2; color:var(--cream); }
+  .big-topic h2 .g { color:var(--green); }
+  .big-topic h2 .ch { display:inline-block; will-change:transform,opacity,filter; }
+  .big-topic p { color:var(--muted); font-size:clamp(16px,1.8vw,20px); max-width:52ch; margin:22px auto 0; }
 
-  footer { border-top: 1px solid var(--border); margin-top: var(--s6); }
-  .foot-in { display: flex; align-items: center; justify-content: space-between; min-height: 78px; padding: var(--s2) 0; flex-wrap: wrap; gap: var(--s2); color: var(--muted); font-size: 14px; }
-  .foot-links { display: flex; flex-wrap: wrap; gap: var(--s3); font-size: 14px; }
-  .foot-links a { color: var(--muted); transition: color .2s var(--ease); }
-  .foot-links a:hover { color: var(--text); }
-  .foot-links a:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; border-radius: 4px; }
+  .ambient { position:fixed; inset:-45% 0 -20% 0; z-index:-1; pointer-events:none; overflow:hidden; }
+  .orb { position:absolute; border-radius:50%; filter:blur(80px); will-change:transform; }
+  .orb.o1 { width:520px; height:520px; top:8%; right:-6%; background:radial-gradient(circle, rgba(52,211,153,.20), transparent 68%); animation:drift1 26s ease-in-out infinite alternate; }
+  .orb.o2 { width:460px; height:460px; top:46%; left:-10%; background:radial-gradient(circle, rgba(237,226,206,.10), transparent 68%); animation:drift2 32s ease-in-out infinite alternate; }
+  .orb.o3 { width:380px; height:380px; bottom:12%; right:16%; background:radial-gradient(circle, rgba(52,211,153,.13), transparent 68%); animation:drift3 29s ease-in-out infinite alternate; }
+  @keyframes drift1 { from { transform:translate3d(0,0,0) scale(1); } to { transform:translate3d(-70px,60px,0) scale(1.12); } }
+  @keyframes drift2 { from { transform:translate3d(0,0,0) scale(1); } to { transform:translate3d(80px,-50px,0) scale(1.08); } }
+  @keyframes drift3 { from { transform:translate3d(0,0,0) scale(1.04); } to { transform:translate3d(-50px,-40px,0) scale(1); } }
+  .particle { position:absolute; bottom:-12px; width:4px; height:4px; border-radius:50%; background:rgba(52,211,153,.5); box-shadow:0 0 8px rgba(52,211,153,.5); opacity:0; will-change:transform,opacity; }
+  @keyframes rise-p { 0% { transform:translateY(0) scale(1); opacity:0; } 8% { opacity:.65; } 88% { opacity:.45; } 100% { transform:translateY(-118vh) scale(.55); opacity:0; } }
 
-  #demo { scroll-margin-top: 92px; }
+  .hero-core .logo-mark { animation:logo-bob 4.5s ease-in-out infinite; }
+  @keyframes logo-bob { 0%,100% { translate:0 0; } 50% { translate:0 -10px; } }
+  .cta-band::before { content:""; position:absolute; inset:-50%; z-index:0; pointer-events:none;
+    background:radial-gradient(closest-side, rgba(52,211,153,.14), transparent 70%); animation:cta-sweep 12s ease-in-out infinite; }
+  @keyframes cta-sweep { 0% { transform:translate(-18%,-8%); } 50% { transform:translate(18%,10%); } 100% { transform:translate(-18%,-8%); } }
 
-  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; clip-path: inset(50%); overflow: hidden; white-space: nowrap; }
+  /* ===== steps + CTA ===== */
+  .section { padding:96px 0; }
+  .sec-head { max-width:640px; margin:0 auto 56px; text-align:center; }
+  .sec-head h2 { font-family:"Chakra Petch","Anuphan",sans-serif; font-size:clamp(30px,3.8vw,46px); color:var(--cream); }
+  .sec-head p { color:var(--muted); margin:14px 0 0; }
+  .step-track { position:relative; height:3px; border-radius:99px; background:var(--border); margin:0 13% 36px; overflow:hidden; }
+  .step-track i { position:absolute; inset:0; background:linear-gradient(90deg, var(--green), var(--cream)); transform:scaleX(0); transform-origin:0 50%; }
+  .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; }
+  .step { padding:32px 24px; background:var(--surface); border:1px solid var(--border); border-radius:18px; will-change:transform,opacity; transition:border-color .25s var(--ease); }
+  .step:hover { border-color:rgba(237,226,206,.4); }
+  .step .num { width:40px; height:40px; border-radius:50%; background:var(--cream); color:var(--cream-ink); display:grid; place-items:center; font-family:"Chakra Petch",sans-serif; font-weight:700; margin-bottom:16px; }
+  .step h3 { font-size:18px; margin:0 0 6px; } .step p { color:var(--muted); font-size:15px; margin:0; }
+  @media (max-width:880px) { .steps { grid-template-columns:1fr; } }
 
-  .section.framed {
-    border: 1px solid var(--border); border-radius: 24px;
-    background: linear-gradient(180deg, rgba(255,255,255,.022), rgba(255,255,255,.004));
-    padding: var(--s5); margin-bottom: 128px;
+  .cta-band { position:relative; overflow:hidden; background:var(--cream); color:var(--cream-ink); border-radius:28px; padding:72px 32px; text-align:center; will-change:transform,opacity; }
+  .cta-band h2 { font-family:"Chakra Petch","Anuphan",sans-serif; font-size:clamp(28px,3.6vw,44px); }
+  .cta-band p { color:rgba(33,26,16,.68); margin:16px auto 32px; max-width:46ch; }
+  .cta-band .cta-note { font-size:13.5px; line-height:1.7; margin:24px auto 0; max-width:52ch; }
+  .cta-band .logo-mark { position:absolute; right:-40px; bottom:-46px; width:240px; height:192px; color:rgba(33,26,16,.08); transform:rotate(-10deg); }
+  .cta-band > * { position:relative; z-index:1; }
+
+  footer { border-top:1px solid var(--border); margin-top:64px; }
+  .foot-in { display:flex; align-items:center; justify-content:space-between; min-height:78px; padding:16px 0; flex-wrap:wrap; gap:16px; color:var(--muted); font-size:14px; }
+  .foot-links { display:flex; flex-wrap:wrap; gap:24px; font-size:14px; }
+  .foot-links a { color:var(--muted); transition:color .2s var(--ease); }
+  .foot-links a:hover { color:var(--cream); }
+  .sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; border:0; clip-path:inset(50%); overflow:hidden; white-space:nowrap; }
+  @media (max-width:720px) {
+    .f-left, .f-right { width:60vw; }
+    .f-top { height:70vh; } .f-bottom { height:75vh; }
+    .f-top .track { font-size:min(26vh,20vw); }
+    .f-bottom .track { font-size:min(22vh,17vw); }
+    .f-left .track, .f-right .track { font-size:min(16vh,15vw); }
+    .hero-core { padding:0 20px; }
+    .hero-core .logo-mark { width:80px; height:64px; }
+    .fcard { width:150px; padding:12px; }
+    .fcard b.num { font-size:24px; }
+    .p1 { left:3%; top:9%; } .p2 { right:3%; top:7%; width:170px; }
+    .p3 { left:3%; bottom:9%; width:170px; } .p4 { right:3%; bottom:7%; }
+    .gal-head { padding:0 16px; }
+    .big-topic { padding:72px 0; }
+    .cta-band { padding:52px 20px; }
   }
-  @media (max-width: 720px) { .section.framed { padding: var(--s4) var(--s3); border-radius: 18px; margin-bottom: 72px; } }
-
-  .js .section.framed { opacity: 0; transform: translateY(34px); }
-  .section.framed.in { opacity: 1; transform: none; transition: opacity .7s var(--ease), transform .8s var(--ease); }
-
-  .js .framed .card, .js .framed .step { opacity: 0; }
-  .js .framed .step { transform: translateY(22px); }
-  .framed .card { transition: opacity .5s var(--ease) var(--d, 0s), transform .25s var(--ease), border-color .25s var(--ease), box-shadow .25s var(--ease); }
-  .framed .step { transition: opacity .55s var(--ease) var(--d, 0s), transform .6s var(--ease) var(--d, 0s); }
-  .framed.in .card, .framed.in .step { opacity: 1; }
-  .framed.in .step { transform: none; }
-  .framed .card:nth-child(2), .framed .step:nth-child(2) { --d: .12s; }
-  .framed .card:nth-child(3), .framed .step:nth-child(3) { --d: .24s; }
-
-  .reveal { opacity: 0; animation: rise .7s var(--ease) forwards; }
-  .reveal.d2 { animation-delay: .1s; } .reveal.d3 { animation-delay: .2s; }
-  .reveal.d4 { animation-delay: .3s; } .reveal.d5 { animation-delay: .4s; }
-  @keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
-
-  /* ============ MOTION ADD-ONS ============ */
-  /* orbs สีเขียวลอยช้าๆ ด้านหลัง (fixed, ไม่รับ pointer) */
-  .ambient { position: fixed; inset: -12% 0 0 0; z-index: -1; pointer-events: none; overflow: hidden; will-change: transform; }
-  .orb { position: absolute; border-radius: 50%; filter: blur(72px); will-change: transform; }
-  .orb.o1 { width: 560px; height: 560px; top: -4%; right: -8%; background: radial-gradient(circle, rgba(52,211,153,.28), transparent 68%); animation: drift1 28s ease-in-out infinite alternate; }
-  .orb.o2 { width: 460px; height: 460px; top: 40%; left: -12%; background: radial-gradient(circle, rgba(16,185,129,.20), transparent 68%); animation: drift2 34s ease-in-out infinite alternate; }
-  .orb.o3 { width: 400px; height: 400px; bottom: 6%; right: 14%; background: radial-gradient(circle, rgba(52,211,153,.15), transparent 68%); animation: drift3 31s ease-in-out infinite alternate; }
-  @keyframes drift1 { from { transform: translate3d(0,0,0) scale(1); } to { transform: translate3d(-70px,60px,0) scale(1.14); } }
-  @keyframes drift2 { from { transform: translate3d(0,0,0) scale(1); } to { transform: translate3d(80px,-50px,0) scale(1.1); } }
-  @keyframes drift3 { from { transform: translate3d(0,0,0) scale(1.05); } to { transform: translate3d(-50px,-40px,0) scale(1); } }
-  .particle { position: absolute; bottom: -12px; width: 4px; height: 4px; border-radius: 50%; background: rgba(52,211,153,.55); box-shadow: 0 0 8px rgba(52,211,153,.55); opacity: 0; will-change: transform, opacity; }
-  @keyframes rise-p { 0% { transform: translateY(0) scale(1); opacity: 0; } 8% { opacity: .7; } 88% { opacity: .5; } 100% { transform: translateY(-118vh) scale(.55); opacity: 0; } }
-
-  .showcase::before, .cc-phone::before { animation: glowpulse 8s ease-in-out infinite; }
-  @keyframes glowpulse { 0%,100% { transform: translateY(0) scale(1); opacity: 1; } 50% { transform: translateY(-14px) scale(1.06); opacity: .82; } }
-
-  .eyebrow .dot, .ph-head .ph-dot, .shot .tag .d { animation: pulse-dot 2.4s ease-in-out infinite; }
-  @keyframes pulse-dot { 0%,100% { box-shadow: 0 0 0 0 rgba(52,211,153,.5); } 50% { box-shadow: 0 0 0 7px rgba(52,211,153,0); } }
-
-  .btn { position: relative; overflow: hidden; }
-  .btn::after { content: ""; position: absolute; top: 0; left: -130%; width: 70%; height: 100%; transform: skewX(-20deg); background: linear-gradient(100deg, transparent, rgba(255,255,255,.28), transparent); pointer-events: none; }
-  .btn:hover::after { animation: sheen .85s var(--ease); }
-  .btn:active { transform: translateY(0) scale(.98); }
-  @keyframes sheen { from { left: -130%; } to { left: 155%; } }
-
-  .card { position: relative; overflow: hidden; }
-  .card::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .35s var(--ease);
-    background: radial-gradient(300px circle at var(--mx,50%) var(--my,50%), rgba(52,211,153,.16), transparent 62%); }
-  .card:hover::before { opacity: 1; }
-  .card > * { position: relative; }
-
-  .cta-band::before { content: ""; position: absolute; inset: -50%; z-index: 0; pointer-events: none;
-    background: radial-gradient(closest-side, rgba(52,211,153,.16), transparent 70%);
-    animation: cta-sweep 12s ease-in-out infinite; }
-  .cta-band > * { position: relative; z-index: 1; }
-  @keyframes cta-sweep { 0% { transform: translate(-18%,-8%); } 50% { transform: translate(18%,10%); } 100% { transform: translate(-18%,-8%); } }
-
-  [data-parallax] { will-change: transform; }
-
-  @media (max-width: 880px) {
-    .hero { grid-template-columns: 1fr; gap: var(--s3); padding: var(--s5) 0; text-align: center; }
-    .showcase { margin-top: var(--s2); }
-    .deck { width: min(400px, 88%); }
-    .lead { margin-left: auto; margin-right: auto; }
-    .cta-row, .chips { justify-content: center; }
-    .grid-3, .steps { grid-template-columns: 1fr; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    * { animation: none !important; transition: none !important; scroll-behavior: auto; }
-    .reveal { opacity: 1 !important; transform: none !important; }
-    .particle { display: none; }
-  }
+  @media (prefers-reduced-motion: reduce) { * { animation:none !important; transition:none !important; } }
 </style>
-<script>document.documentElement.classList.add('js');</script>
 </head>
 <body>
-
-<div class="ambient" aria-hidden="true">
-  <span class="orb o1"></span>
-  <span class="orb o2"></span>
-  <span class="orb o3"></span>
-</div>
-
-<nav>
-  <div class="wrap nav-in">
-    <div class="brand"><img src="/salesmate-logo.svg" alt="" class="brand-logo" /> SalesMate</div>
-    <div class="nav-actions">
-      <a class="btn btn-ghost btn-sm" href="/login">เข้าสู่ระบบ</a>
-    </div>
+<div id="v2Root">
+  <div class="ambient" id="ambient" aria-hidden="true">
+    <span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span>
   </div>
-</nav>
 
-<header class="wrap">
-  <section class="hero">
-    <div class="hero-text">
-      <span class="eyebrow reveal"><span class="dot"></span> ผู้ช่วยขาย AI สำหรับร้านแชต</span>
-      <h1 class="reveal d2">ขายเก่งขึ้น<br>ด้วย <span class="accent">SalesMate</span></h1>
-      <p class="lead reveal d3">รวมแชตทุกแพลตฟอร์มไว้ที่เดียว ให้ AI ช่วยตอบลูกค้าไวขึ้นและแนะนำขายพ่วงอัตโนมัติ — ตั้งค่าง่าย ร้านมือใหม่ก็ใช้เป็น</p>
-      <div class="cta-row reveal d4">
-        <a class="btn btn-primary" href="/login">เริ่มใช้ฟรี
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-        </a>
-        <a class="btn btn-ghost" href="#demo">ดูตัวอย่างการใช้งาน</a>
+  <nav class="v2nav" id="navBar" aria-label="เมนูหลัก">
+    <div class="wrap nav-in">
+      <a class="brand" href="/"><span class="logo-mark" aria-hidden="true"></span> SalesMate</a>
+      <div class="nav-actions">
+        <a class="btn btn-ghost btn-sm" href="/login">เข้าสู่ระบบ</a>
+        <a class="btn btn-cream btn-sm" href="/login">เริ่มใช้ฟรี</a>
       </div>
-      <div class="trust reveal d5">
-        <div class="trust-label">เชื่อมต่อได้ทุกแพลตฟอร์มยอดนิยม</div>
+    </div>
+    <span class="nav-prog" id="navProg" aria-hidden="true"></span>
+  </nav>
+
+  <!-- ACT 1: 3D typography room — หมุน + ซูมเข้าตาม scroll -->
+  <section class="act" id="roomAct">
+    <div class="act-view">
+      <div class="room" aria-hidden="true">
+        <div class="scene" id="scene">
+          <div class="face f-top"><div class="track" data-drift="-1">SALESMATE</div></div>
+          <div class="face f-bottom"><div class="track" data-drift="1"><span class="g">ปิด</span>การขาย</div></div>
+          <div class="face f-left"><div class="track" data-drift="-1" data-axis="y">แนะนำ<br><span class="g">สินค้า</span></div></div>
+          <div class="face f-right"><div class="track" data-drift="1" data-axis="y">ขาย<br><span class="g">เป็น</span></div></div>
+        </div>
+      </div>
+      <div class="hero-veil"></div>
+      <div class="hero-core" id="heroCore">
+        <div>
+          <span class="logo-mark" id="heroLogo" aria-hidden="true"></span>
+          <h1><span class="c">ผู้ช่วยขาย AI</span><br>ที่<span class="g">ขายเป็น</span>จริงๆ</h1>
+          <p class="sub">รวมแชต LINE / Facebook / Lazada ไว้ที่เดียว ให้ AI ตอบไวและชวนซื้อเพิ่มแบบเนียนๆ — ตั้งค่าเสร็จใน 5 นาที</p>
+          <div class="cta-row">
+            <a class="btn btn-cream" href="/login">เริ่มใช้ฟรี
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+            </a>
+            <a class="btn btn-ghost" href="#results">ดูผลงานจริง</a>
+          </div>
+        </div>
+      </div>
+      <div class="scroll-hint" id="scrollHint">
+        เลื่อนลง — เข้าไปดูข้างใน
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v14M6 12l6 6 6-6"></path></svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACT 2: ผลงานจริง — การ์ดเด้งเข้ามาทีละใบ -->
+  <section class="act" id="galAct">
+    <div class="act-view" id="results">
+      <div class="gal-head">
+        <div id="galHead">
+          <span class="kick">ผลงานจริงช่วงเบต้า</span>
+          <h2>ร้านที่ใช้ SalesMate<br><span class="g">ขายได้เพิ่มขึ้นจริง</span></h2>
+          <p>ตัวเลขและบทสนทนาจริงจากร้านแชตที่เปิดใช้ AI ช่วยขาย</p>
+        </div>
+      </div>
+      <div class="fcard p1" data-f="0">
+        <b class="num">+฿190</b>
+        <small>ยอดพ่วงเฉลี่ยต่อบิลที่ AI ปิดได้</small>
+      </div>
+      <div class="fcard p2" data-f="1">
+        <span class="bub">มีรุ่นนี้สีดำไหมคะ</span>
+        <span class="bub ai">มีพร้อมส่งค่ะ รับเคสกันกระแทกเพิ่มไหมคะ</span>
+        <small>AI ตอบ + ชวนซื้อเพิ่มใน 30 วินาที</small>
+      </div>
+      <div class="fcard cream p3" data-f="2">
+        <div style="font-size:14px;line-height:1.55;font-weight:600">"ตอบไวขึ้นมาก ลูกค้าไม่หลุดมือแล้ว ยอดต่อบิลก็เพิ่ม"</div>
+        <small>ร้านอุปกรณ์มือถือ — ใช้มา 2 เดือน</small>
+      </div>
+      <div class="fcard p4" data-f="3">
+        <b class="num">฿12,400</b>
+        <small>ยอดขายพ่วงเดือนนี้ · ▲ +18%</small>
+        <div class="bars">
+          <b style="height:38%"></b><b style="height:62%"></b><b style="height:48%"></b><b style="height:80%"></b><b style="height:100%"></b>
+        </div>
+      </div>
+      <div class="fcard p5" data-f="4">
+        <b class="num">30 วิ</b>
+        <small>ตอบลูกค้าแม้ร้านไม่ว่าง</small>
+      </div>
+      <div class="fcard p6" data-f="5">
         <div class="chips"><span>LINE</span><span>Facebook</span><span>Lazada</span></div>
+        <small style="margin-top:8px">ทุกแชตเด้งเข้ากล่องเดียว</small>
+      </div>
+      <div class="fcard p7" data-f="6">
+        <b class="num">1,200+</b>
+        <small>ข้อความที่ AI ช่วยตอบต่อเดือน</small>
+      </div>
+      <div class="fcard cream p8" data-f="7">
+        <b class="num">4.9 ★</b>
+        <small>คะแนนความพอใจจากร้านช่วงเบต้า</small>
+      </div>
+      <div class="fcard p9" data-f="8">
+        <b class="num">86</b>
+        <small>ออเดอร์ที่ AI ช่วยปิดเดือนนี้</small>
+      </div>
+      <div class="fcard p10" data-f="9">
+        <span class="bub">ส่งพรุ่งนี้ทันไหมครับ</span>
+        <span class="bub ai">ทันค่ะ สั่งก่อน 4 โมงเย็นวันนี้ ส่งถึงพรุ่งนี้เลย</span>
+        <small>AI รู้ข้อมูลร้านคุณ ตอบได้ทุกเรื่อง</small>
       </div>
     </div>
+  </section>
 
-    <div class="showcase reveal d3" role="img" aria-label="ตัวอย่างหน้าจอ SalesMate: กล่องรวมแชต, AI ช่วยตอบและขายพ่วง, และยอดขายที่เพิ่มขึ้น">
-      <div class="deck" data-parallax data-speed="0.05">
-        <figure class="shot s1">
-          <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i></div>
-          <div class="body">
-            <div class="inb"><span class="av">LN</span><span class="who">คุณน้ำ</span><span class="txt">มีสีดำไหมคะ</span></div>
-            <div class="inb"><span class="av">FB</span><span class="who">พี่หนึ่ง</span><span class="txt">ส่งพรุ่งนี้ทันไหมครับ</span></div>
-            <div class="inb"><span class="av">LZ</span><span class="who">Bee_s</span><span class="txt">รุ่นนี้จ่ายไฟกี่ C</span></div>
-            <span class="tag"><span class="d"></span> กล่องรวมแชตทุกแพลตฟอร์ม</span>
-          </div>
-        </figure>
-        <figure class="shot s2">
-          <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i></div>
-          <div class="body">
-            <span class="bub">มีรุ่นนี้สีดำไหมคะ</span>
-            <span class="bub ai">มีพร้อมส่งเลยค่ะ รับเคสกันกระแทกเพิ่มไหมคะ</span>
-            <span class="tag"><span class="d"></span> AI ช่วยตอบ + ขายพ่วง</span>
-          </div>
-        </figure>
-        <figure class="shot s3">
-          <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i></div>
-          <div class="body">
-            <span class="big" id="bigStat" data-target="12400" data-prefix="฿">฿12,400</span>
-            <span class="delta">▲ +18% จากเดือนก่อน</span>
-            <div class="chart" role="img" aria-label="ยอดขายพ่วงรายสัปดาห์ เพิ่มขึ้นต่อเนื่อง 5 สัปดาห์">
-              <i><b style="height:38%"></b><small>ส1</small></i>
-              <i><b style="height:62%"></b><small>ส2</small></i>
-              <i><b style="height:48%"></b><small>ส3</small></i>
-              <i><b style="height:80%"></b><small>ส4</small></i>
-              <i><b style="height:100%"></b><small>ส5</small></i>
+  <!-- ACT 3: phone demo -->
+  <section class="act" id="demoAct">
+    <div class="act-view">
+      <div class="wrap cc">
+        <div class="cc-text" id="ccText">
+          <h2>AI-powered<br><span class="g">conversational commerce</span></h2>
+          <p class="cc-sub">ดูบทสนทนาจริงที่ AI ตอบลูกค้า ชวนซื้อเพิ่ม และปิดการขายให้ — เลื่อนลงช้าๆ</p>
+          <div class="cc-prog"><span class="bar"><i id="ccBar"></i></span><span id="ccLabel">บทสนทนากำลังเริ่ม…</span></div>
+        </div>
+        <div class="cc-phone">
+          <div class="phone" id="phone">
+            <div class="phone-notch"></div>
+            <div class="phone-screen">
+              <div class="ph-head">
+                <span class="ph-dot"></span>
+                <div><b>ร้านของคุณ</b><small>ตอบอัตโนมัติด้วย AI</small></div>
+              </div>
+              <div class="ph-chat" id="phChat">
+                <div class="msg l">ลำโพงบลูทูธรุ่นนี้ราคาเท่าไหร่คะ</div>
+                <div class="msg r">รุ่นนี้ 1,290 บาทค่ะ กันน้ำ IPX7 เสียงแน่นมาก</div>
+                <div class="msg r up">รับเคสกันกระแทกคู่กันไหมคะ พอดีรุ่นนี้เลย เพิ่มแค่ 190 บาท</div>
+                <div class="msg l">เอาด้วยค่ะ</div>
+              </div>
+              <div class="ph-close" id="phClose">ปิดการขาย · ขายพ่วงสำเร็จ +฿190</div>
             </div>
-            <span class="tag"><span class="d"></span> ยอดขายพ่วงเดือนนี้</span>
           </div>
-        </figure>
+        </div>
       </div>
     </div>
+  </section>
 
-    <div class="hero-stats reveal d5">
-      <div class="stat"><b>+฿190</b><span>ยอดพ่วงเฉลี่ยต่อบิลที่ AI ปิดได้</span></div>
-      <div class="stat"><b>30 วิ</b><span>ตอบลูกค้าแม้ร้านไม่ว่าง</span></div>
-      <div class="stat"><b>5 นาที</b><span>ตั้งค่าจนพร้อมขายจริง</span></div>
+  <main class="wrap">
+    <section class="section" data-scrub style="padding-bottom:48px">
+      <div class="hero-stats">
+        <div class="stat" data-item><b data-count="190" data-prefix="+฿">+฿0</b><span>ยอดพ่วงเฉลี่ยต่อบิลที่ AI ปิดได้</span></div>
+        <div class="stat" data-item><b data-count="30" data-suffix=" วิ">0 วิ</b><span>ตอบลูกค้าแม้ร้านไม่ว่าง</span></div>
+        <div class="stat" data-item><b data-count="5" data-suffix=" นาที">0 นาที</b><span>ตั้งค่าจนพร้อมขายจริง</span></div>
+      </div>
       <p class="stats-src">ตัวเลขจากร้านที่ใช้งานจริงช่วงเบต้า</p>
-    </div>
-  </section>
-</header>
+    </section>
 
-<main class="wrap">
-  <!-- AI-powered conversational commerce -->
-  <section class="section cc framed" id="demo">
-    <div class="cc-text">
-      <h2 class="cc-h">AI-powered<br><span class="accent">conversational commerce</span></h2>
-      <p class="cc-sub">ผู้ช่วยขาย AI สำหรับร้านที่ปิดการขายในแชต</p>
-    </div>
-    <div class="cc-phone">
-      <div class="phone" data-parallax data-speed="0.04">
-        <div class="phone-notch"></div>
-        <div class="phone-screen">
-          <div class="ph-head">
-            <span class="ph-dot"></span>
-            <div><b>ร้านของคุณ</b><small>ตอบอัตโนมัติด้วย AI</small></div>
-          </div>
-          <div class="ph-chat">
-            <div class="msg l" style="--m:0">ลำโพงบลูทูธรุ่นนี้ราคาเท่าไหร่คะ</div>
-            <div class="msg r" style="--m:1">รุ่นนี้ 1,290 บาทค่ะ กันน้ำ IPX7 เสียงแน่นมาก</div>
-            <div class="msg r up" style="--m:2">รับเคสกันกระแทกคู่กันไหมคะ พอดีรุ่นนี้เลย เพิ่มแค่ 190 บาท</div>
-            <div class="msg l" style="--m:3">เอาด้วยค่ะ</div>
-          </div>
-          <div class="ph-close" style="--m:4">ปิดการขาย · ขายพ่วงสำเร็จ +฿190</div>
+    <section class="section big-topic" data-scrub>
+      <h2>ตอบช้า = <span class="g">เสียลูกค้า</span></h2>
+      <p>ลูกค้าทักมาหลายแอปพร้อมกัน ตอบไม่ทันก็หลุดมือ ไปซื้อร้านอื่นแทน</p>
+    </section>
+    <section class="section big-topic" data-scrub>
+      <h2>ผู้ช่วยขาย AI <span class="g">ที่ขายเป็น</span></h2>
+      <p>รวมทุกแชตไว้ที่เดียว แล้วให้ AI ตอบลูกค้าและแนะนำขายพ่วงให้อัตโนมัติ ไม่ใช่แค่ผู้ช่วยตอบ</p>
+    </section>
+    <section class="section big-topic" data-scrub>
+      <h2>เชื่อม → ใส่สินค้า → <span class="g">ขาย</span></h2>
+      <p>เชื่อมแอปแชต ใส่ข้อมูลสินค้าหรือเชื่อมกับคลังข้อมูลแพลตฟอร์ม แล้วให้ AI ช่วยขาย ตั้งค่าเสร็จใน 5 นาที ไม่ต้องเขียนโค้ด</p>
+    </section>
+
+    <section class="section" data-scrub>
+      <div class="sec-head">
+        <h2>ทุกอย่างที่ร้านแชตต้องการ</h2>
+        <p>เครื่องมือเดียวที่ช่วยให้คุณตอบไว ขายดี และไม่พลาดลูกค้า</p>
+      </div>
+      <div class="grid-3">
+        <div class="card" data-item>
+          <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></div>
+          <h3>รวมทุกแชตไว้ที่เดียว</h3>
+          <p>LINE, Facebook, Lazada เด้งเข้ากล่องเดียว ไม่ต้องสลับแอปให้วุ่นวาย</p>
+        </div>
+        <div class="card" data-item>
+          <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3M12 19v3M5 12H2M22 12h-3M5.6 5.6l2 2M16.4 16.4l2 2M5.6 18.4l2-2M16.4 7.6l2-2"></path><circle cx="12" cy="12" r="3.4"></circle></svg></div>
+          <h3>AI ช่วยตอบ + ขายพ่วง</h3>
+          <p>ตอบคำถามลูกค้าให้อัตโนมัติ และแนะนำสินค้าที่เข้าคู่กันแบบเนียนๆ เพิ่มยอดต่อบิล</p>
+        </div>
+        <div class="card" data-item>
+          <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></div>
+          <h3>ตั้งค่าง่ายใน 5 นาที</h3>
+          <p>ออกแบบมาเพื่อร้านมือใหม่ ไม่ต้องเขียนโค้ด ไม่ต้องอบรม กดไม่กี่ครั้งก็พร้อมขาย</p>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- why / what / how -->
-  <section class="section ww framed">
-    <h2 class="sr-only">ทำไมต้อง SalesMate</h2>
-    <div class="ww-grid">
-      <div class="ww-row">
-        <span class="ww-kicker">WHY</span>
-        <div>
-          <h3 class="reveal-chars">ตอบช้า = เสียลูกค้า</h3>
-          <p>ลูกค้าทักมาหลายแอปพร้อมกัน ตอบไม่ทันก็หลุดมือ ไปซื้อร้านอื่นแทน</p>
-        </div>
+    <section class="section" data-scrub id="stepsSec">
+      <div class="sec-head">
+        <h2>เริ่มใช้ได้ใน 3 ขั้น</h2>
+        <p>ไม่ต้องมีพื้นฐานเทคนิค ตั้งค่าเสร็จใน 5 นาที</p>
       </div>
-      <div class="ww-row">
-        <span class="ww-kicker">WHAT</span>
-        <div>
-          <h3 class="reveal-chars">ผู้ช่วยขาย AI ที่ขายเป็น</h3>
-          <p>รวมทุกแชตไว้ที่เดียว แล้วให้ AI ตอบลูกค้าและแนะนำขายพ่วงให้อัตโนมัติ ไม่ใช่แค่ผู้ช่วยตอบ</p>
-        </div>
+      <div class="step-track"><i id="stepFill"></i></div>
+      <div class="steps">
+        <div class="step" data-item><div class="num">1</div><h3>เชื่อมแอปแชต</h3><p>กดเชื่อม LINE/Facebook/Lazada ที่ร้านใช้อยู่ ภายในไม่กี่คลิก</p></div>
+        <div class="step" data-item><div class="num">2</div><h3>ใส่ข้อมูลสินค้า</h3><p>วางลิงก์หรือพิมพ์รายการสินค้า ให้ AI รู้จักของในร้านคุณ</p></div>
+        <div class="step" data-item><div class="num">3</div><h3>ให้ AI ช่วยขาย</h3><p>เลือกโหมดให้ AI ช่วยร่างหรือตอบเอง แล้วโฟกัสกับการปิดการขาย</p></div>
       </div>
-      <div class="ww-row">
-        <span class="ww-kicker">HOW</span>
-        <div>
-          <h3 class="reveal-chars">เชื่อม → ใส่สินค้า → ขาย</h3>
-          <p>เชื่อมแอปแชต ใส่ข้อมูลสินค้าหรือเชื่อมกับคลังข้อมูลเเพลตฟอร์ม แล้วให้ AI ช่วยขาย ตั้งค่าเสร็จใน 5 นาที ไม่ต้องเขียนโค้ด</p>
-        </div>
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- features -->
-  <section class="section framed">
-    <div class="sec-head">
-      <h2>ทุกอย่างที่ร้านแชตต้องการ</h2>
-      <p>เครื่องมือเดียวที่ช่วยให้คุณตอบไว ขายดี และไม่พลาดลูกค้า</p>
-    </div>
-    <div class="grid-3">
-      <div class="card">
-        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-        <h3>รวมทุกแชตไว้ที่เดียว</h3>
-        <p>LINE, Facebook, Lazada เด้งเข้ากล่องเดียว ไม่ต้องสลับแอปให้วุ่นวาย</p>
+    <section class="section" style="padding-top:0">
+      <div class="cta-band" data-scrub>
+        <span class="logo-mark" aria-hidden="true"></span>
+        <h2>พร้อมให้ร้านคุณขายเก่งขึ้นหรือยัง?</h2>
+        <p>เริ่มใช้ฟรีวันนี้ ไม่ต้องผูกบัตร — ตั้งค่าเสร็จใน 5 นาที</p>
+        <a class="btn btn-green" href="/login">เริ่มใช้ฟรี
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+        </a>
+        <p class="cta-note">ฟรีช่วงเบต้า · ข้อมูลร้านและลูกค้าเป็นของคุณ · ยกเลิกเมื่อไหร่ก็ได้</p>
       </div>
-      <div class="card">
-        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3M12 19v3M5 12H2M22 12h-3M5.6 5.6l2 2M16.4 16.4l2 2M5.6 18.4l2-2M16.4 7.6l2-2"/><circle cx="12" cy="12" r="3.4"/></svg></div>
-        <h3>AI ช่วยตอบ + ขายพ่วง</h3>
-        <p>ตอบคำถามลูกค้าให้อัตโนมัติ และแนะนำสินค้าที่เข้าคู่กันแบบเนียนๆ เพิ่มยอดต่อบิล</p>
-      </div>
-      <div class="card">
-        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
-        <h3>ตั้งค่าง่ายใน 5 นาที</h3>
-        <p>ออกแบบมาเพื่อร้านมือใหม่ ไม่ต้องเขียนโค้ด ไม่ต้องอบรม กดไม่กี่ครั้งก็พร้อมขาย</p>
-      </div>
-    </div>
-  </section>
+    </section>
+  </main>
 
-  <!-- steps -->
-  <section class="section framed">
-    <div class="sec-head">
-      <h2>เริ่มใช้ได้ใน 3 ขั้น</h2>
-      <p>ไม่ต้องมีพื้นฐานเทคนิค</p>
+  <footer>
+    <div class="wrap foot-in">
+      <div class="brand" style="font-size:16px"><span class="logo-mark" style="width:24px;height:20px" aria-hidden="true"></span> SalesMate</div>
+      <nav class="foot-links" aria-label="ลิงก์ท้ายหน้า">
+        <a href="/signup">สมัครใช้งาน</a>
+        <a href="/login">เข้าสู่ระบบ</a>
+        <a href="#results">ดูผลงาน</a>
+      </nav>
+      <span>© 2026 SalesMate · ผู้ช่วยขาย AI สำหรับร้านแชต</span>
     </div>
-    <div class="steps">
-      <div class="step"><div class="num">1</div><h3>เชื่อมแอปแชต</h3><p>กดเชื่อม LINE/Facebook/Lazada ที่ร้านใช้อยู่ ภายในไม่กี่คลิก</p></div>
-      <div class="step"><div class="num">2</div><h3>ใส่ข้อมูลสินค้า</h3><p>วางลิงก์หรือพิมพ์รายการสินค้า ให้ AI รู้จักของในร้านคุณ</p></div>
-      <div class="step"><div class="num">3</div><h3>ให้ AI ช่วยขาย</h3><p>เลือกโหมดให้ AI ช่วยร่างหรือตอบเอง แล้วโฟกัสกับการปิดการขาย</p></div>
-    </div>
-  </section>
-
-  <!-- cta band -->
-  <section class="section">
-    <div class="cta-band">
-      <h2>พร้อมให้ร้านคุณขายเก่งขึ้นหรือยัง?</h2>
-      <p>เริ่มใช้ฟรีวันนี้ ไม่ต้องผูกบัตร — ตั้งค่าเสร็จใน 5 นาที</p>
-      <a class="btn btn-primary" href="/login">เริ่มใช้ฟรี
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      </a>
-      <p class="cta-note">ฟรีช่วงเบต้า · ข้อมูลร้านและลูกค้าเป็นของคุณ · ยกเลิกเมื่อไหร่ก็ได้<br>มีคำถาม? ทีมงานตอบเองในแชตหลังสมัคร ไม่ปล่อยให้ลองคนเดียว</p>
-    </div>
-  </section>
-</main>
-
-<footer>
-  <div class="wrap foot-in">
-    <div class="brand" style="font-size:16px"><img src="/salesmate-logo.svg" alt="" class="brand-logo" style="height:24px" /> SalesMate</div>
-    <nav class="foot-links" aria-label="ลิงก์ท้ายหน้า">
-      <a href="/signup">สมัครใช้งาน</a>
-      <a href="/login">เข้าสู่ระบบ</a>
-      <a href="#demo">ดูตัวอย่าง</a>
-    </nav>
-    <span>© 2026 SalesMate · ผู้ช่วยขาย AI สำหรับร้านแชต</span>
-  </div>
-</footer>
+  </footer>
+</div>
 
 <script>
 (function () {
-  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var charEls = document.querySelectorAll('.reveal-chars');  // หัวข้อขึ้นทีละตัว
-  var secEls  = document.querySelectorAll('.framed');         // ทุก panel: เลื่อนถึงค่อยเข้า
-  function reveal(el) { el.classList.add('in'); }
-  function revealAll() { charEls.forEach(reveal); secEls.forEach(reveal); }
+  var PINNING = true;      // pin แต่ละ act ให้เล่นตาม scroll
+  var K = 9 / 6;           // ความแรงของ motion (intensity 9/10)
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var ticking = false;
 
-  // กันพัง: ถ้าสคริปต์ส่วนไหนล้ม เนื้อหาทุก section ต้องโผล่เสมอ (ห้ามหน้าโล่งเพราะ opacity:0 ค้าง)
-  try {
-    var seg = (window.Intl && Intl.Segmenter) ? new Intl.Segmenter('th', { granularity: 'grapheme' }) : null;
-    if (!reduce && seg) {
-      charEls.forEach(function (el) {
-        var text = el.textContent;
-        el.textContent = '';
-        var i = 0;
-        Array.from(seg.segment(text), function (s) { return s.segment; }).forEach(function (ch) {
-          if (ch === ' ') { el.appendChild(document.createTextNode(' ')); return; }
-          var span = document.createElement('span');
-          span.className = 'ch';
-          span.textContent = ch;
-          span.style.setProperty('--i', i++);
-          el.appendChild(span);
-        });
-        el.classList.add('split');
-      });
-    }
-
-    // ตัวเลขยอดขายวิ่งขึ้น 0→เป้า ตอนโหลด; reduce-motion = โชว์ค่าจริงทันที
-    var big = document.getElementById('bigStat');
-    if (big && !reduce && window.requestAnimationFrame) {
-      var target = parseInt(big.getAttribute('data-target'), 10) || 0;
-      var prefix = big.getAttribute('data-prefix') || '';
-      var t0 = null, DUR = 1100;
-      big.textContent = prefix + '0';
-      requestAnimationFrame(function tick(ts) {
-        if (t0 === null) t0 = ts;
-        var p = Math.min((ts - t0) / DUR, 1);
-        var eased = 1 - Math.pow(1 - p, 4);
-        big.textContent = prefix + Math.round(target * eased).toLocaleString('th-TH');
-        if (p < 1) requestAnimationFrame(tick);
-      });
-    }
-
-    if (!('IntersectionObserver' in window)) { revealAll(); }
-    else {
-      var watch = function (list, opts) {
-        var io = new IntersectionObserver(function (entries) {
-          entries.forEach(function (e) { if (e.isIntersecting) { reveal(e.target); io.unobserve(e.target); } });
-        }, opts);
-        list.forEach(function (el) { io.observe(el); });
-      };
-      watch(charEls, { threshold: 0.35, rootMargin: '0px 0px -10% 0px' });
-      watch(secEls,  { threshold: 0.18, rootMargin: '0px 0px -8% 0px' });
-    }
-  } catch (err) { revealAll(); }
-
-  // ===== MOTION ADD-ONS ===== (ปิดทั้งหมดเมื่อผู้ใช้ตั้งค่าลดการเคลื่อนไหว)
-  if (reduce) return;
-  try {
-    var ambient = document.querySelector('.ambient');
-
-    // particles ลอยขึ้นจากล่าง (15 จุด สุ่มตำแหน่ง/ความเร็ว)
-    if (ambient) {
-      for (var i = 0; i < 15; i++) {
-        var p = document.createElement('span');
-        p.className = 'particle';
-        var dur = 12 + Math.random() * 14;
-        p.style.left = (Math.random() * 100) + '%';
-        p.style.width = p.style.height = (2 + Math.random() * 3).toFixed(1) + 'px';
-        p.style.animation = 'rise-p ' + dur.toFixed(1) + 's linear ' + (-Math.random() * dur).toFixed(1) + 's infinite';
-        ambient.appendChild(p);
-      }
-    }
-
-    // สปอตไลต์ตามเมาส์บนการ์ด
-    document.querySelectorAll('.card').forEach(function (card) {
-      card.addEventListener('pointermove', function (e) {
-        var r = card.getBoundingClientRect();
-        card.style.setProperty('--mx', (e.clientX - r.left) + 'px');
-        card.style.setProperty('--my', (e.clientY - r.top) + 'px');
-      });
+  function applyHeights() {
+    var pin = PINNING && !reduce;
+    ['roomAct:260vh', 'galAct:250vh', 'demoAct:220vh'].forEach(function (pair) {
+      var id = pair.split(':')[0], h = pair.split(':')[1];
+      var el = document.getElementById(id);
+      if (el) el.style.height = pin ? h : '100vh';
     });
+  }
 
-    var nav = document.querySelector('nav');
-    var navShadow = function (on) {
-      if (!nav) return;
-      nav.style.boxShadow = on ? '0 8px 30px -18px rgba(0,0,0,.8)' : 'none';
-      nav.style.borderBottomColor = on ? 'rgba(255,255,255,.14)' : 'rgba(255,255,255,.08)';
+  // หัวข้อใหญ่ — หั่นเป็นตัวอักษร (grapheme ไทย) เพื่อให้ทยอยลอยขึ้นทีละตัว
+  function splitChars() {
+    try {
+      var seg = (window.Intl && Intl.Segmenter) ? new Intl.Segmenter('th', { granularity: 'grapheme' }) : null;
+      if (!seg) return;
+      document.querySelectorAll('.big-topic h2').forEach(function (h) {
+        if (h.dataset.split) return;
+        h.dataset.split = '1';
+        Array.prototype.slice.call(h.childNodes).forEach(function (node) {
+          var wrapText = function (text, parent) {
+            Array.from(seg.segment(text), function (s) { return s.segment; }).forEach(function (ch) {
+              if (ch === ' ') { parent.appendChild(document.createTextNode(' ')); return; }
+              var sp = document.createElement('span');
+              sp.className = 'ch'; sp.textContent = ch;
+              parent.appendChild(sp);
+            });
+          };
+          if (node.nodeType === 3) { var f = document.createDocumentFragment(); wrapText(node.textContent, f); h.replaceChild(f, node); }
+          else if (node.nodeType === 1) { var t = node.textContent; node.textContent = ''; wrapText(t, node); }
+        });
+      });
+    } catch (e) {}
+  }
+
+  function spawnParticles() {
+    var amb = document.getElementById('ambient');
+    if (!amb || amb.dataset.done) return;
+    amb.dataset.done = '1';
+    for (var i = 0; i < 24; i++) {
+      var p = document.createElement('span');
+      p.className = 'particle';
+      var dur = 12 + Math.random() * 14;
+      p.style.left = (Math.random() * 100) + '%';
+      p.style.width = p.style.height = (3.5 + Math.random() * 4.5).toFixed(1) + 'px';
+      p.style.animation = 'rise-p ' + dur.toFixed(1) + 's linear ' + (-Math.random() * dur).toFixed(1) + 's infinite';
+      amb.appendChild(p);
+    }
+  }
+
+  function frame() {
+    ticking = false;
+    var vh = window.innerHeight, sy = window.scrollY || 0;
+    var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
+    var ez = function (t) { return 1 - Math.pow(1 - t, 3); };
+    var back = function (t) { var c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+    var pinP = function (el) { var r = el.getBoundingClientRect(); var t = el.offsetHeight - vh; return t <= 0 ? 1 : clamp(-r.top / t, 0, 1); };
+    var viewP = function (el, start, span) {
+      start = start == null ? 0.92 : start; span = span == null ? 0.4 : span;
+      var r = el.getBoundingClientRect(); return clamp((vh * start - r.top) / (vh * span), 0, 1);
     };
 
-    var pxEls = [];
-    document.querySelectorAll('[data-parallax]').forEach(function (el) {
-      pxEls.push({ el: el, speed: parseFloat(el.getAttribute('data-speed')) || 0.05 });
+    var nav = document.getElementById('navBar'), prog = document.getElementById('navProg');
+    if (prog) prog.style.transform = 'scaleX(' + clamp(sy / Math.max(1, document.documentElement.scrollHeight - vh), 0, 1) + ')';
+    if (nav) nav.classList.toggle('solid', sy > 40);
+
+    // ===== ACT 1: room — rotate + zoom in =====
+    var roomAct = document.getElementById('roomAct'), scene = document.getElementById('scene');
+    if (roomAct && scene) {
+      var p = pinP(roomAct);
+      var zoom = 1 + ez(clamp(p / 0.7, 0, 1)) * 1.9 * Math.min(K, 1.3);
+      var sway = Math.sin(p * Math.PI * 1.5) * 3.5 * K;
+      var tilt = Math.sin(p * Math.PI) * 2.5 * K;
+      var fade = clamp((p - 0.62) / 0.22, 0, 1);
+      scene.style.transform = 'translateZ(0) scale(' + zoom.toFixed(3) + ') rotateY(' + sway.toFixed(2) + 'deg) rotateX(' + tilt.toFixed(2) + 'deg)';
+      var roomEl = scene.closest('.room');
+      if (roomEl) roomEl.style.opacity = 1 - fade;
+      scene.querySelectorAll('.track').forEach(function (tr) {
+        var d = +tr.dataset.drift || 1;
+        var fn = tr.dataset.axis === 'y' ? 'translateY' : 'translateX';
+        tr.style.transform = fn + '(' + (d * p * 9 * K) + '%)';
+      });
+      var core = document.getElementById('heroCore');
+      if (core) {
+        var cf = clamp((p - 0.72) / 0.2, 0, 1);
+        core.style.transform = 'scale(' + (1 + p * 0.22 * K).toFixed(3) + ') translateY(' + (-p * 30 * K).toFixed(1) + 'px)';
+        core.style.opacity = 1 - cf;
+        core.style.pointerEvents = cf > 0.5 ? 'none' : '';
+      }
+      var logo = document.getElementById('heroLogo');
+      if (logo) logo.style.transform = 'rotate(' + (p * 360 * (K / 1.5)).toFixed(1) + 'deg) scale(' + (1 - p * 0.15).toFixed(3) + ')';
+      var hint = document.getElementById('scrollHint');
+      if (hint) hint.style.opacity = clamp(1 - p * 5, 0, 1);
+    }
+
+    // ===== ACT 2: cards bounce in one by one =====
+    var galAct = document.getElementById('galAct');
+    if (galAct) {
+      var gp = PINNING ? pinP(galAct) : viewP(galAct, 0.85, 0.9);
+      var head = document.getElementById('galHead');
+      if (head) {
+        var h = ez(clamp(gp * 4, 0, 1));
+        head.style.opacity = h;
+        head.style.transform = 'translateY(' + ((1 - h) * 40 * K).toFixed(1) + 'px) scale(' + (0.94 + 0.06 * h + gp * 0.04).toFixed(3) + ')';
+      }
+      var cards = galAct.querySelectorAll('.fcard');
+      var n = cards.length;
+      var segp = gp * (n + 2.2) - 0.9;
+      cards.forEach(function (card) {
+        var i = +card.dataset.f;
+        var c = clamp(segp - i, 0, 1);
+        var b = back(c);
+        var dir = i % 2 ? 1 : -1;
+        card.style.opacity = clamp(c * 2, 0, 1);
+        card.style.transform = 'translateY(' + ((1 - b) * 90 * K).toFixed(1) + 'px) rotate(' + (dir * (1 - b) * 16 * K + dir * 2.5).toFixed(2) + 'deg) scale(' + (0.5 + 0.5 * b).toFixed(3) + ')';
+      });
+    }
+
+    // ===== ACT 3: phone chat =====
+    var demoAct = document.getElementById('demoAct');
+    if (demoAct) {
+      var dp = PINNING ? pinP(demoAct) : viewP(demoAct, 0.85, 0.9);
+      var items = Array.prototype.slice.call(document.querySelectorAll('#phChat .msg'));
+      var phClose = document.getElementById('phClose');
+      if (phClose) items.push(phClose);
+      var mseg = dp * (items.length + 1.6) - 0.35;
+      items.forEach(function (m, i) {
+        var c = back(clamp(mseg - i, 0, 1));
+        m.style.opacity = clamp((mseg - i) * 2.5, 0, 1);
+        m.style.transform = 'translateY(' + ((1 - c) * 18 * K).toFixed(1) + 'px) scale(' + (0.92 + 0.08 * c).toFixed(3) + ')';
+      });
+      var phone = document.getElementById('phone');
+      if (phone) {
+        var intro = ez(clamp(dp * 3.2, 0, 1));
+        phone.style.transform = 'perspective(900px) translateY(' + ((1 - intro) * 60 * K).toFixed(1) + 'px) rotateY(' + ((1 - intro) * 38 * K).toFixed(1) + 'deg) rotate(' + ((1 - intro) * 8 * K).toFixed(2) + 'deg)';
+        phone.style.opacity = 0.1 + 0.9 * intro;
+      }
+      var txt = document.getElementById('ccText');
+      if (txt) {
+        var tc = ez(clamp(dp * 4, 0, 1));
+        txt.style.opacity = tc; txt.style.transform = 'translateY(' + ((1 - tc) * 30 * K).toFixed(1) + 'px)';
+      }
+      var bar = document.getElementById('ccBar'), label = document.getElementById('ccLabel');
+      if (bar) bar.style.transform = 'scaleX(' + dp.toFixed(3) + ')';
+      if (label) label.textContent = dp >= 0.96 ? 'ปิดการขายสำเร็จ ✓' : dp > 0.6 ? 'AI กำลังชวนซื้อเพิ่ม…' : dp > 0.2 ? 'AI กำลังตอบลูกค้า…' : 'บทสนทนากำลังเริ่ม…';
+    }
+
+    // count-up ตาม scroll (ย้อนกลับได้)
+    document.querySelectorAll('[data-count]').forEach(function (el) {
+      var cp = ez(viewP(el, 0.95, 0.45));
+      el.textContent = (el.dataset.prefix || '') + Math.round((+el.dataset.count || 0) * cp).toLocaleString('th-TH') + (el.dataset.suffix || '');
     });
 
-    // parallax + เงา nav — throttle ด้วย rAF, passive (ไม่บล็อกการเลื่อน)
-    var ticking = false;
-    function frame() {
-      ticking = false;
-      var sy = window.scrollY || window.pageYOffset || 0;
-      var vh = window.innerHeight;
-      navShadow(sy > 8);
-      if (ambient) ambient.style.transform = 'translate3d(0,' + (sy * 0.05) + 'px,0)';
-      for (var i = 0; i < pxEls.length; i++) {
-        var it = pxEls[i];
-        var r = it.el.getBoundingClientRect();
-        var off = (r.top + r.height / 2) - vh / 2;
-        var y = Math.max(-60, Math.min(60, off * it.speed));
-        it.el.style.transform = 'translate3d(0,' + y.toFixed(1) + 'px,0)';
-      }
-    }
-    window.addEventListener('scroll', function () {
-      if (!ticking) { ticking = true; requestAnimationFrame(frame); }
-    }, { passive: true });
+    // ===== scrub sections =====
+    document.querySelectorAll('[data-scrub]').forEach(function (sec) {
+      var sp = ez(viewP(sec, 0.94, 0.34));
+      sec.style.opacity = 0.1 + 0.9 * sp;
+      sec.style.transform = 'translateY(' + ((1 - sp) * 44 * K).toFixed(1) + 'px) rotate(' + ((1 - sp) * 1 * K).toFixed(2) + 'deg)';
+      var items = sec.querySelectorAll('[data-item]');
+      var n = items.length;
+      items.forEach(function (it, i) {
+        var q = back(clamp(viewP(sec, 0.92, 0.55) * (1 + n * 0.25) - i * 0.25, 0, 1));
+        it.style.opacity = clamp(q * 1.5, 0, 1);
+        it.style.transform = 'translateY(' + ((1 - q) * 34 * K).toFixed(1) + 'px) rotate(' + ((1 - q) * 4 * K * (i % 2 ? 1 : -1)).toFixed(2) + 'deg) scale(' + (0.94 + 0.06 * q).toFixed(3) + ')';
+      });
+    });
+    // หัวข้อใหญ่ — ตัวอักษรทยอยลอยขึ้นทีละตัวตาม scroll
+    document.querySelectorAll('.big-topic').forEach(function (sec) {
+      var chars = sec.querySelectorAll('.ch');
+      if (!chars.length) return;
+      var bp = viewP(sec, 0.9, 0.45);
+      var n = chars.length;
+      chars.forEach(function (ch, i) {
+        var c = ez(clamp(bp * (1 + n * 0.06) - i * 0.06, 0, 1));
+        ch.style.opacity = c;
+        ch.style.transform = 'translateY(' + ((1 - c) * 0.5 * K).toFixed(3) + 'em) rotate(' + ((1 - c) * 6 * K * (i % 2 ? 1 : -1)).toFixed(2) + 'deg)';
+        ch.style.filter = c < 1 ? 'blur(' + ((1 - c) * 6).toFixed(1) + 'px)' : '';
+      });
+      var para = sec.querySelector('p');
+      if (para) { var q = ez(viewP(sec, 0.88, 0.4)); para.style.opacity = q; para.style.transform = 'translateY(' + ((1 - q) * 20 * K).toFixed(1) + 'px)'; }
+    });
+
+    var fill = document.getElementById('stepFill'), stepsSec = document.getElementById('stepsSec');
+    if (fill && stepsSec) fill.style.transform = 'scaleX(' + ez(viewP(stepsSec, 0.8, 0.55)).toFixed(3) + ')';
+  }
+
+  function init() {
+    applyHeights();
+    if (reduce) return;
+    splitChars();
+    spawnParticles();
+    var onScroll = function () { if (!ticking) { ticking = true; requestAnimationFrame(frame); } };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
     frame();
-  } catch (e) {}
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 })();
 </script>
-
 </body>
 </html>

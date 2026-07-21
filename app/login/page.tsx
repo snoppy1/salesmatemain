@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -101,6 +101,77 @@ export default function LoginPage() {
 
 /* ===================== ชิ้นส่วนใช้ร่วมกับ signup / forgot ===================== */
 
+/** พื้นหลังเส้น contour แบบแผนที่ระดับความสูง — วาดครั้งเดียวต่อขนาดจอ (นิ่ง ไม่กินเฟรม) */
+function TopoCanvas() {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const cv = ref.current;
+    if (!cv) return;
+    const CELL = 230;
+    const LEVELS = 13;
+    const OPACITY = 0.85;
+    const draw = () => {
+      const w = (cv.width = Math.max(1, cv.clientWidth));
+      const h = (cv.height = Math.max(1, cv.clientHeight));
+      const ctx = cv.getContext("2d");
+      if (!ctx) return;
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, w, h);
+      const rnd = (i: number, j: number) => {
+        const s = Math.sin(i * 127.1 + j * 311.7 + 94.3) * 43758.5453;
+        return s - Math.floor(s);
+      };
+      const sm = (t: number) => t * t * (3 - 2 * t);
+      const vnoise = (x: number, y: number, c: number) => {
+        const i = Math.floor(x / c), j = Math.floor(y / c);
+        const fx = sm(x / c - i), fy = sm(y / c - j);
+        const a = rnd(i, j), b = rnd(i + 1, j), d = rnd(i, j + 1), e = rnd(i + 1, j + 1);
+        return a + (b - a) * fx + (d - a) * fy + (a - b - d + e) * fx * fy;
+      };
+      const field = (x: number, y: number) =>
+        0.62 * vnoise(x, y, CELL) + 0.28 * vnoise(x + 917, y + 413, CELL * 0.47) + 0.1 * vnoise(x + 233, y + 771, CELL * 0.21);
+      // เส้นชั้นความสูง: ถี่ขึ้นแถวยอด, ยอดสว่างกว่าหุบ, ทุกเส้นที่ 4 เป็นเส้นหลักหนา/สว่าง
+      const band = (x: number, y: number) => Math.floor(Math.pow(field(x, y), 1.6) * LEVELS);
+      const img = ctx.getImageData(0, 0, w, h);
+      const data = img.data;
+      const put = (x: number, y: number, v: number) => {
+        const k = (y * w + x) * 4;
+        if (data[k] < v) {
+          data[k] = v;
+          data[k + 1] = v;
+          data[k + 2] = v;
+          data[k + 3] = 255;
+        }
+      };
+      let prevRow = new Int16Array(w);
+      for (let x = 0; x < w; x++) prevRow[x] = band(x, 0);
+      for (let y = 1; y < h; y++) {
+        const row = new Int16Array(w);
+        row[0] = band(0, y);
+        for (let x = 1; x < w; x++) {
+          const b = (row[x] = band(x, y));
+          if (b !== row[x - 1] || b !== prevRow[x]) {
+            const major = b % 4 === 0;
+            const depth = b / LEVELS;
+            const v = Math.round((major ? 255 : 120 + 130 * depth) * OPACITY);
+            put(x, y, v);
+            if (major) {
+              put(x - 1, y, Math.round(v * 0.7));
+              put(x, y - 1, Math.round(v * 0.7));
+            }
+          }
+        }
+        prevRow = row;
+      }
+      ctx.putImageData(img, 0, 0);
+    };
+    draw();
+    window.addEventListener("resize", draw);
+    return () => window.removeEventListener("resize", draw);
+  }, []);
+  return <canvas ref={ref} aria-hidden className="pointer-events-none absolute inset-0 block h-full w-full" />;
+}
+
 export function AuthShell({
   title,
   subtitle,
@@ -111,20 +182,23 @@ export function AuthShell({
   children: React.ReactNode;
 }) {
   return (
-    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-[#0E1217] px-4 py-10 text-gray-100">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage:
-            "radial-gradient(760px 520px at 50% -8%, rgba(52,211,153,.16), transparent 62%), linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px)",
-          backgroundSize: "auto, 44px 44px, 44px 44px",
-        }}
-      />
+    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-black px-4 py-10 text-gray-100">
+      <TopoCanvas />
       <div className="relative w-full max-w-md">
-        <div className="auth-rise mb-6 flex flex-col items-center text-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/salesmate-logo.svg" alt="" className="auth-breathe h-16 w-auto drop-shadow-[0_0_24px_rgba(52,211,153,.45)]" />
+        {/* วงรีดำหลังหัว — กันเส้น contour ตัดผ่านโลโก้/ตัวหนังสือ */}
+        <div
+          className="auth-rise mb-6 flex flex-col items-center rounded-full px-10 py-4 text-center"
+          style={{ background: "radial-gradient(closest-side, rgba(0,0,0,.92), rgba(0,0,0,.75) 60%, transparent)" }}
+        >
+          <span
+            aria-hidden
+            className="auth-breathe inline-block h-[52px] w-16"
+            style={{
+              background: "#34D399",
+              WebkitMask: "url(/salesmate-logo.svg) center / contain no-repeat",
+              mask: "url(/salesmate-logo.svg) center / contain no-repeat",
+            }}
+          />
           <h1 className="mt-3 text-2xl font-bold tracking-tight text-white">SalesMate</h1>
           <p className="mt-1 text-sm text-gray-400">ผู้ช่วยขาย AI สำหรับร้านแชต</p>
         </div>
@@ -138,7 +212,7 @@ export function AuthShell({
             e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
           }}
         >
-          <div className="auth-card rounded-2xl bg-[#161D26] p-6 shadow-2xl sm:p-7">
+          <div className="auth-card rounded-2xl bg-[#10161D] p-6 shadow-2xl sm:p-7">
             <h2 className="text-xl font-semibold text-white">{title}</h2>
             <p className="mb-5 mt-1 text-sm text-gray-400">{subtitle}</p>
             {children}

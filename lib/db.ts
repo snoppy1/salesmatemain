@@ -286,6 +286,17 @@ async function ensureSchema(): Promise<void> {
       matched_order_id TEXT
     );
 
+    -- log การเปลี่ยนของสินค้าจากระบบซิงก์ marketplace — ไว้วิเคราะห์ว่าอะไรทำดัชนีแคชถูกจุดใหม่
+    -- (เก็บเฉพาะการเปลี่ยนจริง ปริมาณน้อย; ลบทิ้งได้ทุกเมื่อ ไม่มีอะไรพึ่งพา)
+    CREATE TABLE IF NOT EXISTS product_sync_changes (
+      id         TEXT PRIMARY KEY,
+      shop_id    TEXT NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+      name       TEXT NOT NULL DEFAULT '',
+      change     TEXT NOT NULL DEFAULT '',
+      created_at BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_psc_shop ON product_sync_changes(shop_id, created_at DESC);
+
     -- ต้นทุน AI จริงต่อการเรียก (จาก usage ของ Anthropic) — ฐานคิดต้นทุน/แพ็กเกจ
     CREATE TABLE IF NOT EXISTS ai_usage (
       id           TEXT PRIMARY KEY,

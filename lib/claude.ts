@@ -15,6 +15,7 @@ import { embedQuery, embeddingsEnabled } from "./embeddings";
 import { loadEmbeddingsByIds } from "./shopRepo";
 import { RETRIEVAL_MIN_PRODUCTS } from "./catalogRetrieval";
 import { recordUsageFromResponse } from "./aiUsageRepo";
+import { chatCacheTtl } from "./aiPricing";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 
@@ -84,13 +85,14 @@ async function callClaudeRaw(
   const { stable, promo, customer } = buildUserContentParts(req);
   const imgs = req.imageUrls ?? [];
   // Prompt caching 3 breakpoints: system / (ร้าน+คลัง) / โปรฯ — โปรเปลี่ยนแล้วแคชคลังยังรอด
-  // TTL 1h ทุกจุด: เคยใช้ 5m ฝั่งตอบ (write ถูกกว่า) แต่เจอ "จุดเตาซ้ำซ้อน" — แชตเขียน 5m
-  // → ดับก่อน cron 30 นาทีมาถึง → prewarm เขียน 1h ซ้ำ (จ่าย ฿4.4+฿6.2 ต่อ 1 cold start)
-  // เขียน 1h จากแชตเลย: แพงขึ้นนิดเดียว แต่ prewarm เหลือหน้าที่ "อ่านต่ออายุ" ฿0.3 — ไม่มีจุดซ้ำ
+  // TTL ตามโมเดล (chatCacheTtl): Sonnet 1h — เคยใช้ 5m แล้วเจอ "จุดเตาซ้ำซ้อน" (แชตเขียน 5m
+  // → ดับก่อน cron 30 นาทีมาถึง → prewarm เขียน 1h ซ้ำ); Opus 5m — ไม่มี prewarm มาเกี่ยว
+  // และ warm read 75% เกิดใน 5 นาที (คุยต่อเนื่อง) เขียน 1h ไปก็หมดอายุก่อนถูกอ่าน = จ่าย 2× ฟรี
   // แคชไม่เปลี่ยนคำตอบ (โมเดลเห็นข้อความเดิมเป๊ะ) แค่ลดต้นทุน token ส่วนที่ซ้ำ; รูปต่อท้าย customer
+  const ttl = chatCacheTtl(model);
   const content = [
-    { type: "text", text: stable, cache_control: { type: "ephemeral", ttl: "1h" } },
-    { type: "text", text: promo, cache_control: { type: "ephemeral", ttl: "1h" } },
+    { type: "text", text: stable, cache_control: { type: "ephemeral", ttl } },
+    { type: "text", text: promo, cache_control: { type: "ephemeral", ttl } },
     { type: "text", text: customer },
     ...imgs.map((url) => ({ type: "image", source: { type: "url", url } })),
   ];
@@ -108,7 +110,7 @@ async function callClaudeRaw(
         model,
         max_tokens: 900,
         system: [
-          { type: "text", text: systemPrompt, cache_control: { type: "ephemeral", ttl: "1h" } },
+          { type: "text", text: systemPrompt, cache_control: { type: "ephemeral", ttl } },
         ],
         messages: [{ role: "user", content }],
       }),
@@ -288,11 +290,12 @@ export async function generateReplyWithTools(
           model: CHAT_OPUS, // ออเดอร์/จัดส่ง = เดิมพันสูง (เงิน/ที่อยู่/tool) → คง Opus
           max_tokens: 900,
           // แคช system (tools อยู่หน้า system ใน prefix โดนแคชไปด้วย) — turn 2+ ใน tool loop อ่าน 0.1x
+          // Opus ใช้ 5m (chatCacheTtl): tool loop จบใน ไม่กี่นาที + ไม่มี prewarm มาต่ออายุอยู่แล้ว
           system: [
             {
               type: "text",
               text: ORDER_REPLY_SYSTEM_PROMPT,
-              cache_control: { type: "ephemeral", ttl: "1h" },
+              cache_control: { type: "ephemeral", ttl: chatCacheTtl(CHAT_OPUS) },
             },
           ],
           tools,
@@ -325,8 +328,8 @@ export async function generateReplyWithTools(
   const { stable, promo, customer } = buildUserContentParts(req);
   const finalText = await runToolLoop({
     initialContent: [
-      { type: "text", text: stable, cache_control: { type: "ephemeral", ttl: "1h" } },
-      { type: "text", text: promo, cache_control: { type: "ephemeral", ttl: "1h" } },
+      { type: "text", text: stable, cache_control: { type: "ephemeral", ttl: chatCacheTtl(CHAT_OPUS) } },
+      { type: "text", text: promo, cache_control: { type: "ephemeral", ttl: chatCacheTtl(CHAT_OPUS) } },
       { type: "text", text: `\n\n${customer}` },
     ],
     callModel,

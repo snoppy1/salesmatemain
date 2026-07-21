@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentSuperadmin } from "@/lib/superAuth";
 import { modelUsageRowsSince, dailyCacheWriteRows } from "@/lib/aiUsageRepo";
-import { cacheWriteCostThb } from "@/lib/aiPricing";
+import { cacheWriteCostThb, chatCacheTtl } from "@/lib/aiPricing";
 import { bangkokDayStartMs } from "@/lib/adminStats";
 import { query } from "@/lib/db";
 
@@ -59,8 +59,11 @@ export async function GET(request: Request) {
     };
     cur.chatWrites += r.chatWrites;
     cur.prewarmWrites += r.prewarmWrites;
-    // ทุกเส้นทางเขียนแบบ 1h แล้ว (แถวเก่ายุค 5m แสดงสูงเกินจริงเล็กน้อย ชั่วคราวจนพ้นหน้าต่าง 7 วัน)
-    cur.costThb += cacheWriteCostThb(r.model, 0, r.w5mTokens + r.w1hTokens);
+    // แชต: TTL ตามโมเดล (Opus 5m / Sonnet 1h), ระบบอุ่น: 1h เสมอ
+    cur.costThb +=
+      chatCacheTtl(r.model) === "5m"
+        ? cacheWriteCostThb(r.model, r.w5mTokens, r.w1hTokens)
+        : cacheWriteCostThb(r.model, 0, r.w5mTokens + r.w1hTokens);
     dailyMap.set(key, cur);
   }
   const dailyWrites = [...dailyMap.values()]

@@ -64,3 +64,11 @@ export function cacheWriteCostThb(model: string, tokens5m: number, tokens1h: num
   const p = PRICES[model] ?? FALLBACK_PRICE;
   return ((tokens5m * p.cacheWrite5m + tokens1h * p.cacheWrite1h) / 1_000_000) * usdToThb();
 }
+
+/** TTL แคชฝั่งแชตต่อโมเดล — จุดตัดสินใจเดียว ใช้ทั้งตอนยิง API และตอนคิดเงิน
+ *  - Sonnet: 1h (2×) เพราะมี prewarm ทุก 30 นาทีคอยอ่านต่ออายุ — 5m จะดับก่อน cron มาถึง = จุดเตาซ้ำซ้อน
+ *  - Opus: 5m (1.25×) เพราะไม่มี prewarm + จากข้อมูลจริง warm read 75% เกิดภายใน 5 นาที (ลูกค้าคุยต่อเนื่อง)
+ *    เขียน 1h ไปก็หมดอายุก่อนถูกอ่านรอบถัดไปอยู่ดี — จ่าย 2× ฟรี */
+export function chatCacheTtl(model: string): "5m" | "1h" {
+  return model.includes("opus") ? "5m" : "1h";
+}

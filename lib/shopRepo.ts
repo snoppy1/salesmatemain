@@ -452,6 +452,23 @@ export async function syncProductsStock(
         ],
       );
       updated++;
+      // log ว่าฟิลด์ไหนเปลี่ยน (ดัชนีแคชโดนจุดเพราะ สต๊อกข้าม 0 / ราคาเปลี่ยน เท่านั้น — ดู briefStockTag)
+      const diffs: string[] = [];
+      const oldStock = match.stock ?? null;
+      if (newStock !== oldStock) {
+        const crossed = ((oldStock ?? 0) <= 0) !== ((newStock ?? 0) <= 0) ? " (ข้าม 0 → จุดแคช)" : "";
+        diffs.push(`stock ${oldStock ?? "-"}→${newStock ?? "-"}${crossed}`);
+      }
+      if (newPrice !== canonPrice(match.price ?? "")) {
+        diffs.push(`price ${canonPrice(match.price ?? "") || "-"}→${newPrice} (จุดแคช)`);
+      }
+      if (source !== match.source) diffs.push("source");
+      if (diffs.length) {
+        await query(
+          "INSERT INTO product_sync_changes (id, shop_id, name, change, created_at) VALUES ($1,$2,$3,$4,$5)",
+          [newId(), shopId, match.name, diffs.join(" · "), Date.now()],
+        ).catch(() => {}); // log พลาดไม่ให้ sync ล้ม
+      }
     } else {
       const sbp = it.stock != null ? { [platform]: Number(it.stock) } : null;
       // embed สินค้าใหม่ (best-effort; พลาด/ติด rate limit = null → retrieval fallback keyword)

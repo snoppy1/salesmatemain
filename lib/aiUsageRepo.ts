@@ -1,7 +1,7 @@
 import "server-only";
 import { query, queryOne } from "./db";
 import { newId } from "./auth";
-import { costThb, cacheWriteCostThb, extractUsage, type AiUsage } from "./aiPricing";
+import { costThb, cacheWriteCostThb, chatCacheTtl, extractUsage, type AiUsage } from "./aiPricing";
 
 export type UsageKind = "reply" | "choices" | "order" | "prewarm" | "import";
 
@@ -33,8 +33,8 @@ export async function recordAiUsage(
         usage.outputTokens,
         usage.cacheWriteTokens,
         usage.cacheReadTokens,
-        // ทุกเส้นทางเขียนแคชแบบ 1 ชม. (2×) แล้ว — กันจุดเตาซ้ำซ้อนระหว่างแชตกับ prewarm
-        costThb(model, usage, "1h"),
+        // TTL ตามโมเดล: Sonnet 1h (กันจุดเตาซ้ำซ้อนกับ prewarm) / Opus 5m (ไม่มี prewarm เขียน 2× ฟรี)
+        costThb(model, usage, chatCacheTtl(model)),
         Date.now(),
       ],
     );
@@ -207,7 +207,10 @@ export async function modelUsageRowsSince(sinceMs: number): Promise<ModelUsageRo
     imports: Number(r.imports),
     importCostThb: Number(r.import_cost),
     prewarmCostThb: Number(r.prewarm_cost),
-    cacheWriteCostThb: cacheWriteCostThb(r.model, 0, Number(r.w5m_tokens)),
+    cacheWriteCostThb:
+      chatCacheTtl(r.model) === "5m"
+        ? cacheWriteCostThb(r.model, Number(r.w5m_tokens), 0)
+        : cacheWriteCostThb(r.model, 0, Number(r.w5m_tokens)),
     coldWrites: Number(r.cold_writes),
     totalCostThb: Number(r.total_cost),
   }));

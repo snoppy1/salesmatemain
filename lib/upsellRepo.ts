@@ -48,12 +48,19 @@ export type UnsoldUpsell = {
   conversationId: string;
   channel: string;
   product: string;
+  createdAt: number; // เวลาเสนอ — ใช้เทียบว่าออเดอร์เกิด "หลัง" เสนอ
 };
 
 /** เหตุการณ์พ่วงที่ยังไม่ถูกแมตช์ว่าขายได้ (ภายในช่วง sinceMs) */
 export async function listUnsoldUpsells(shopId: string, sinceMs: number): Promise<UnsoldUpsell[]> {
-  const rows = await query<{ id: string; conversation_id: string; channel: string; product: string }>(
-    `SELECT id, conversation_id, channel, product
+  const rows = await query<{
+    id: string;
+    conversation_id: string;
+    channel: string;
+    product: string;
+    created_at: string;
+  }>(
+    `SELECT id, conversation_id, channel, product, created_at
        FROM upsell_events
       WHERE shop_id = $1 AND created_at >= $2 AND sold = false AND product <> ''`,
     [shopId, sinceMs],
@@ -63,6 +70,7 @@ export async function listUnsoldUpsells(shopId: string, sinceMs: number): Promis
     conversationId: r.conversation_id,
     channel: r.channel,
     product: r.product,
+    createdAt: Number(r.created_at),
   }));
 }
 

@@ -195,6 +195,49 @@ export async function getOrdersByBuyer(accessToken: string, buyerId: string): Pr
   return [];
 }
 
+// สถานะที่ไม่นับเป็นยอดขาย (ยกเลิก/ตีกลับ/ยังไม่จ่าย) — ออเดอร์ unpaid ที่จ่ายแล้วจะถูกเก็บรอบ cron ถัดไปเอง
+const NOT_SOLD_STATUSES = new Set(["cancelled", "canceled", "returned", "failed", "unpaid"]);
+
+/**
+ * ออเดอร์ล่าสุดของร้าน (พร้อมรายการสินค้า) ตั้งแต่ sinceMs — ฐานข้อมูลฝั่ง "ซื้อจริง" ให้ตัวแมตช์ยอดพ่วง
+ * Lazada ไม่บอกว่าออเดอร์เป็นของลูกค้าคนไหน (ชื่อ mask + ไม่มี buyer filter) → ผู้เรียกแมตช์แบบ สินค้า+เวลา
+ * mock → [] (ไม่สร้างยอดขายปลอมเข้าสถิติแอดมิน)
+ */
+export async function recentOrdersWithItems(
+  accessToken: string,
+  sinceMs: number,
+  cap = 40,
+): Promise<OrderSummary[]> {
+  if (isMock(accessToken)) return [];
+  try {
+    const data = await signedGet("/orders/get", accessToken, {
+      created_after: new Date(sinceMs).toISOString(),
+      limit: String(cap),
+      sort_by: "created_at",
+      sort_direction: "DESC",
+    });
+    if (String(data.code ?? "0") !== "0") {
+      console.error("[lazadaOrders] orders/get ล้ม:", data.code, data.message ?? "");
+      return [];
+    }
+    const raw = ((data.data as Record<string, unknown>)?.orders as Record<string, unknown>[]) ?? [];
+    const out: OrderSummary[] = [];
+    for (const o of Array.isArray(raw) ? raw : []) {
+      const parsed = parseOrder(o);
+      if (!parsed || NOT_SOLD_STATUSES.has(parsed.status)) continue;
+      const itemsData = await signedGet(ITEMS_PATH, accessToken, { order_id: parsed.orderId });
+      if (String(itemsData.code ?? "0") === "0") {
+        parsed.items = aggregateItems((itemsData.data as unknown[]) ?? []);
+      }
+      if (parsed.items.length) out.push(parsed);
+    }
+    return out;
+  } catch (e) {
+    console.error("[lazadaOrders] recentOrdersWithItems ล้ม:", e instanceof Error ? e.message : e);
+    return [];
+  }
+}
+
 /** ยอดขายรวมจาก Lazada ตั้งแต่ sinceMs (mock = ตัวเลขเดโม; จริง = รวม price จาก GetOrders) */
 export async function salesSince(
   accessToken: string,

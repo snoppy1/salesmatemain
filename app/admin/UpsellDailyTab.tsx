@@ -85,8 +85,8 @@ export default function UpsellDailyTab() {
               { label: "AI เสนอพ่วง", value: `${data.totals.offered.toLocaleString()} ครั้ง` },
               { label: "ส่งการ์ดสินค้า (Lazada)", value: `${data.totals.cards.toLocaleString()} ใบ` },
               { label: "มูลค่าที่เสนอ (ประมาณ)", value: `฿${data.totals.estValue.toLocaleString()}` },
-              { label: "ปิดได้จริง", value: `${data.totals.sold.toLocaleString()} ครั้ง` },
-              { label: "ยอดขายจริงจากพ่วง", value: `฿${data.totals.soldValue.toLocaleString()}` },
+              { label: "ปิดได้ (แมตช์ออเดอร์)", value: `${data.totals.sold.toLocaleString()} ครั้ง` },
+              { label: "ยอดขายจากพ่วง (ประมาณ)", value: `฿${data.totals.soldValue.toLocaleString()}` },
             ].map((c) => (
               <div key={c.label} className="rounded-2xl border border-line bg-surface px-4 py-3">
                 <p className="text-xs text-muted">{c.label}</p>
@@ -116,8 +116,8 @@ export default function UpsellDailyTab() {
                         <th className="px-4 py-2 font-medium text-right">เสนอพ่วง</th>
                         <th className="px-4 py-2 font-medium text-right">ส่งการ์ด</th>
                         <th className="px-4 py-2 font-medium text-right">มูลค่าที่เสนอ (ประมาณ)</th>
-                        <th className="px-4 py-2 font-medium text-right">ปิดได้จริง</th>
-                        <th className="px-4 py-2 font-medium text-right">ยอดขายจริง</th>
+                        <th className="px-4 py-2 font-medium text-right">ปิดได้ (แมตช์ออเดอร์)</th>
+                        <th className="px-4 py-2 font-medium text-right">ยอดขายจากพ่วง</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -152,7 +152,8 @@ export default function UpsellDailyTab() {
             &quot;มูลค่าที่เสนอ&quot; เป็นตัวเลขประมาณจากราคาสินค้าตอน AI เสนอ ·
             &quot;ส่งการ์ด&quot; = การ์ดสินค้าที่ยื่นถึงมือลูกค้าในแชต Lazada (ขากลางของกรวย เสนอ→เห็นของ→ซื้อ;
             Lazada ไม่บอกว่าลูกค้ากดการ์ดไหม) ·
-            &quot;ปิดได้จริง/ยอดขายจริง&quot; นับเฉพาะที่แมตช์กับออเดอร์จริงแล้วเท่านั้น
+            &quot;ปิดได้/ยอดขายจากพ่วง&quot; = มีออเดอร์ที่มีสินค้าตรงกับที่ AI เสนอ เกิดขึ้นหลังเสนอ (ใน 7 วัน) —
+            เป็นตัวเลขประมาณการ เพราะ Lazada ไม่เปิดเผยว่าออเดอร์เป็นของลูกค้าคนไหน จึงยืนยันรายคนไม่ได้
           </p>
         </>
       )}

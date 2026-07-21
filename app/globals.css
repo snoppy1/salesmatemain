@@ -139,6 +139,90 @@ body {
       transparent 70%
     ),
     rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 0 70px rgba(52, 211, 153, 0.16),
+    0 0 160px rgba(52, 211, 153, 0.08);
+}
+/* พื้นหลัง "ไฟลอย" ธีมเดียวกับหน้า Home: ลูกโคมเบลอ 2 ลูก + จุดไฟลอยขึ้นช้าๆ */
+.auth-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+}
+.auth-o1 {
+  width: 520px;
+  height: 520px;
+  top: 6%;
+  right: -8%;
+  background: radial-gradient(circle, rgba(52, 211, 153, 0.18), transparent 68%);
+  animation: auth-drift1 26s ease-in-out infinite alternate;
+}
+.auth-o2 {
+  width: 440px;
+  height: 440px;
+  bottom: 4%;
+  left: -10%;
+  background: radial-gradient(circle, rgba(237, 226, 206, 0.09), transparent 68%);
+  animation: auth-drift2 32s ease-in-out infinite alternate;
+}
+@keyframes auth-drift1 {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(-60px, 50px, 0) scale(1.1);
+  }
+}
+@keyframes auth-drift2 {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(70px, -45px, 0) scale(1.07);
+  }
+}
+.auth-particle {
+  position: absolute;
+  bottom: -12px;
+  border-radius: 50%;
+  background: rgba(52, 211, 153, 0.5);
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.5);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+@keyframes auth-rise-p {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.65;
+  }
+  88% {
+    opacity: 0.45;
+  }
+  100% {
+    transform: translateY(-118vh) scale(0.55);
+    opacity: 0;
+  }
+}
+@keyframes auth-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+@keyframes auth-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
 }
 /* เนื้อในการ์ดไหลเข้าทีละแถว */
 .auth-card > * {

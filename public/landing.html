@@ -158,6 +158,32 @@
     .cc-sub { margin:16px auto 0; } .cc-prog { justify-content:center; } .cc-phone { order:2; }
   }
 
+  /* ===== live dashboard ===== */
+  .dash { background:#10151C; border:1px solid var(--border-strong); border-radius:20px; padding:20px; box-shadow:0 40px 80px -30px rgba(0,0,0,.8); will-change:transform,opacity; }
+  .dash .kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:14px; }
+  .kpi { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px 18px; }
+  .kpi small { display:block; color:var(--muted); font-size:12.5px; margin-bottom:6px; }
+  .kpi b { font-family:"Chakra Petch","Anuphan",sans-serif; font-variant-numeric:tabular-nums; font-size:clamp(22px,2.4vw,32px); line-height:1.1; color:var(--text); }
+  .kpi b.green { color:var(--green); } .kpi b.amber { color:#E8B36A; }
+  .kpi i { display:block; font-style:normal; color:var(--muted); font-size:11.5px; margin-top:5px; }
+  .dash-grid { display:grid; grid-template-columns:1.5fr .9fr; gap:14px; }
+  .dash-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px 18px; min-width:0; }
+  .dash-card .dc-title { font-size:13.5px; font-weight:600; color:var(--text); }
+  .dash-card .dc-sub { font-family:"Chakra Petch","Anuphan",sans-serif; font-size:clamp(20px,2.2vw,28px); font-weight:700; color:var(--cream); margin-top:2px; }
+  .dash-card .dc-sub small { font-size:12px; color:var(--muted); font-family:"Anuphan",sans-serif; font-weight:500; }
+  .dash-chart { width:100%; height:auto; display:block; margin-top:8px; }
+  .dash-chart .axis { fill:var(--muted); font-size:10px; font-family:"Anuphan",sans-serif; }
+  .dash-chart .axis.hl { fill:var(--text); font-weight:700; }
+  .dash-chart .peak { fill:var(--text); font-size:12px; font-weight:700; font-family:"Chakra Petch","Anuphan",sans-serif; }
+  .chan { display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid var(--border); font-size:13.5px; }
+  .chan:first-of-type { border-top:none; }
+  .chan .ic { width:30px; height:30px; border-radius:8px; flex:none; display:grid; place-items:center; color:#fff; font-weight:700; font-size:11px; font-family:"Chakra Petch",sans-serif; }
+  .chan b { display:block; font-size:13.5px; } .chan small { color:var(--muted); font-size:11.5px; }
+  .chan .st { margin-left:auto; font-size:11.5px; color:var(--muted); white-space:nowrap; display:flex; align-items:center; gap:5px; }
+  .chan .st.on { color:var(--green); }
+  .chan .st .dot { width:7px; height:7px; border-radius:50%; background:currentColor; }
+  @media (max-width:880px) { .dash .kpis, .dash-grid { grid-template-columns:1fr; } }
+
   /* ===== stats / features ===== */
   .hero-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:40px 0; }
   .stat b { display:block; font-family:"Chakra Petch","Anuphan",sans-serif; font-variant-numeric:tabular-nums; font-size:clamp(30px,3.6vw,44px); font-weight:700; color:var(--cream); line-height:1.1; }
@@ -237,6 +263,31 @@
     .big-topic { padding:72px 0; }
     .cta-band { padding:52px 20px; }
   }
+  /* โซนสว่าง — หลังจบ demo พื้นค่อยๆ เปลี่ยนเป็นครีมสว่าง */
+  .lz { position:relative; padding-top:150px; isolation:isolate; }
+  /* ชั้นพื้นขาว: เฟดจากบนลงล่างด้วย mask — ตอนจบเข้มเต็ม 100% ไม่มีขอบเส้น */
+  .lz::before { content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; background:#F6F3EC;
+    -webkit-mask:linear-gradient(180deg, transparent 0, rgba(0,0,0,.14) 150px, rgba(0,0,0,.38) 300px, rgba(0,0,0,.66) 450px, rgba(0,0,0,.88) 560px, #000 660px);
+    mask:linear-gradient(180deg, transparent 0, rgba(0,0,0,.14) 150px, rgba(0,0,0,.38) 300px, rgba(0,0,0,.66) 450px, rgba(0,0,0,.88) 560px, #000 660px);
+    opacity:0; transition:opacity 1.1s var(--ease); }
+  .lz.on::before { opacity:1; }
+  .lz .sec-head h2, .lz .big-topic h2, .lz .big-topic h2 .g, .lz .stat b, .lz .sec-head p, .lz .big-topic p,
+  .lz .stat span, .lz .stats-src, .lz .card, .lz .card h3, .lz .card p, .lz .step, .lz .step h3, .lz .step p,
+  .lz .foot-in, .lz .foot-links a, .lz .hero-stats, .lz .step-track, .lz footer, .lz .dash, .lz .brand
+  { transition:color .9s var(--ease), background-color .9s var(--ease), border-color .9s var(--ease); }
+  .lz.on .sec-head h2, .lz.on .big-topic h2, .lz.on .card h3, .lz.on .step h3, .lz.on .brand { color:#211C12; }
+  .lz.on .big-topic h2 .g { color:#0C9367; }
+  .lz.on .sec-head p, .lz.on .big-topic p, .lz.on .stat span, .lz.on .stats-src, .lz.on .card p, .lz.on .step p, .lz.on .foot-in { color:#6E6759; }
+  .lz.on .stat b { color:#0C9367; }
+  .lz.on .hero-stats { border-color:rgba(0,0,0,.12); }
+  .lz.on .card, .lz.on .step { background:#FFFFFF; border-color:rgba(0,0,0,.09); }
+  .lz.on .card:hover { box-shadow:0 24px 48px -28px rgba(0,0,0,.25); }
+  .lz.on .step-track { background:rgba(0,0,0,.08); }
+  .lz.on footer { border-top-color:rgba(0,0,0,.12); }
+  .lz.on .foot-links a { color:#6E6759; }
+  .lz.on .foot-links a:hover { color:#211C12; }
+  .lz.on .dash { border-color:rgba(0,0,0,.2); box-shadow:0 40px 80px -30px rgba(0,0,0,.35); }
+
   @media (prefers-reduced-motion: reduce) { * { animation:none !important; transition:none !important; } }
 </style>
 </head>
@@ -378,7 +429,53 @@
     </div>
   </section>
 
+  <div class="lz" id="lightZone">
   <main class="wrap">
+    <section class="section" data-scrub id="liveSec">
+      <div class="sec-head" data-item>
+        <h2>ผลงาน<span style="color:var(--green)">การใช้จริง</span></h2>
+        <p>หน้าจอจริงจากร้านที่ให้ AI ช่วยดูแล — อัปเดตสดทุกวัน</p>
+      </div>
+      <div class="dash" data-item>
+        <div class="kpis">
+          <div class="kpi" data-item><small>พ่วงขายได้จริง</small><b class="green" data-count="3200" data-prefix="฿">฿0</b><i>AI ชวนซื้อเพิ่มแล้วลูกค้าซื้อจริง</i></div>
+          <div class="kpi" data-item><small>AI เสนอพ่วงไป</small><b class="amber" data-count="8993" data-prefix="฿">฿0</b><i>6 ครั้ง · มูลค่าโดยประมาณ</i></div>
+          <div class="kpi" data-item><small>ยอดขายรวมร้าน</small><b data-count="52812" data-prefix="฿">฿0</b><i>100 ออเดอร์ · จากช่องทางที่เชื่อมไว้</i></div>
+        </div>
+        <div class="dash-grid">
+          <div class="dash-card">
+            <div class="dc-title">ยอดขายรวม (ร้านที่ AI ดูแล)</div>
+            <div class="dc-sub"><span data-count="75332" data-prefix="฿">฿0</span> <small>รวม 7 วัน</small></div>
+            <svg class="dash-chart" viewBox="0 0 640 200" aria-label="กราฟยอดขาย 7 วันล่าสุด">
+              <line x1="30" y1="60" x2="610" y2="60" stroke="rgba(255,255,255,.09)" stroke-dasharray="4 5"></line>
+              <path id="salesArea" d="M40 150 L130 40 L220 148 L310 162 L400 128 L490 138 L580 156 L580 178 L40 178 Z" fill="rgba(52,211,153,.10)"></path>
+              <path id="salesPath" d="M40 150 L130 40 L220 148 L310 162 L400 128 L490 138 L580 156" fill="none" stroke="var(--green)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" pathLength="1"></path>
+              <g id="salesDots">
+                <circle cx="40" cy="150" r="5"></circle><circle cx="130" cy="40" r="5"></circle><circle cx="220" cy="148" r="5"></circle>
+                <circle cx="310" cy="162" r="5"></circle><circle cx="400" cy="128" r="5"></circle><circle cx="490" cy="138" r="5"></circle><circle cx="580" cy="156" r="5"></circle>
+              </g>
+              <text class="peak" x="130" y="24" text-anchor="middle" id="peakLabel">฿35,396</text>
+              <text class="peak" x="580" y="140" text-anchor="middle" id="lastLabel">฿4,778</text>
+              <text class="axis" x="40" y="196" text-anchor="middle">พ</text>
+              <text class="axis" x="130" y="196" text-anchor="middle">พฤ</text>
+              <text class="axis" x="220" y="196" text-anchor="middle">ศ</text>
+              <text class="axis" x="310" y="196" text-anchor="middle">ส</text>
+              <text class="axis" x="400" y="196" text-anchor="middle">อา</text>
+              <text class="axis" x="490" y="196" text-anchor="middle">จ</text>
+              <text class="axis hl" x="580" y="196" text-anchor="middle">วันนี้</text>
+            </svg>
+          </div>
+          <div class="dash-card">
+            <div class="dc-title">ช่องทางที่ AI เฝ้าอยู่</div>
+            <small style="color:var(--muted);font-size:12px;display:block;margin:2px 0 10px">ลูกค้าทักช่องไหน AI ก็เห็นครบในกล่องแชตเดียว</small>
+            <div class="chan"><span class="ic" style="background:#06C755">LN</span><span><b>LINE OA</b><small>snoppyapi</small></span><span class="st on"><span class="dot"></span> เชื่อมแล้ว</span></div>
+            <div class="chan"><span class="ic" style="background:#1877F2">FB</span><span><b>Facebook เพจ</b><small>เชื่อมได้ที่ปุ่มด้านล่าง</small></span><span class="st">ยังไม่เชื่อม</span></div>
+            <div class="chan"><span class="ic" style="background:#6B4EFF">LZ</span><span><b>Lazada</b><small>เชื่อมได้ที่ปุ่มด้านล่าง</small></span><span class="st">ยังไม่เชื่อม</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="section" data-scrub style="padding-bottom:48px">
       <div class="hero-stats">
         <div class="stat" data-item><b data-count="190" data-prefix="+฿">+฿0</b><span>ยอดพ่วงเฉลี่ยต่อบิลที่ AI ปิดได้</span></div>
@@ -402,7 +499,7 @@
     </section>
 
     <section class="section" data-scrub>
-      <div class="sec-head">
+      <div class="sec-head" data-item>
         <h2>ทุกอย่างที่ร้านแชตต้องการ</h2>
         <p>เครื่องมือเดียวที่ช่วยให้คุณตอบไว ขายดี และไม่พลาดลูกค้า</p>
       </div>
@@ -426,7 +523,7 @@
     </section>
 
     <section class="section" data-scrub id="stepsSec">
-      <div class="sec-head">
+      <div class="sec-head" data-item>
         <h2>เริ่มใช้ได้ใน 3 ขั้น</h2>
         <p>ไม่ต้องมีพื้นฐานเทคนิค ตั้งค่าเสร็จใน 5 นาที</p>
       </div>
@@ -462,6 +559,7 @@
       <span>© 2026 SalesMate · ผู้ช่วยขาย AI สำหรับร้านแชต</span>
     </div>
   </footer>
+  </div>
 </div>
 
 <script>
@@ -622,19 +720,44 @@
       el.textContent = (el.dataset.prefix || '') + Math.round((+el.dataset.count || 0) * cp).toLocaleString('th-TH') + (el.dataset.suffix || '');
     });
 
+    // โซนสว่าง: ผ่านจอ demo แล้วพื้นค่อยๆ เปลี่ยนเป็นครีมสว่าง (ย้อนกลับได้)
+    var lzEl = document.getElementById('lightZone');
+    if (lzEl) lzEl.classList.toggle('on', lzEl.getBoundingClientRect().top < vh * 0.55);
+
     // ===== scrub sections =====
     document.querySelectorAll('[data-scrub]').forEach(function (sec) {
       var sp = ez(viewP(sec, 0.94, 0.34));
-      sec.style.opacity = 0.1 + 0.9 * sp;
-      sec.style.transform = 'translateY(' + ((1 - sp) * 44 * K).toFixed(1) + 'px) rotate(' + ((1 - sp) * 1 * K).toFixed(2) + 'deg)';
-      var items = sec.querySelectorAll('[data-item]');
-      var n = items.length;
-      items.forEach(function (it, i) {
-        var q = back(clamp(viewP(sec, 0.92, 0.55) * (1 + n * 0.25) - i * 0.25, 0, 1));
-        it.style.opacity = clamp(q * 1.5, 0, 1);
-        it.style.transform = 'translateY(' + ((1 - q) * 34 * K).toFixed(1) + 'px) rotate(' + ((1 - q) * 4 * K * (i % 2 ? 1 : -1)).toFixed(2) + 'deg) scale(' + (0.94 + 0.06 * q).toFixed(3) + ')';
+      // ตอนเลื่อนผ่าน: ลอยขึ้น + จางออก (ย้อนกลับได้)
+      var rb = sec.getBoundingClientRect().bottom;
+      var ex = ez(clamp((vh * 0.3 - rb) / (vh * 0.55), 0, 1));
+      sec.style.opacity = (0.1 + 0.9 * sp) * (1 - ex * 0.9);
+      sec.style.transform = 'translateY(' + (((1 - sp) * 44 - ex * 50) * K).toFixed(1) + 'px) rotate(' + ((1 - sp) * 1 * K).toFixed(2) + 'deg) scale(' + (1 - ex * 0.03).toFixed(3) + ')';
+      // แต่ละชิ้นโผล่ตามตำแหน่งจริงของตัวเอง (ไม่อิงลำดับใน section) — จังหวะไม่เพี้ยนใน section ยาว
+      sec.querySelectorAll('[data-item]').forEach(function (it, i) {
+        var rt = it.getBoundingClientRect().top;
+        var q = back(clamp((vh * 0.97 - rt) / (vh * 0.26) - (i % 3) * 0.14, 0, 1));
+        it.style.opacity = clamp(q * 1.4, 0, 1);
+        it.style.transform = 'translateY(' + ((1 - q) * 48 * K).toFixed(1) + 'px) rotate(' + ((1 - q) * 4 * K * (i % 2 ? 1 : -1)).toFixed(2) + 'deg) scale(' + (0.88 + 0.12 * q).toFixed(3) + ')';
       });
     });
+    // แดชบอร์ด — เส้นกราฟวาดตาม scroll, จุด/ป้ายราคาทยอยโผล่ตามเส้น
+    var salesPath = document.getElementById('salesPath'), liveSec = document.getElementById('liveSec');
+    if (salesPath && liveSec) {
+      var lp = ez(viewP(liveSec, 0.82, 0.5));
+      salesPath.style.strokeDasharray = '1';
+      salesPath.style.strokeDashoffset = (1 - lp).toFixed(3);
+      var dots = document.querySelectorAll('#salesDots circle');
+      dots.forEach(function (d, i) {
+        var c = clamp(lp * dots.length - i, 0, 1);
+        d.setAttribute('fill', 'var(--green)');
+        d.style.opacity = c;
+      });
+      var area = document.getElementById('salesArea');
+      if (area) area.style.opacity = lp;
+      var pk = document.getElementById('peakLabel'), ll = document.getElementById('lastLabel');
+      if (pk) pk.style.opacity = clamp(lp * 3 - 0.5, 0, 1);
+      if (ll) ll.style.opacity = clamp(lp * 3 - 1.8, 0, 1);
+    }
     // หัวข้อใหญ่ — ตัวอักษรทยอยลอยขึ้นทีละตัวตาม scroll
     document.querySelectorAll('.big-topic').forEach(function (sec) {
       var chars = sec.querySelectorAll('.ch');

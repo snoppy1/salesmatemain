@@ -5,7 +5,7 @@ import { query, queryOne, withTx } from "./db";
 import type { Admin } from "./types";
 
 export const SESSION_COOKIE = "phuang_session";
-const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 วัน
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14; // 14 วัน — สมดุลระหว่างสะดวก (ร้านไม่ต้อง login บ่อย) กับความเสี่ยง session ค้าง
 
 /* ---------- password ---------- */
 

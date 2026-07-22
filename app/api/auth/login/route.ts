@@ -6,8 +6,13 @@ import {
   findAdminForLogin,
   isPasswordExpired,
 } from "@/lib/auth";
+import { allowAttempt, recordAttempt, clearThrottle, clientIp } from "@/lib/throttle";
 
 export const runtime = "nodejs";
+
+const WINDOW_MS = 15 * 60_000; // หน้าต่างนับ 15 นาที
+const EMAIL_LIMIT = 5; // ผิดเกิน 5 ครั้งต่ออีเมล → พัก
+const IP_LIMIT = 20; // กันกระจายเดาหลายอีเมลจากเครื่องเดียว
 
 export async function POST(request: Request) {
   let body: { identifier?: string; email?: string; password?: string; remember?: boolean };
@@ -29,14 +34,28 @@ export async function POST(request: Request) {
     );
   }
 
+  // rate limit กัน brute force — เช็คก่อนตรวจรหัส (โดนบล็อกแล้วไม่เผยด้วยซ้ำว่ารหัสถูกไหม)
+  const ip = clientIp(request);
+  const emailKey = `login:${identifier}`;
+  const ipKey = `login-ip:${ip}`;
+  if (!(await allowAttempt(emailKey, EMAIL_LIMIT)) || !(await allowAttempt(ipKey, IP_LIMIT))) {
+    return NextResponse.json(
+      { error: "ลองเข้าสู่ระบบผิดหลายครั้งเกินไป กรุณารอ 15 นาทีแล้วลองใหม่" },
+      { status: 429 },
+    );
+  }
+
   const admin = await findAdminForLogin(identifier);
   // ข้อความเดียวกันทั้งกรณีไม่มีบัญชีและรหัสผิด กันการเดา
   if (!admin || !verifyPassword(password, admin.password_hash)) {
+    await recordAttempt(emailKey, WINDOW_MS);
+    await recordAttempt(ipKey, WINDOW_MS);
     return NextResponse.json(
       { error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" },
       { status: 401 },
     );
   }
+  await clearThrottle(emailKey); // รหัสถูก = ไม่ใช่คนเดารหัส ล้างตัวนับของอีเมลนี้
 
   // รหัสผ่านอายุเกิน 90 วัน → ต้องเปลี่ยนก่อน (นโยบายความปลอดภัย)
   if (isPasswordExpired(admin.password_updated_at)) {

@@ -286,6 +286,13 @@ async function ensureSchema(): Promise<void> {
       matched_order_id TEXT
     );
 
+    -- นับความพยายาม login/signup/forgot ต่อช่วงเวลา (rate limit กัน brute force / สแปม)
+    CREATE TABLE IF NOT EXISTS auth_throttle (
+      key      TEXT PRIMARY KEY,
+      count    INTEGER NOT NULL DEFAULT 0,
+      reset_at BIGINT NOT NULL
+    );
+
     -- log การเปลี่ยนของสินค้าจากระบบซิงก์ marketplace — ไว้วิเคราะห์ว่าอะไรทำดัชนีแคชถูกจุดใหม่
     -- (เก็บเฉพาะการเปลี่ยนจริง ปริมาณน้อย; ลบทิ้งได้ทุกเมื่อ ไม่มีอะไรพึ่งพา)
     CREATE TABLE IF NOT EXISTS product_sync_changes (

@@ -101,6 +101,85 @@ export async function shopsWithUnsoldLazadaUpsells(sinceMs: number): Promise<str
   return rows.map((r) => r.shop_id);
 }
 
+export type UnmatchedCard = {
+  messageId: string;
+  product: string; // ชื่อสินค้าบนการ์ด (ข้อความหลัง "[การ์ดสินค้า] ")
+  createdAt: number;
+};
+
+/** การ์ดสินค้า (Lazada) ที่ยังไม่ถูกแมตช์กับออเดอร์ ในช่วง sinceMs */
+export async function listUnmatchedCardSends(shopId: string, sinceMs: number): Promise<UnmatchedCard[]> {
+  const rows = await query<{ id: string; text: string; created_at: string }>(
+    `SELECT m.id, m.text, m.created_at
+       FROM messages m JOIN conversations c ON c.id = m.conversation_id
+      WHERE c.shop_id = $1 AND c.channel = 'lazada' AND m.ai_generated = true
+        AND m.text LIKE '[การ์ดสินค้า]%' AND m.created_at >= $2
+        AND NOT EXISTS (SELECT 1 FROM assist_matches am WHERE am.message_id = m.id)`,
+    [shopId, sinceMs],
+  );
+  return rows
+    .map((r) => ({
+      messageId: r.id,
+      product: r.text.replace(/^\[การ์ดสินค้า\]\s*/, "").trim(),
+      createdAt: Number(r.created_at),
+    }))
+    .filter((r) => r.product !== "");
+}
+
+/** บันทึกแมตช์ "AI มีส่วนช่วย" — คืน true ถ้าเป็นรายการใหม่ (ออเดอร์+สินค้านี้ยังไม่เคยนับ) */
+export async function recordAssistMatch(m: {
+  shopId: string;
+  messageId: string;
+  product: string;
+  itemName: string;
+  orderId: string;
+  soldValue: number;
+  cardAt: number;
+}): Promise<boolean> {
+  const rows = await query<{ id: string }>(
+    `INSERT INTO assist_matches (id, shop_id, message_id, product, item_name, order_id, sold_value, card_at, created_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+     ON CONFLICT (shop_id, order_id, item_name) DO NOTHING
+     RETURNING id`,
+    [newId(), m.shopId, m.messageId, m.product, m.itemName, m.orderId, Math.round(m.soldValue), m.cardAt, Date.now()],
+  );
+  return rows.length > 0;
+}
+
+/** ร้านที่มีการ์ด Lazada ยังไม่แมตช์ในช่วง sinceMs — ให้ cron ไล่แมตช์ */
+export async function shopsWithUnmatchedLazadaCards(sinceMs: number): Promise<string[]> {
+  const rows = await query<{ shop_id: string }>(
+    `SELECT DISTINCT c.shop_id
+       FROM messages m JOIN conversations c ON c.id = m.conversation_id
+      WHERE c.channel = 'lazada' AND m.ai_generated = true
+        AND m.text LIKE '[การ์ดสินค้า]%' AND m.created_at >= $1
+        AND NOT EXISTS (SELECT 1 FROM assist_matches am WHERE am.message_id = m.id)`,
+    [sinceMs],
+  );
+  return rows.map((r) => r.shop_id);
+}
+
+export type DailyAssistRow = { day: string; shopId: string; assisted: number; assistedValue: number };
+
+/** ยอด "AI มีส่วนช่วย" รายวันรายร้าน (นับตามวันที่ส่งการ์ด) */
+export async function dailyAssistByShop(sinceMs: number): Promise<DailyAssistRow[]> {
+  const rows = await query<{ shop_id: string; day: string; n: number; total: number }>(
+    `SELECT shop_id,
+            to_char(to_timestamp(card_at / 1000) AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM-DD') AS day,
+            COUNT(*)::int AS n, COALESCE(SUM(sold_value), 0)::int AS total
+       FROM assist_matches
+      WHERE card_at >= $1
+      GROUP BY shop_id, day`,
+    [sinceMs],
+  );
+  return rows.map((r) => ({
+    day: r.day,
+    shopId: r.shop_id,
+    assisted: Number(r.n),
+    assistedValue: Number(r.total),
+  }));
+}
+
 /** ทำเครื่องหมายว่าพ่วงนี้ขายได้จริง (จากการแมตช์ออเดอร์) */
 export async function markUpsellSold(id: string, soldValue: number, orderId: string): Promise<void> {
   await query(

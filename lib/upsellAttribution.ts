@@ -1,5 +1,5 @@
 import "server-only";
-import { listUnsoldUpsells, markUpsellSold } from "./upsellRepo";
+import { listUnsoldUpsells, markUpsellSold, listUnmatchedCardSends, recordAssistMatch } from "./upsellRepo";
 import { recentOrdersWithItems } from "./lazadaOrders";
 import { matchUpsellProduct } from "./upsellMatch";
 
@@ -17,9 +17,13 @@ const SLACK_MS = 10 * 60 * 1000; // เผื่อเวลาเหลื่�
 export async function attributeUpsells(shopId: string, token: string): Promise<number> {
   const since = Date.now() - WINDOW_MS;
   const events = (await listUnsoldUpsells(shopId, since)).filter((e) => e.channel === "lazada");
-  if (!events.length) return 0;
+  const cards = await listUnmatchedCardSends(shopId, since);
+  if (!events.length && !cards.length) return 0;
 
-  const earliest = Math.min(...events.map((e) => e.createdAt));
+  const earliest = Math.min(
+    ...events.map((e) => e.createdAt),
+    ...cards.map((c) => c.createdAt),
+  );
   const fetchSince = Math.max(earliest - SLACK_MS, Date.now() - ORDER_FETCH_MS);
   const orders = await recentOrdersWithItems(token, fetchSince);
   if (!orders.length) return 0;
@@ -40,6 +44,31 @@ export async function attributeUpsells(shopId: string, token: string): Promise<n
           console.error("[upsell] markUpsellSold ล้ม:", err instanceof Error ? err.message : err);
         }
         break;
+      }
+    }
+  }
+
+  // "AI มีส่วนช่วย": สินค้าบนการ์ดที่ส่ง → มีออเดอร์สินค้านั้นเกิดหลังส่ง (ฐานกว้างกว่าพ่วง —
+  // นับทุกการแนะนำ ไม่ใช่แค่ชวนซื้อเพิ่ม; กันซ้ำด้วย UNIQUE ใน assist_matches ไม่ใช้ used ร่วมกับพ่วง)
+  for (const c of cards) {
+    for (const o of orders) {
+      if (o.createdAt == null || o.createdAt < c.createdAt - SLACK_MS) continue;
+      const hit = matchUpsellProduct(c.product, o.items);
+      if (hit) {
+        try {
+          await recordAssistMatch({
+            shopId,
+            messageId: c.messageId,
+            product: c.product,
+            itemName: hit.name,
+            orderId: o.orderId,
+            soldValue: hit.price,
+            cardAt: c.createdAt,
+          });
+        } catch (err) {
+          console.error("[upsell] recordAssistMatch ล้ม:", err instanceof Error ? err.message : err);
+        }
+        break; // การ์ดใบนี้แมตช์แล้ว — ใบต่อไป
       }
     }
   }

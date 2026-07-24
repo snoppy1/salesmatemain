@@ -9,7 +9,7 @@ import { shopsWarmedSince, shopsCacheAliveSince } from "@/lib/aiUsageRepo";
 import { CHAT_SONNET } from "@/lib/modelRouter";
 import { listPromotions } from "@/lib/promotionsRepo";
 import { validNowPromotions } from "@/lib/promotions";
-import { shopsWithUnsoldLazadaUpsells } from "@/lib/upsellRepo";
+import { shopsWithUnsoldLazadaUpsells, shopsWithUnmatchedLazadaCards } from "@/lib/upsellRepo";
 import { attributeUpsells } from "@/lib/upsellAttribution";
 import { getValidAccessToken } from "@/lib/connectionRepo";
 
@@ -100,7 +100,13 @@ export async function GET(request: Request) {
   // แมตช์พ่วงกับออเดอร์จริงอัตโนมัติ (เดิมรันเฉพาะตอนร้านเปิดหน้าวัดผล → ตัวเลข "ปิดได้จริง" ค้าง 0)
   let matchedUpsells = 0;
   try {
-    for (const shopId of await shopsWithUnsoldLazadaUpsells(Date.now() - 7 * 86400e3)) {
+    const since = Date.now() - 7 * 86400e3;
+    // รวมร้านที่มีพ่วงค้าง + ร้านที่มีการ์ดยังไม่แมตช์ (ตัวเลข "AI มีส่วนช่วย")
+    const shopIds = new Set([
+      ...(await shopsWithUnsoldLazadaUpsells(since)),
+      ...(await shopsWithUnmatchedLazadaCards(since)),
+    ]);
+    for (const shopId of shopIds) {
       const token = await getValidAccessToken(shopId, "lazada");
       if (!token || token.startsWith("mock")) continue;
       matchedUpsells += await attributeUpsells(shopId, token).catch(() => 0);

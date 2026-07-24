@@ -304,6 +304,22 @@ async function ensureSchema(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS idx_psc_shop ON product_sync_changes(shop_id, created_at DESC);
 
+    -- "ยอดขายที่ AI มีส่วนช่วย": ออเดอร์ที่มีสินค้าตรงกับการ์ดที่ AI ส่งในแชต (เกิดหลังส่ง ใน 7 วัน)
+    -- UNIQUE (shop, order, item) = 1 รายการซื้อนับครั้งเดียว ต่อให้ส่งการ์ดหลายรอบ/หลายบทสนทนา
+    CREATE TABLE IF NOT EXISTS assist_matches (
+      id         TEXT PRIMARY KEY,
+      shop_id    TEXT NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+      message_id TEXT NOT NULL,
+      product    TEXT NOT NULL DEFAULT '',
+      item_name  TEXT NOT NULL DEFAULT '',
+      order_id   TEXT NOT NULL,
+      sold_value INTEGER,
+      card_at    BIGINT NOT NULL,
+      created_at BIGINT NOT NULL,
+      UNIQUE (shop_id, order_id, item_name)
+    );
+    CREATE INDEX IF NOT EXISTS idx_assist_shop ON assist_matches(shop_id, created_at DESC);
+
     -- ต้นทุน AI จริงต่อการเรียก (จาก usage ของ Anthropic) — ฐานคิดต้นทุน/แพ็กเกจ
     CREATE TABLE IF NOT EXISTS ai_usage (
       id           TEXT PRIMARY KEY,

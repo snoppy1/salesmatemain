@@ -13,11 +13,21 @@ type Row = {
   sold: number;
   soldValue: number;
   cards: number;
+  assisted: number;
+  assistedValue: number;
 };
 type Data = {
   days: number;
   rows: Row[];
-  totals: { offered: number; estValue: number; sold: number; soldValue: number; cards: number };
+  totals: {
+    offered: number;
+    estValue: number;
+    sold: number;
+    soldValue: number;
+    cards: number;
+    assisted: number;
+    assistedValue: number;
+  };
 };
 
 const RANGES: { days: number; label: string }[] = [
@@ -80,17 +90,29 @@ export default function UpsellDailyTab() {
       {data && (
         <>
           {/* สรุปทั้งช่วง — กรวย: เสนอ → ส่งการ์ด (ของถึงมือลูกค้า) → ซื้อจริง */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
             {[
               { label: "AI เสนอพ่วง", value: `${data.totals.offered.toLocaleString()} ครั้ง` },
               { label: "ส่งการ์ดสินค้า (Lazada)", value: `${data.totals.cards.toLocaleString()} ใบ` },
               { label: "มูลค่าที่เสนอ (ประมาณ)", value: `฿${data.totals.estValue.toLocaleString()}` },
               { label: "ปิดได้ (แมตช์ออเดอร์)", value: `${data.totals.sold.toLocaleString()} ครั้ง` },
               { label: "ยอดขายจากพ่วง (ประมาณ)", value: `฿${data.totals.soldValue.toLocaleString()}` },
+              {
+                label: "AI มีส่วนช่วยขาย (ประมาณ)",
+                value: `฿${data.totals.assistedValue.toLocaleString()}`,
+                sub: `${data.totals.assisted.toLocaleString()} รายการ`,
+                hot: true,
+              },
             ].map((c) => (
-              <div key={c.label} className="rounded-2xl border border-line bg-surface px-4 py-3">
+              <div
+                key={c.label}
+                className={`rounded-2xl border px-4 py-3 ${
+                  c.hot ? "border-emerald-500/40 bg-emerald-500/5" : "border-line bg-surface"
+                }`}
+              >
                 <p className="text-xs text-muted">{c.label}</p>
                 <p className="mt-1 text-lg font-semibold text-fg">{c.value}</p>
+                {c.sub && <p className="text-xs text-muted">{c.sub}</p>}
               </div>
             ))}
           </div>
@@ -118,6 +140,7 @@ export default function UpsellDailyTab() {
                         <th className="px-4 py-2 font-medium text-right">มูลค่าที่เสนอ (ประมาณ)</th>
                         <th className="px-4 py-2 font-medium text-right">ปิดได้ (แมตช์ออเดอร์)</th>
                         <th className="px-4 py-2 font-medium text-right">ยอดขายจากพ่วง</th>
+                        <th className="px-4 py-2 font-medium text-right">AI มีส่วนช่วย</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -139,6 +162,11 @@ export default function UpsellDailyTab() {
                           <td className="px-4 py-2 text-right whitespace-nowrap font-semibold text-fg">
                             {r.soldValue > 0 ? `฿${r.soldValue.toLocaleString()}` : "-"}
                           </td>
+                          <td className="px-4 py-2 text-right whitespace-nowrap font-semibold text-emerald-500">
+                            {r.assistedValue > 0
+                              ? `฿${r.assistedValue.toLocaleString()} (${r.assisted})`
+                              : "-"}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -152,8 +180,11 @@ export default function UpsellDailyTab() {
             &quot;มูลค่าที่เสนอ&quot; เป็นตัวเลขประมาณจากราคาสินค้าตอน AI เสนอ ·
             &quot;ส่งการ์ด&quot; = การ์ดสินค้าที่ยื่นถึงมือลูกค้าในแชต Lazada (ขากลางของกรวย เสนอ→เห็นของ→ซื้อ;
             Lazada ไม่บอกว่าลูกค้ากดการ์ดไหม) ·
-            &quot;ปิดได้/ยอดขายจากพ่วง&quot; = มีออเดอร์ที่มีสินค้าตรงกับที่ AI เสนอ เกิดขึ้นหลังเสนอ (ใน 7 วัน) —
-            เป็นตัวเลขประมาณการ เพราะ Lazada ไม่เปิดเผยว่าออเดอร์เป็นของลูกค้าคนไหน จึงยืนยันรายคนไม่ได้
+            &quot;ปิดได้/ยอดขายจากพ่วง&quot; = มีออเดอร์ที่มีสินค้าตรงกับที่ AI เสนอ เกิดขึ้นหลังเสนอ (ใน 7 วัน) ·
+            &quot;AI มีส่วนช่วย&quot; = ฐานกว้างกว่า: นับทุกสินค้าที่ AI แนะนำ/ส่งการ์ดในแชตแล้วมีออเดอร์สินค้านั้นตามมา
+            (1 รายการซื้อนับครั้งเดียว; รวมของพ่วงที่ปิดได้อยู่ในนี้ด้วย) —
+            ทั้งคู่เป็นตัวเลขประมาณการ เพราะ Lazada ไม่เปิดเผยว่าออเดอร์เป็นของลูกค้าคนไหน จึงยืนยันรายคนไม่ได้ ·
+            เริ่มเก็บ 24 ก.ค. 2026
           </p>
         </>
       )}

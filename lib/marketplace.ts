@@ -170,18 +170,24 @@ export function extractVariantOptions(skus: Record<string, unknown>[]): string {
     if (!opts.some((o) => o.label === label)) opts.push({ label, price });
   }
   const MAX_SHOWN = 8; // กันสินค้าที่ตัวเลือกเยอะมาก (เช่น เคส 30 ลาย) บวม token
+  // sort ทุกอย่างให้ลำดับตายตัว — ถ้า Lazada ส่งลำดับ SKU สลับคนละรอบ note จะไม่แกว่งตาม
+  // (แกว่ง = sync เห็นว่า "เปลี่ยน" แล้วเขียน DB ซ้ำฟรีทุก 45 วิ — แนวเดียวกับ canonPrice กันราคา 1290.00→1290)
+  const byLabel = (a: { label: string }, b: { label: string }) =>
+    a.label < b.label ? -1 : a.label > b.label ? 1 : 0;
   // ราคาไม่เท่ากันระหว่างตัวเลือก (และรู้ราคาครบทุกตัว) → ระบุราคาต่อตัวเลือก กัน AI แจ้งราคาผิด
   const diffPrice =
     opts.length >= 2 && opts.every((o) => o.price) && new Set(opts.map((o) => o.price)).size > 1;
   if (diffPrice) {
-    const shown = opts.slice(0, MAX_SHOWN).map((o) => `${o.label} ${o.price} บาท`).join("/");
-    return opts.length > MAX_SHOWN ? `${shown} +อีก ${opts.length - MAX_SHOWN} แบบ` : shown;
+    const sorted = [...opts].sort(byLabel);
+    const shown = sorted.slice(0, MAX_SHOWN).map((o) => `${o.label} ${o.price} บาท`).join("/");
+    return sorted.length > MAX_SHOWN ? `${shown} +อีก ${sorted.length - MAX_SHOWN} แบบ` : shown;
   }
   const groups: string[] = [];
-  for (const vals of byProp.values()) {
+  for (const [, vals] of [...byProp.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
     if (vals.length < 2) continue; // ค่าเดียว = ไม่มีอะไรให้เลือก ไม่ต้องเปลืองที่
-    const shown = vals.slice(0, MAX_SHOWN).join("/");
-    groups.push(vals.length > MAX_SHOWN ? `${shown} +อีก ${vals.length - MAX_SHOWN} แบบ` : shown);
+    const sv = [...vals].sort();
+    const shown = sv.slice(0, MAX_SHOWN).join("/");
+    groups.push(sv.length > MAX_SHOWN ? `${shown} +อีก ${sv.length - MAX_SHOWN} แบบ` : shown);
   }
   return groups.join(" · ");
 }

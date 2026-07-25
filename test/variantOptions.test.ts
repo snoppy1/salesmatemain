@@ -2,13 +2,22 @@ import { describe, it, expect } from "vitest";
 import { extractVariantOptions, withVariantNote, replaceVariantNote } from "@/lib/marketplace";
 
 describe("extractVariantOptions", () => {
-  it("ดึงสีจากทุก SKU ไม่ซ้ำ ตามลำดับที่เจอ", () => {
+  it("ดึงสีจากทุก SKU ไม่ซ้ำ ลำดับตายตัว", () => {
     const skus = [
       { saleProp: { color_family: "สีส้ม" }, price: 499 },
       { saleProp: { color_family: "สีเขียว" }, price: 499 },
       { saleProp: { color_family: "สีส้ม" }, price: 499 }, // ซ้ำ → ไม่นับเพิ่ม
     ];
     expect(extractVariantOptions(skus)).toBe("สีส้ม/สีเขียว");
+  });
+
+  it("Lazada สลับลำดับ SKU คนละรอบ → note ต้องได้ byte เดิมเป๊ะ (กัน sync เขียนซ้ำฟรี)", () => {
+    const a = [
+      { saleProp: { color_family: "สีส้ม" }, price: "499" },
+      { saleProp: { color_family: "สีเขียว" }, price: "520" },
+    ];
+    const b = [...a].reverse();
+    expect(extractVariantOptions(a)).toBe(extractVariantOptions(b));
   });
 
   it("ค่าเดียว = ไม่มีตัวเลือก → ว่าง", () => {
@@ -22,22 +31,21 @@ describe("extractVariantOptions", () => {
 
   it("รองรับ SaleProp ตัวใหญ่ (กัน casing แกว่งจาก Lazada)", () => {
     const skus = [{ SaleProp: { color_family: "แดง" } }, { SaleProp: { color_family: "น้ำเงิน" } }];
-    expect(extractVariantOptions(skus)).toBe("แดง/น้ำเงิน");
+    expect(extractVariantOptions(skus)).toBe("น้ำเงิน/แดง"); // เรียงตายตัว
   });
 
-  it("หลาย prop (สี+ไซส์) → แยกกลุ่มด้วย ·", () => {
+  it("หลาย prop (สี+ไซส์) → แยกกลุ่มด้วย · เรียงตายตัว", () => {
     const skus = [
       { saleProp: { color_family: "ดำ", size: "S" } },
       { saleProp: { color_family: "ขาว", size: "M" } },
     ];
-    expect(extractVariantOptions(skus)).toBe("ดำ/ขาว · S/M");
+    expect(extractVariantOptions(skus)).toBe("ขาว/ดำ · M/S");
   });
 
   it("ตัวเลือกเกิน 8 → ตัดพร้อมบอกจำนวนที่เหลือ (กัน token บวม)", () => {
     const skus = Array.from({ length: 11 }, (_, i) => ({ saleProp: { color_family: `ลาย${i + 1}` } }));
     const out = extractVariantOptions(skus);
-    expect(out).toContain("ลาย1/ลาย2");
-    expect(out).toContain("+อีก 3 แบบ");
+    expect(out).toBe("ลาย1/ลาย10/ลาย11/ลาย2/ลาย3/ลาย4/ลาย5/ลาย6 +อีก 3 แบบ");
   });
 
   it("ค่าว่าง/null ใน prop → ข้าม", () => {
@@ -69,12 +77,12 @@ describe("extractVariantOptions", () => {
     expect(extractVariantOptions(skus)).toBe("สีส้ม/สีเขียว");
   });
 
-  it("หลาย prop + ราคาต่าง → ตัวเลือกผสมพร้อมราคา", () => {
+  it("หลาย prop + ราคาต่าง → ตัวเลือกผสมพร้อมราคา เรียงตายตัว", () => {
     const skus = [
       { saleProp: { color_family: "ดำ", size: "S" }, price: "100" },
       { saleProp: { color_family: "ดำ", size: "M" }, price: "120" },
     ];
-    expect(extractVariantOptions(skus)).toBe("ดำ+S 100 บาท/ดำ+M 120 บาท");
+    expect(extractVariantOptions(skus)).toBe("ดำ+M 120 บาท/ดำ+S 100 บาท");
   });
 });
 

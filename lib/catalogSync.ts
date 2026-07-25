@@ -1,7 +1,7 @@
 import "server-only";
 import { getValidAccessToken, getStatus } from "./connectionRepo";
 import { getMockSettings, isMockEnabled, syncProductsStock } from "./shopRepo";
-import { fetchCatalog as lzFetch, type CatalogItem } from "./marketplace";
+import { fetchCatalog as lzFetch, withVariantNote, type CatalogItem } from "./marketplace";
 import { fetchCatalog as spFetch } from "./shopee";
 import { fetchCatalog as ttFetch } from "./tiktok";
 
@@ -41,7 +41,13 @@ export async function syncAllPlatforms(shopId: string): Promise<SyncResult[]> {
     } catch {
       continue;
     }
-    const res = await syncProductsStock(shopId, platform, items);
+    // สินค้าใหม่ที่ sync เพิ่มเอง ใช้ description ดิบ (ไม่ผ่านตัวย่อ) → ต่อท้ายตัวเลือกสี/แบบตรงนี้
+    // (สินค้าที่มีอยู่แล้ว sync ไม่แตะ description — ตัวเลือกจะติดมาตอนร้าน import ใหม่)
+    const res = await syncProductsStock(
+      shopId,
+      platform,
+      items.map((it) => ({ ...it, description: withVariantNote(it.description, it.variantOptions) })),
+    );
     out.push({ platform, ...res });
   }
   return out;

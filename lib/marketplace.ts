@@ -27,6 +27,7 @@ export type CatalogItem = {
   externalId: string;
   image?: string; // URL รูปสินค้าจาก marketplace (ว่างได้)
   stock?: number; // จำนวนคงเหลือจาก marketplace (ว่าง = ไม่ระบุ)
+  variantOptions?: string; // ตัวเลือกสินค้า เช่น "สีส้ม/สีเขียว" (ว่าง = ไม่มีตัวเลือก) — ต่อท้าย description ทีหลังด้วย withVariantNote
 };
 
 export function isLazadaConfigured(): boolean {
@@ -142,6 +143,46 @@ export function htmlToText(html: string): string {
   return text.length > 500 ? text.slice(0, 500).trim() + "…" : text;
 }
 
+/**
+ * ดึง "ตัวเลือกสินค้า" (สี/ไซส์/แบบ) จากทุก SKU — Lazada เก็บใน sku.saleProp เช่น {color_family: "สีส้ม"}
+ * เดิมเราอ่านแค่ skus[0] ทำให้ AI ไม่รู้ว่าสินค้ามีหลายสี → ลูกค้าถาม "สีเขียว" แล้ว AI
+ * ไปมโนว่าเป็นสินค้าคนละตัว (feedback ร้าน Smarttech 25 ก.ค.) — เก็บครบทุก SKU กันเคสนี้
+ */
+export function extractVariantOptions(skus: Record<string, unknown>[]): string {
+  const byProp = new Map<string, string[]>(); // ชื่อ prop → ค่าไม่ซ้ำ เรียงตามที่เจอ
+  for (const sku of skus) {
+    const sp = (sku?.saleProp ?? sku?.SaleProp) as Record<string, unknown> | undefined;
+    if (!sp || typeof sp !== "object") continue;
+    for (const [k, v] of Object.entries(sp)) {
+      const val = String(v ?? "").trim();
+      if (!val) continue;
+      const list = byProp.get(k) ?? [];
+      if (!list.includes(val)) list.push(val);
+      byProp.set(k, list);
+    }
+  }
+  const MAX_SHOWN = 8; // กันสินค้าที่ตัวเลือกเยอะมาก (เช่น เคส 30 ลาย) บวม token
+  const groups: string[] = [];
+  for (const vals of byProp.values()) {
+    if (vals.length < 2) continue; // ค่าเดียว = ไม่มีอะไรให้เลือก ไม่ต้องเปลืองที่
+    const shown = vals.slice(0, MAX_SHOWN).join("/");
+    groups.push(vals.length > MAX_SHOWN ? `${shown} +อีก ${vals.length - MAX_SHOWN} แบบ` : shown);
+  }
+  return groups.join(" · ");
+}
+
+/**
+ * ต่อท้าย "มีให้เลือก: …" เข้า description — ต้องเรียก "หลัง" ย่อ description ด้วย AI แล้วเท่านั้น
+ * (ถ้าต่อก่อนย่อ ตัวย่ออาจตัดทิ้ง) ใช้ทั้งขา import และขา sync ที่เพิ่มสินค้าใหม่
+ */
+export function withVariantNote(description: string, variantOptions?: string): string {
+  const v = (variantOptions ?? "").trim();
+  if (!v) return description;
+  const note = `มีให้เลือก: ${v}`;
+  if (description.includes(note)) return description;
+  return description ? `${description} · ${note}` : note;
+}
+
 /** แปลง 1 product จาก Lazada → CatalogItem */
 function mapLazadaProduct(p: unknown): CatalogItem {
   const x = p as Record<string, unknown>;
@@ -156,6 +197,7 @@ function mapLazadaProduct(p: unknown): CatalogItem {
     externalId: String(x.item_id ?? ""),
     image: String(images[0] ?? skus[0]?.Images ?? ""),
     stock: qty != null ? Number(qty) : undefined,
+    variantOptions: extractVariantOptions(skus) || undefined,
   };
 }
 

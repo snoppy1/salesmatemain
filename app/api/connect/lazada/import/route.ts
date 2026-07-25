@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentAdmin } from "@/lib/auth";
 import { getValidAccessToken } from "@/lib/connectionRepo";
-import { fetchCatalog } from "@/lib/marketplace";
+import { fetchCatalog, withVariantNote } from "@/lib/marketplace";
 import { getMockSettings, isMockEnabled } from "@/lib/shopRepo";
 import { compressDescriptions, compressNames } from "@/lib/descCompress";
 
@@ -43,7 +43,8 @@ export async function POST() {
     name: it.name,
     aiName: aiNames[idx] || undefined,
     price: it.price,
-    description: shortDescs[idx],
+    // ตัวเลือกสี/แบบ ต่อท้าย "หลัง" ย่อ desc แล้ว — กันตัวย่อตัดทิ้ง (AI ใช้ตอบ "สีส้มกับสีเขียวต่างกันไหม")
+    description: withVariantNote(shortDescs[idx], it.variantOptions),
     image: it.image,
     source: "lazada",
     externalId: it.externalId,

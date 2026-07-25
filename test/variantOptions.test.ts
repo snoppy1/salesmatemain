@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractVariantOptions, withVariantNote } from "@/lib/marketplace";
+import { extractVariantOptions, withVariantNote, replaceVariantNote } from "@/lib/marketplace";
 
 describe("extractVariantOptions", () => {
   it("ดึงสีจากทุก SKU ไม่ซ้ำ ตามลำดับที่เจอ", () => {
@@ -44,6 +44,38 @@ describe("extractVariantOptions", () => {
     const skus = [{ saleProp: { color_family: "" } }, { saleProp: { color_family: null } }];
     expect(extractVariantOptions(skus)).toBe("");
   });
+
+  it("ราคาต่างกันระหว่างตัวเลือก → ระบุราคาต่อตัวเลือก", () => {
+    const skus = [
+      { saleProp: { color_family: "สีส้ม" }, price: "499.00" },
+      { saleProp: { color_family: "สีเขียว" }, price: 520 },
+    ];
+    expect(extractVariantOptions(skus)).toBe("สีส้ม 499 บาท/สีเขียว 520 บาท");
+  });
+
+  it("ราคาเท่ากันทุกตัวเลือก → ไม่ต้องซ้ำราคา (จัดกลุ่มแบบเดิม)", () => {
+    const skus = [
+      { saleProp: { color_family: "สีส้ม" }, price: "499.00" },
+      { saleProp: { color_family: "สีเขียว" }, price: "499" },
+    ];
+    expect(extractVariantOptions(skus)).toBe("สีส้ม/สีเขียว");
+  });
+
+  it("บาง SKU ไม่มีราคา → ไม่กล้าระบุราคา ใช้จัดกลุ่มแบบเดิม", () => {
+    const skus = [
+      { saleProp: { color_family: "สีส้ม" }, price: "499" },
+      { saleProp: { color_family: "สีเขียว" } },
+    ];
+    expect(extractVariantOptions(skus)).toBe("สีส้ม/สีเขียว");
+  });
+
+  it("หลาย prop + ราคาต่าง → ตัวเลือกผสมพร้อมราคา", () => {
+    const skus = [
+      { saleProp: { color_family: "ดำ", size: "S" }, price: "100" },
+      { saleProp: { color_family: "ดำ", size: "M" }, price: "120" },
+    ];
+    expect(extractVariantOptions(skus)).toBe("ดำ+S 100 บาท/ดำ+M 120 บาท");
+  });
 });
 
 describe("withVariantNote", () => {
@@ -65,5 +97,37 @@ describe("withVariantNote", () => {
   it("มี note เดิมอยู่แล้ว → ไม่ต่อซ้ำ (กัน sync/import วนหลายรอบ)", () => {
     const once = withVariantNote("ถ่านลิเธียม", "สีส้ม/สีเขียว");
     expect(withVariantNote(once, "สีส้ม/สีเขียว")).toBe(once);
+  });
+});
+
+describe("replaceVariantNote (sync รีเฟรช note)", () => {
+  it("ยังไม่มี note → ต่อท้ายให้", () => {
+    expect(replaceVariantNote("ถ่านลิเธียม", "สีส้ม/สีเขียว")).toBe(
+      "ถ่านลิเธียม · มีให้เลือก: สีส้ม/สีเขียว",
+    );
+  });
+
+  it("note เก่าราคาเปลี่ยน → แทนที่ด้วยของใหม่", () => {
+    const old = "ถ่านลิเธียม · มีให้เลือก: สีส้ม 499 บาท/สีเขียว 520 บาท";
+    expect(replaceVariantNote(old, "สีส้ม 499 บาท/สีเขียว 479 บาท")).toBe(
+      "ถ่านลิเธียม · มีให้เลือก: สีส้ม 499 บาท/สีเขียว 479 บาท",
+    );
+  });
+
+  it("note เดิมตรงอยู่แล้ว → ได้ค่าเดิมเป๊ะ (sync 45 วิ ไม่เขียนซ้ำฟรี)", () => {
+    const cur = "ถ่านลิเธียม · มีให้เลือก: สีส้ม/สีเขียว";
+    expect(replaceVariantNote(cur, "สีส้ม/สีเขียว")).toBe(cur);
+  });
+
+  it("variantOptions ว่าง → ไม่แตะ description เดิม (กันลบข้อความที่ร้านเขียนเอง)", () => {
+    const cur = "ถ่านลิเธียม · มีให้เลือก: สีส้ม/สีเขียว";
+    expect(replaceVariantNote(cur, undefined)).toBe(cur);
+    expect(replaceVariantNote(cur, "")).toBe(cur);
+  });
+
+  it("description มีแต่ note ล้วน → แทนที่ทั้งก้อน", () => {
+    expect(replaceVariantNote("มีให้เลือก: สีส้ม/สีเขียว", "สีดำ/สีขาว")).toBe(
+      "มีให้เลือก: สีดำ/สีขาว",
+    );
   });
 });

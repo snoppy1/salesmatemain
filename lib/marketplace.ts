@@ -149,19 +149,34 @@ export function htmlToText(html: string): string {
  * ไปมโนว่าเป็นสินค้าคนละตัว (feedback ร้าน Smarttech 25 ก.ค.) — เก็บครบทุก SKU กันเคสนี้
  */
 export function extractVariantOptions(skus: Record<string, unknown>[]): string {
+  // เก็บ 2 มุม: ต่อ SKU (ป้าย+ราคา — ไว้โชว์ราคาต่อตัวเลือกเมื่อราคาไม่เท่ากัน) และต่อ prop (ไว้จัดกลุ่มเมื่อราคาเท่ากัน)
+  const opts: { label: string; price: string }[] = [];
   const byProp = new Map<string, string[]>(); // ชื่อ prop → ค่าไม่ซ้ำ เรียงตามที่เจอ
   for (const sku of skus) {
     const sp = (sku?.saleProp ?? sku?.SaleProp) as Record<string, unknown> | undefined;
     if (!sp || typeof sp !== "object") continue;
+    const parts: string[] = [];
     for (const [k, v] of Object.entries(sp)) {
       const val = String(v ?? "").trim();
       if (!val) continue;
+      parts.push(val);
       const list = byProp.get(k) ?? [];
       if (!list.includes(val)) list.push(val);
       byProp.set(k, list);
     }
+    if (!parts.length) continue;
+    const label = parts.join("+"); // หลาย prop = ตัวเลือกผสม เช่น "ดำ+S"
+    const price = String(sku.price ?? "").trim().replace(/\.0+$/, ""); // "499.00" → "499" (แนว canonPrice)
+    if (!opts.some((o) => o.label === label)) opts.push({ label, price });
   }
   const MAX_SHOWN = 8; // กันสินค้าที่ตัวเลือกเยอะมาก (เช่น เคส 30 ลาย) บวม token
+  // ราคาไม่เท่ากันระหว่างตัวเลือก (และรู้ราคาครบทุกตัว) → ระบุราคาต่อตัวเลือก กัน AI แจ้งราคาผิด
+  const diffPrice =
+    opts.length >= 2 && opts.every((o) => o.price) && new Set(opts.map((o) => o.price)).size > 1;
+  if (diffPrice) {
+    const shown = opts.slice(0, MAX_SHOWN).map((o) => `${o.label} ${o.price} บาท`).join("/");
+    return opts.length > MAX_SHOWN ? `${shown} +อีก ${opts.length - MAX_SHOWN} แบบ` : shown;
+  }
   const groups: string[] = [];
   for (const vals of byProp.values()) {
     if (vals.length < 2) continue; // ค่าเดียว = ไม่มีอะไรให้เลือก ไม่ต้องเปลืองที่
@@ -181,6 +196,20 @@ export function withVariantNote(description: string, variantOptions?: string): s
   const note = `มีให้เลือก: ${v}`;
   if (description.includes(note)) return description;
   return description ? `${description} · ${note}` : note;
+}
+
+/**
+ * แทนที่ note "มีให้เลือก: …" เดิมใน description ด้วยข้อมูลล่าสุด — ใช้ตอน sync
+ * เพราะ note มีราคาต่อตัวเลือกได้ ราคาโปรฯ Lazada แกว่งบ่อย ถ้าไม่รีเฟรช AI จะแจ้งราคาเก่า
+ * สมมติฐาน: note ถูกต่อไว้ท้ายสุดเสมอ (withVariantNote) → ตัดจาก "มีให้เลือก:" ตัวแรกถึงจบ
+ * variantOptions ว่าง = ไม่แตะ description เลย (กันไปลบข้อความที่ร้านเขียนเอง)
+ */
+export function replaceVariantNote(description: string, variantOptions?: string): string {
+  const v = (variantOptions ?? "").trim();
+  if (!v) return description;
+  const i = description.indexOf("มีให้เลือก: ");
+  const base = (i >= 0 ? description.slice(0, i).replace(/\s*·\s*$/, "") : description).trim();
+  return withVariantNote(base, v);
 }
 
 /** แปลง 1 product จาก Lazada → CatalogItem */

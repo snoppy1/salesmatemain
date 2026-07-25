@@ -24,12 +24,20 @@ const NO_NOTE: Product[] = WITH_NOTE.map((p) =>
   p.id === "1" ? { ...p, description: "ถ่านลิเธียม 1.5V AA 3600mWh ชุด 4 ก้อนพร้อมที่ชาร์จ ใช้กับเมาส์ รีโมต คอนโทรลเกมส์" } : { ...p },
 );
 
+// ชุด "ราคาต่อตัวเลือกไม่เท่ากัน" (สีเขียว 520 แพงกว่าราคากลาง 499)
+const WITH_PRICE: Product[] = WITH_NOTE.map((p) =>
+  p.id === "1" ? { ...p, description: "ถ่านลิเธียม 1.5V AA 3600mWh ชุด 4 ก้อนพร้อมที่ชาร์จ ใช้กับเมาส์ รีโมต คอนโทรลเกมส์ · มีให้เลือก: สีส้ม 499 บาท/สีเขียว 520 บาท" } : { ...p },
+);
+
 // (products, คำถาม, สิ่งที่คาดหวัง — ไว้อ่านตอนตัดสิน)
-const CASES: { products: Product[]; msg: string; expect: string }[] = [
-  { products: WITH_NOTE, msg: "ถ่าน AA สีส้มกับสีเขียวต่างกันยังไง", expect: "ตัวเดียวกัน (Beston) ต่างแค่สี สเปกเหมือนกัน — ห้ามโยงสีเขียวเป็น Xtar" },
-  { products: NO_NOTE, msg: "ถ่าน AA สีส้มกับสีเขียวต่างกันยังไง", expect: "ไม่มีข้อมูลสี → ถามกลับว่าหมายถึงตัวไหน ห้ามแต่งความต่าง/ห้ามเดาว่าเขียว=Xtar" },
-  { products: WITH_NOTE, msg: "เอาถ่าน Beston สีเขียวมีของไหม", expect: "มีของ — สีเขียวเป็นตัวเลือกของ Beston เอง" },
-  { products: WITH_NOTE, msg: "Beston กับ Xtar ต่างกันยังไง", expect: "(control) ยังเปรียบเทียบสองรุ่นได้ปกติ: ความจุ/ราคาต่างกันจริง" },
+const CASES: { products: Product[]; set: string; msg: string; expect: string }[] = [
+  { products: WITH_NOTE, set: "มีข้อมูลสี", msg: "ถ่าน AA สีส้มกับสีเขียวต่างกันยังไง", expect: "ตัวเดียวกัน (Beston) ต่างแค่สี สเปกเหมือนกัน — ห้ามโยงสีเขียวเป็น Xtar" },
+  { products: NO_NOTE, set: "ไม่มีข้อมูลสี", msg: "ถ่าน AA สีส้มกับสีเขียวต่างกันยังไง", expect: "ไม่มีข้อมูลสี → ถามกลับว่าหมายถึงตัวไหน ห้ามแต่งความต่าง/ห้ามเดาว่าเขียว=Xtar" },
+  { products: WITH_NOTE, set: "มีข้อมูลสี", msg: "เอาถ่าน Beston สีเขียวมีของไหม", expect: "มีของ — สีเขียวเป็นตัวเลือกของ Beston เอง" },
+  { products: WITH_NOTE, set: "มีข้อมูลสี", msg: "Beston กับ Xtar ต่างกันยังไง", expect: "(control) ยังเปรียบเทียบสองรุ่นได้ปกติ: ความจุ/ราคาต่างกันจริง" },
+  { products: WITH_PRICE, set: "ราคาต่อสีต่างกัน", msg: "ถ่าน Beston สีเขียวราคาเท่าไหร่", expect: "520 บาท (ราคาของตัวเลือกสีเขียว) ไม่ใช่ 499" },
+  { products: WITH_PRICE, set: "ราคาต่อสีต่างกัน", msg: "ถ่าน AA สีส้มกับสีเขียวต่างกันยังไง", expect: "ตัวเดียวกัน สเปกเดียวกัน ต่างแค่สีและราคา: ส้ม 499 เขียว 520" },
+  { products: WITH_PRICE, set: "ราคาต่อสีต่างกัน", msg: "เอา Beston สีเขียว 2 ชุดเท่าไหร่", expect: "520 × 2 = 1040 บาท โชว์วิธีคิด — ห้ามใช้ 499 คิด" },
 ];
 
 function loadEnv() {
@@ -70,8 +78,7 @@ describe.runIf(RUN)("variant gate (ยิง API จริง)", () => {
     const out: string[] = ["# ด่านทดสอบ สี/ตัวเลือกสินค้า (กฎ 1.2 + มีให้เลือก:)", ""];
     for (const c of CASES) {
       const m = await ask(c.products, c.msg);
-      const set = c.products === NO_NOTE ? "ไม่มีข้อมูลสี" : "มีข้อมูลสี";
-      out.push(`**Q (${set}):** ${c.msg}`, `**คาดหวัง:** ${c.expect}`, `> ${m}`, "");
+      out.push(`**Q (${c.set}):** ${c.msg}`, `**คาดหวัง:** ${c.expect}`, `> ${m}`, "");
       console.log("done: " + c.msg);
     }
     writeFileSync(process.env.GATE_OUT || "variant-gate.md", out.join("\n"));

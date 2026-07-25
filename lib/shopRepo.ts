@@ -2,6 +2,7 @@ import "server-only";
 import { query, queryOne, withTx } from "./db";
 import { newId } from "./auth";
 import { sourceList, unifyStock } from "./stock";
+import { withVariantNote, replaceVariantNote } from "./marketplace";
 import { embedDocuments, embeddingsEnabled } from "./embeddings";
 import type {
   Product,
@@ -396,6 +397,7 @@ export async function syncProductsStock(
     image?: string;
     externalId: string;
     stock?: number;
+    variantOptions?: string; // ตัวเลือกสี/แบบ (+ราคาต่อตัวเลือกถ้าไม่เท่ากัน) — รีเฟรช note ใน description
   }[],
 ): Promise<{ updated: number; added: number }> {
   const rows = await query<{
@@ -405,8 +407,9 @@ export async function syncProductsStock(
     stock_by_platform: Record<string, number> | null;
     price: string | null;
     stock: number | null;
+    description: string | null;
   }>(
-    "SELECT id, name, source, stock_by_platform, price, stock FROM products WHERE shop_id = $1",
+    "SELECT id, name, source, stock_by_platform, price, stock, description FROM products WHERE shop_id = $1",
     [shopId],
   );
   const norm = (s: string) => s.trim().toLowerCase();
@@ -434,20 +437,27 @@ export async function syncProductsStock(
         : [...srcs, platform].join(",");
       const newStock = unifyStock(sbp) ?? null;
       const newPrice = canonPrice(it.price);
+      // รีเฟรช note "มีให้เลือก:" (มีราคาต่อตัวเลือกได้ ราคาโปรฯ แกว่ง — ปล่อยเก่า AI แจ้งราคาผิด)
+      // variantOptions ว่าง = ไม่แตะ description เดิมเลย
+      const newDesc = it.variantOptions
+        ? replaceVariantNote(match.description ?? "", it.variantOptions)
+        : (match.description ?? "");
       // ค่าไม่เปลี่ยนจริง → ข้าม (sync วิ่งทุก 45 วิ — เขียนซ้ำฟรีๆ เปลือง DB และเสี่ยงกวนแคช)
       const same =
         newStock === (match.stock ?? null) &&
         newPrice === canonPrice(match.price ?? "") &&
         source === match.source &&
+        newDesc === (match.description ?? "") &&
         JSON.stringify(sbp) === JSON.stringify(match.stock_by_platform ?? {});
       if (same) continue;
       await query(
-        "UPDATE products SET stock = $1, stock_by_platform = $2, price = $3, source = $4 WHERE id = $5",
+        "UPDATE products SET stock = $1, stock_by_platform = $2, price = $3, source = $4, description = $5 WHERE id = $6",
         [
           newStock,
           Object.keys(sbp).length ? JSON.stringify(sbp) : null,
           newPrice,
           source,
+          newDesc || null,
           match.id,
         ],
       );
@@ -463,6 +473,8 @@ export async function syncProductsStock(
         diffs.push(`price ${canonPrice(match.price ?? "") || "-"}→${newPrice} (จุดแคช)`);
       }
       if (source !== match.source) diffs.push("source");
+      // note ตัวเลือกเปลี่ยน (เช่น ราคาต่อสีอัปเดต) — ไม่ใช่จุดแคช (description อยู่บล็อกรายละเอียดฝั่งไม่แคชของร้าน retrieval)
+      if (newDesc !== (match.description ?? "")) diffs.push("ตัวเลือกสินค้า");
       if (diffs.length) {
         await query(
           "INSERT INTO product_sync_changes (id, shop_id, name, change, created_at) VALUES ($1,$2,$3,$4,$5)",
@@ -471,9 +483,11 @@ export async function syncProductsStock(
       }
     } else {
       const sbp = it.stock != null ? { [platform]: Number(it.stock) } : null;
+      // สินค้าใหม่จาก sync: ต่อท้ายตัวเลือกสี/แบบเข้า description เลย (desc ดิบ ไม่ผ่านตัวย่อ)
+      const desc = withVariantNote(it.description, it.variantOptions);
       // embed สินค้าใหม่ (best-effort; พลาด/ติด rate limit = null → retrieval fallback keyword)
       const emb = embeddingsEnabled()
-        ? (await embedDocuments([`${it.name}. ${it.description}`.trim()]))[0]
+        ? (await embedDocuments([`${it.name}. ${desc}`.trim()]))[0]
         : null;
       await query(
         `INSERT INTO products (id, shop_id, name, description, price, image_url, source, external_id, enabled, stock, stock_by_platform, sort_order, embedding)
@@ -482,7 +496,7 @@ export async function syncProductsStock(
           newId(),
           shopId,
           it.name,
-          it.description,
+          desc,
           it.price,
           it.image ?? null,
           platform,

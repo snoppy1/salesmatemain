@@ -90,25 +90,34 @@ export default function UpsellDailyTab() {
       {data && (
         <>
           {/* สรุปทั้งช่วง — กรวย: เสนอ → ส่งการ์ด (ของถึงมือลูกค้า) → ซื้อจริง */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
             {[
-              // ตัวเลขหลักที่เอาไปโชว์ลูกค้า — ขึ้นก่อนเสมอ
+              // ดาวของหน้า: ยอดที่ AI "ขายเองแท้ๆ" — ลูกค้าไม่ได้ตั้งใจซื้อ AI ชวนแล้วปิดได้
+              {
+                label: "ยอดขายพ่วงจาก AI (ประมาณ)",
+                value: `฿${data.totals.soldValue.toLocaleString()}`,
+                sub: `ปิดได้ ${data.totals.sold.toLocaleString()} ครั้ง · AI ชวนเองล้วนๆ`,
+                tone: "gold",
+              },
+              // ฐานกว้าง: AI ตอบ/แนะนำแล้วลูกค้าซื้อ (รวมยอดพ่วงข้างบนแล้ว)
               {
                 label: "AI มีส่วนช่วยขาย (ประมาณ)",
                 value: `฿${data.totals.assistedValue.toLocaleString()}`,
-                sub: `${data.totals.assisted.toLocaleString()} รายการ`,
-                hot: true,
+                sub: `${data.totals.assisted.toLocaleString()} รายการ · รวมยอดพ่วงแล้ว`,
+                tone: "green",
               },
               { label: "AI เสนอพ่วง", value: `${data.totals.offered.toLocaleString()} ครั้ง` },
               { label: "ส่งการ์ดสินค้า (Lazada)", value: `${data.totals.cards.toLocaleString()} ใบ` },
               { label: "มูลค่าที่เสนอ (ประมาณ)", value: `฿${data.totals.estValue.toLocaleString()}` },
-              { label: "ปิดได้ (แมตช์ออเดอร์)", value: `${data.totals.sold.toLocaleString()} ครั้ง` },
-              { label: "ยอดขายจากพ่วง (ประมาณ)", value: `฿${data.totals.soldValue.toLocaleString()}` },
             ].map((c) => (
               <div
                 key={c.label}
                 className={`rounded-2xl border px-4 py-3 ${
-                  c.hot ? "border-emerald-500/40 bg-emerald-500/5" : "border-line bg-surface"
+                  c.tone === "gold"
+                    ? "border-amber-500/50 bg-amber-500/5"
+                    : c.tone === "green"
+                      ? "border-emerald-500/40 bg-emerald-500/5"
+                      : "border-line bg-surface"
                 }`}
               >
                 <p className="text-xs text-muted">{c.label}</p>
@@ -181,9 +190,9 @@ export default function UpsellDailyTab() {
             &quot;มูลค่าที่เสนอ&quot; เป็นตัวเลขประมาณจากราคาสินค้าตอน AI เสนอ ·
             &quot;ส่งการ์ด&quot; = การ์ดสินค้าที่ยื่นถึงมือลูกค้าในแชต Lazada (ขากลางของกรวย เสนอ→เห็นของ→ซื้อ;
             Lazada ไม่บอกว่าลูกค้ากดการ์ดไหม) ·
-            &quot;ปิดได้/ยอดขายจากพ่วง&quot; = มีออเดอร์ที่มีสินค้าตรงกับที่ AI เสนอ เกิดขึ้นหลังเสนอ (ใน 7 วัน) ·
-            &quot;AI มีส่วนช่วย&quot; = ฐานกว้างกว่า: นับทุกสินค้าที่ AI แนะนำ/ส่งการ์ดในแชตแล้วมีออเดอร์สินค้านั้นตามมา
-            (1 รายการซื้อนับครั้งเดียว; รวมของพ่วงที่ปิดได้อยู่ในนี้ด้วย) —
+            &quot;ยอดขายพ่วงจาก AI&quot; = ยอดที่ AI ขายเองแท้ๆ — ลูกค้าไม่ได้ตั้งใจซื้อของชิ้นนั้น AI ชวนซื้อเพิ่มเองแล้วมีออเดอร์ตามมา (ใน 7 วัน) ·
+            &quot;AI มีส่วนช่วยขาย&quot; = ฐานกว้างกว่า: นับทุกสินค้าที่ AI แนะนำ/ส่งการ์ดในแชตแล้วมีออเดอร์สินค้านั้นตามมา
+            (1 รายการซื้อนับครั้งเดียว; รวมยอดพ่วงไว้ในนี้ด้วย) —
             ทั้งคู่เป็นตัวเลขประมาณการ เพราะ Lazada ไม่เปิดเผยว่าออเดอร์เป็นของลูกค้าคนไหน จึงยืนยันรายคนไม่ได้ ·
             เริ่มเก็บ 24 ก.ค. 2026
           </p>

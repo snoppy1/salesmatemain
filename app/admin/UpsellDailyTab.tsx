@@ -92,17 +92,18 @@ export default function UpsellDailyTab() {
           {/* สรุปทั้งช่วง — กรวย: เสนอ → ส่งการ์ด (ของถึงมือลูกค้า) → ซื้อจริง */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
             {[
-              { label: "AI เสนอพ่วง", value: `${data.totals.offered.toLocaleString()} ครั้ง` },
-              { label: "ส่งการ์ดสินค้า (Lazada)", value: `${data.totals.cards.toLocaleString()} ใบ` },
-              { label: "มูลค่าที่เสนอ (ประมาณ)", value: `฿${data.totals.estValue.toLocaleString()}` },
-              { label: "ปิดได้ (แมตช์ออเดอร์)", value: `${data.totals.sold.toLocaleString()} ครั้ง` },
-              { label: "ยอดขายจากพ่วง (ประมาณ)", value: `฿${data.totals.soldValue.toLocaleString()}` },
+              // ตัวเลขหลักที่เอาไปโชว์ลูกค้า — ขึ้นก่อนเสมอ
               {
                 label: "AI มีส่วนช่วยขาย (ประมาณ)",
                 value: `฿${data.totals.assistedValue.toLocaleString()}`,
                 sub: `${data.totals.assisted.toLocaleString()} รายการ`,
                 hot: true,
               },
+              { label: "AI เสนอพ่วง", value: `${data.totals.offered.toLocaleString()} ครั้ง` },
+              { label: "ส่งการ์ดสินค้า (Lazada)", value: `${data.totals.cards.toLocaleString()} ใบ` },
+              { label: "มูลค่าที่เสนอ (ประมาณ)", value: `฿${data.totals.estValue.toLocaleString()}` },
+              { label: "ปิดได้ (แมตช์ออเดอร์)", value: `${data.totals.sold.toLocaleString()} ครั้ง` },
+              { label: "ยอดขายจากพ่วง (ประมาณ)", value: `฿${data.totals.soldValue.toLocaleString()}` },
             ].map((c) => (
               <div
                 key={c.label}

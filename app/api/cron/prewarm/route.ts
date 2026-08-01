@@ -99,6 +99,8 @@ export async function GET(request: Request) {
 
   // แมตช์พ่วงกับออเดอร์จริงอัตโนมัติ (เดิมรันเฉพาะตอนร้านเปิดหน้าวัดผล → ตัวเลข "ปิดได้จริง" ค้าง 0)
   let matchedUpsells = 0;
+  let assistOrdersFetched = 0; // ออเดอร์ดิบที่เช็ครวมทุกร้าน — 0 ตลอดทั้งที่ร้านมีออเดอร์ = ตัวดึงมีปัญหา
+  let assistTruncated = false; // ร้านไหนชนเพดานดึง = ตัวเลขแมตช์อาจต่ำกว่าจริง
   try {
     const since = Date.now() - 7 * 86400e3;
     // รวมร้านที่มีพ่วงค้าง + ร้านที่มีการ์ดยังไม่แมตช์ (ตัวเลข "AI มีส่วนช่วย")
@@ -109,7 +111,12 @@ export async function GET(request: Request) {
     for (const shopId of shopIds) {
       const token = await getValidAccessToken(shopId, "lazada");
       if (!token || token.startsWith("mock")) continue;
-      matchedUpsells += await attributeUpsells(shopId, token).catch(() => 0);
+      const r = await attributeUpsells(shopId, token).catch(() => null);
+      if (r) {
+        matchedUpsells += r.matched;
+        assistOrdersFetched += r.ordersFetched;
+        assistTruncated = assistTruncated || r.truncated;
+      }
     }
   } catch (e) {
     console.error("[cron/prewarm] upsell attribution failed:", e instanceof Error ? e.message : e);
@@ -123,6 +130,8 @@ export async function GET(request: Request) {
     refreshErrors,
     polledMsgs,
     matchedUpsells,
+    assistOrdersFetched,
+    assistTruncated,
   });
 
   return NextResponse.json({
@@ -132,5 +141,7 @@ export async function GET(request: Request) {
     refreshErrors,
     polledMsgs,
     matchedUpsells,
+    assistOrdersFetched,
+    assistTruncated,
   });
 }

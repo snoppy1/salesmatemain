@@ -1,7 +1,14 @@
 import "server-only";
 import { listUnsoldUpsells, markUpsellSold, listUnmatchedCardSends, recordAssistMatch } from "./upsellRepo";
-import { recentOrdersWithItems } from "./lazadaOrders";
+import { recentOrdersWithItems, ORDER_FETCH_CAP } from "./lazadaOrders";
 import { matchUpsellProduct } from "./upsellMatch";
+
+/** สถิติสุขภาพต่อรอบแมตช์ — โชว์หน้าสถานะระบบ (ordersFetched 0 ตลอด = ดึงออเดอร์ไม่ได้, truncated = เช็คไม่ครบ) */
+export type AttributionStats = {
+  matched: number; // พ่วงที่เพิ่งแมตช์ใหม่รอบนี้
+  ordersFetched: number; // ออเดอร์ดิบที่ Lazada คืนมาให้เช็ค
+  truncated: boolean; // ชนเพดานดึง — อาจมีออเดอร์ที่ไม่ได้เช็ค
+};
 
 const WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // เหตุการณ์พ่วงมีอายุแมตช์ 7 วัน
 const ORDER_FETCH_MS = 48 * 60 * 60 * 1000; // ดึงออเดอร์ย้อนหลังแค่ 2 วันต่อรอบ (ออเดอร์เก่ากว่านั้นถูกเช็คไปหลายรอบแล้ว)
@@ -14,19 +21,20 @@ const SLACK_MS = 10 * 60 * 1000; // เผื่อเวลาเหลื่�
  *   ตัวเลขนี้เป็น "ประมาณการ" ที่วัดแนวโน้มได้จริง; 1 รายการที่ซื้อ นับให้เหตุการณ์เดียว ไม่นับเบิ้ล
  * คืนจำนวนที่เพิ่งแมตช์ได้ใหม่ — best-effort, ข้ามตัวที่พลาด
  */
-export async function attributeUpsells(shopId: string, token: string): Promise<number> {
+export async function attributeUpsells(shopId: string, token: string): Promise<AttributionStats> {
   const since = Date.now() - WINDOW_MS;
   const events = (await listUnsoldUpsells(shopId, since)).filter((e) => e.channel === "lazada");
   const cards = await listUnmatchedCardSends(shopId, since);
-  if (!events.length && !cards.length) return 0;
+  if (!events.length && !cards.length) return { matched: 0, ordersFetched: 0, truncated: false };
 
   const earliest = Math.min(
     ...events.map((e) => e.createdAt),
     ...cards.map((c) => c.createdAt),
   );
   const fetchSince = Math.max(earliest - SLACK_MS, Date.now() - ORDER_FETCH_MS);
-  const orders = await recentOrdersWithItems(token, fetchSince);
-  if (!orders.length) return 0;
+  const { orders, fetched } = await recentOrdersWithItems(token, fetchSince);
+  const stats: AttributionStats = { matched: 0, ordersFetched: fetched, truncated: fetched >= ORDER_FETCH_CAP };
+  if (!orders.length) return stats;
 
   const used = new Set<string>(); // "orderId|ชื่อรายการ" ที่แมตช์ไปแล้ว — กัน 1 รายการซื้อถูกนับหลายเหตุการณ์
   let matched = 0;
@@ -72,5 +80,6 @@ export async function attributeUpsells(shopId: string, token: string): Promise<n
       }
     }
   }
-  return matched;
+  stats.matched = matched;
+  return stats;
 }

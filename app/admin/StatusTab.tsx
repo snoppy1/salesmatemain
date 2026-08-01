@@ -46,10 +46,15 @@ function summarize(run: CronRun): string {
     const d = JSON.parse(run.detail) as Record<string, unknown>;
     if (run.job === "prewarm") {
       const errs = Array.isArray(d.refreshErrors) ? d.refreshErrors : [];
-      return (
+      let s =
         `อุ่นแคช ${d.warmed}/${d.total} ร้าน · ต่ออายุ token ${d.refreshedTokens} ครั้ง` +
-        (errs.length ? ` · ล้มเหลว: ${errs.join(", ")}` : "")
-      );
+        (errs.length ? ` · ล้มเหลว: ${errs.join(", ")}` : "");
+      // สุขภาพตัวแมตช์ยอดขาย (ฟิลด์ใหม่ — ประวัติเก่าก่อน deploy ไม่มี ให้ข้าม)
+      if (typeof d.assistOrdersFetched === "number") {
+        s += ` · แมตช์ยอดขาย: เช็คออเดอร์ ${d.assistOrdersFetched} ใบ · แมตช์ใหม่ ${d.matchedUpsells ?? 0}`;
+        if (d.assistTruncated) s += " ⚠️ ออเดอร์เกินเพดาน/รอบ อาจเช็คไม่ครบ";
+      }
+      return s;
     }
     if (run.job === "retention") {
       return `ลบบทสนทนาเก่า ${d.purgedConversations} · ลบรูปหมดอายุ ${d.expiredImages}`;

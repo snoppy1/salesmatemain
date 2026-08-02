@@ -4,7 +4,7 @@ import { getValidAccessToken } from "@/lib/connectionRepo";
 import { getMockSettings } from "@/lib/shopRepo";
 import { attributeUpsells } from "@/lib/upsellAttribution";
 import { salesSince } from "@/lib/lazadaOrders";
-import { upsellSummary, soldSummary, monthStart } from "@/lib/upsellRepo";
+import { upsellSummary, soldSummary, assistSummary, monthStart } from "@/lib/upsellRepo";
 
 export const runtime = "nodejs";
 
@@ -24,12 +24,13 @@ export async function POST() {
   if (hasRealLazada) await attributeUpsells(admin.shopId, token!).catch(() => {});
 
   const since = monthStart(Date.now());
-  const [sales, offered, sold] = await Promise.all([
+  const [sales, offered, sold, assist] = await Promise.all([
     hasRealLazada
       ? salesSince(token!, since)
       : Promise.resolve({ orderCount: 0, totalRevenue: 0 }),
     upsellSummary(admin.shopId, since),
     soldSummary(admin.shopId, since),
+    assistSummary(admin.shopId, since),
   ]);
-  return NextResponse.json({ sales, offered, sold });
+  return NextResponse.json({ sales, offered, sold, assist });
 }

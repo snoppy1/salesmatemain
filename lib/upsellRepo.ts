@@ -159,6 +159,19 @@ export async function shopsWithUnmatchedLazadaCards(sinceMs: number): Promise<st
   return rows.map((r) => r.shop_id);
 }
 
+/** สรุป "AI มีส่วนช่วยขาย" ของร้านตั้งแต่ sinceMs (นับตามเวลาส่งการ์ด — ความหมายเดียวกับแท็บแอดมิน) */
+export async function assistSummary(
+  shopId: string,
+  sinceMs: number,
+): Promise<{ count: number; totalValue: number }> {
+  const row = await queryOne<{ count: number; total: number | null }>(
+    `SELECT COUNT(*)::int AS count, COALESCE(SUM(sold_value), 0)::int AS total
+       FROM assist_matches WHERE shop_id = $1 AND card_at >= $2`,
+    [shopId, sinceMs],
+  );
+  return { count: Number(row?.count ?? 0), totalValue: Number(row?.total ?? 0) };
+}
+
 export type DailyAssistRow = { day: string; shopId: string; assisted: number; assistedValue: number };
 
 /** ยอด "AI มีส่วนช่วย" รายวันรายร้าน (นับตามวันที่ส่งการ์ด) */

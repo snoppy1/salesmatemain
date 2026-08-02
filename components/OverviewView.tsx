@@ -236,6 +236,7 @@ type MonthMetrics = {
   sales: { orderCount: number; totalRevenue: number };
   offered: { count: number; totalEstValue: number };
   sold: { count: number; totalSoldValue: number };
+  assist?: { count: number; totalValue: number }; // AI มีส่วนช่วยขาย (การ์ดที่ส่ง↔ออเดอร์) — optional กัน response เก่า
 };
 
 function MonthMeter() {
@@ -295,29 +296,30 @@ function MonthMeter() {
           ))}
         </div>
       ) : (
-        <div className="mt-4 grid sm:grid-cols-[1.3fr_1fr_1fr]">
-          {/* พระเอก: เงินที่ AI ชวนซื้อเพิ่มแล้วปิดได้จริง */}
-          <div className="pb-4 sm:pb-0 sm:pr-6">
-            <div className="text-xs font-medium text-muted">พ่วงขายได้จริง</div>
-            <div className="mt-1 text-3xl font-bold tabular-nums tracking-tight text-accent sm:text-4xl">
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          {/* การ์ดทอง: ยอดที่ AI ขายเองแท้ๆ — ป้าย/ความหมายเดียวกับแท็บแอดมิน */}
+          <div className="rounded-2xl border border-amber-500/50 bg-amber-500/5 px-4 py-3">
+            <div className="text-xs font-medium text-muted">ยอดขายพ่วงจาก AI (ประมาณ)</div>
+            <div className="mt-1 text-3xl font-bold tabular-nums tracking-tight text-accent">
               <CountUp value={m.sold.totalSoldValue} format={baht} />
             </div>
             <div className="mt-1 text-xs text-muted">
-              {m.sold.count.toLocaleString()} ครั้ง · AI ชวนซื้อเพิ่มแล้วลูกค้าซื้อจริง
+              ปิดได้ {m.sold.count.toLocaleString()} ครั้ง · AI ชวนเองล้วนๆ
             </div>
           </div>
-          <div className="border-t border-line py-4 sm:border-l sm:border-t-0 sm:py-0 sm:pl-6 sm:pr-6">
-            <div className="text-xs font-medium text-muted">AI เสนอพ่วงไป</div>
-            <div className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-sand">
-              <CountUp value={m.offered.totalEstValue} format={baht} />
+          {/* การ์ดเขียว: AI มีส่วนช่วยขาย (รวมยอดพ่วงแล้ว) */}
+          <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/5 px-4 py-3">
+            <div className="text-xs font-medium text-muted">AI มีส่วนช่วยขาย (ประมาณ)</div>
+            <div className="mt-1 text-3xl font-bold tabular-nums tracking-tight text-accent">
+              <CountUp value={m.assist?.totalValue ?? 0} format={baht} />
             </div>
             <div className="mt-1 text-xs text-muted">
-              {m.offered.count.toLocaleString()} ครั้ง · มูลค่าโดยประมาณ
+              {(m.assist?.count ?? 0).toLocaleString()} รายการ · รวมยอดพ่วงแล้ว
             </div>
           </div>
-          <div className="border-t border-line pt-4 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
+          <div className="rounded-2xl border border-line bg-surface2/40 px-4 py-3">
             <div className="text-xs font-medium text-muted">ยอดขายรวมร้าน</div>
-            <div className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-fg">
+            <div className="mt-1 text-3xl font-bold tabular-nums tracking-tight text-fg">
               <CountUp value={m.sales.totalRevenue} format={baht} />
             </div>
             <div className="mt-1 text-xs text-muted">

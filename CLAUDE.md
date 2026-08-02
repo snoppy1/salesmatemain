@@ -41,6 +41,7 @@ Commit message: ภาษาไทยล้วน ไม่มี quote/อั�
 - `shop` — บันทึกข้อมูลร้าน/สินค้า (มีเพดาน: สินค้า ≤1,000, จำกัดความยาวฟิลด์, รูปเฉพาะ data:image//https)
 - `line/simulate` — โหมดทดลอง (mock) จำกัด AI 5 ข้อความ + แคตตาล็อกแบต 30 ชิ้น (`lib/marketplace.ts` MOCK_CATALOG)
 - `cron/prewarm` — **cron รวม 4 งาน** ยิงจาก cron-job.org ทุก 30 นาที (Bearer CRON_SECRET): อุ่นแคช + refresh token Lazada + poll แชต Lazada + แมตช์ยอดพ่วง — cron หยุด = 4 อย่างหยุด
+- **token แชต Lazada: ห้ามเชื่อ expires_at** — เคยตายก่อนกำหนด ~6 วันแบบเงียบ (แชตหาย 3 วัน, 31 ก.ค.–3 ส.ค.) ตอนนี้ poll ตรวจ token จริงทุกรอบ (`probeImToken`) + cron หมุน refresh token ทุกวัน + ตายแล้ว `markChannelTokenDead` ขึ้นแดงหน้าสถานะเอง — ถ้าเห็นแดง = ร้านต้องกดเชื่อมแชตใหม่เท่านั้น
 
 ### สมอง AI (`lib/`)
 - `prompt.ts` — REPLY/CHOICES/ORDER system prompts + `buildUserContentParts` แบ่งเนื้อหาเป็น `{stable, promo, customer}` — **stable ต้อง byte-identical ระหว่าง reply กับ prewarm** ไม่งั้นแคช miss

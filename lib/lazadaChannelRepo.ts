@@ -63,6 +63,15 @@ export async function listAllChannels(): Promise<LazadaChannelRow[]> {
   return query<LazadaChannelRow>(`SELECT ${COLS} FROM lazada_channels`);
 }
 
+/** ทำเครื่องหมายว่า token ตายแล้ว (Lazada ปฏิเสธทั้ง access+refresh) — expires_at = ตอนนี้
+ *  → หน้าสถานะระบบขึ้นแดง "หมดอายุ — ต้องเชื่อมใหม่" ทันที ไม่โกหกว่ายังเหลืออีกหลายวัน */
+export async function markChannelTokenDead(shopId: string): Promise<void> {
+  await query("UPDATE lazada_channels SET expires_at = $1, updated_at = $1 WHERE shop_id = $2", [
+    Date.now(),
+    shopId,
+  ]);
+}
+
 export async function getChannelByShop(
   shopId: string,
 ): Promise<LazadaChannelRow | null> {

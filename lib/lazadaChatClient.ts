@@ -348,6 +348,21 @@ export type LzSession = {
  * รายชื่อ session ที่มีความเคลื่อนไหวตั้งแต่ sinceMs — ใช้ poll หาแชตใหม่ (กันกรณี push ของ Lazada หยุด)
  * /im/session/list คืน session ไล่ย้อนหลังจาก start_time (เหมือน message/list) → ไล่ pagination จนเลย sinceMs
  */
+/** ตรวจว่า access token ยังใช้ได้จริงกับ Lazada (เรียก session list ถูกสุด 1 หน้า) — คืน code ("0" = ปกติ)
+ *  บทเรียน 3 ส.ค.: token ตายก่อน expires_at ที่จดไว้ ~6 วัน ระบบเชื่อวันหมดอายุเลยเงียบไป 3 วัน */
+export async function probeImToken(accessToken: string): Promise<string> {
+  if (isMock(accessToken)) return "0";
+  try {
+    const data = await signedCall("/im/session/list", accessToken, {
+      start_time: String(Date.now()),
+      page_size: "1",
+    });
+    return String(data.code ?? "0");
+  } catch {
+    return "network_error"; // เน็ตล้ม ≠ token ตาย — ผู้เรียกอย่าเพิ่ง mark dead
+  }
+}
+
 export async function listRecentSessions(
   accessToken: string,
   sinceMs: number,

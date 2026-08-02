@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { listWarmableShopIds, getShopData } from "@/lib/shopRepo";
 import { prewarmShop } from "@/lib/claude";
-import { listAllChannels, updateChannelTokens } from "@/lib/lazadaChannelRepo";
+import { listAllChannels, updateChannelTokens, markChannelTokenDead } from "@/lib/lazadaChannelRepo";
 import { refreshImToken } from "@/lib/lazadaChatClient";
 import { pollAllLazada } from "@/lib/lazadaPoll";
 import { recordCronRun } from "@/lib/cronRunsRepo";
@@ -64,15 +64,18 @@ export async function GET(request: Request) {
     }
   }
 
-  // ต่ออายุ Lazada IM token ที่ใกล้หมด (<20 ชม. = รีเฟรชทุกๆ ~4 ชม.) — กัน connection ตาย
-  // (เคยใช้ 12 ชม.แล้ว refresh token ตายก่อน — สงสัย refresh token อายุสั้น จึงหมุนถี่ขึ้น)
-  // ล้มเหลวต้องรายงานออกมาเสมอ (เคยกลืนเงียบจน token ตายไป 37 ชม. ไม่มีใครรู้)
+  // ต่ออายุ Lazada IM token: หมุน "ทุกวัน" ไม่รอใกล้หมด — บทเรียน 3 ส.ค.: refresh token อายุสั้นกว่า
+  // access มาก การรอถึงช่วงใกล้หมด (token 30 วัน) ทำให้ refresh token ค้างไม่ถูกหมุนจนตายเงียบ
+  // แล้วพอ access ตายก่อนกำหนด (~6 วันก่อน expires_at ที่จดไว้) เลยกู้ไม่ได้ แชตหาย 3 วันไม่มีใครรู้
+  // ล้มเหลวต้องรายงานออกมาเสมอ + mark dead ให้หน้าสถานะขึ้นแดง (ห้ามกลืนเงียบ)
   let refreshedTokens = 0;
   const refreshErrors: string[] = [];
+  const ROTATE_MS = 24 * 60 * 60 * 1000; // หมุนอย่างน้อยวันละครั้ง — refresh สำเร็จได้ refresh token ใหม่เสมอ
   for (const ch of await listAllChannels()) {
     const exp = ch.expires_at ? Number(ch.expires_at) : 0;
     const nearExpiry = !exp || exp - Date.now() < 20 * 60 * 60 * 1000;
-    if (!nearExpiry || !ch.refresh_token) continue;
+    const stale = Date.now() - Number(ch.updated_at || 0) > ROTATE_MS;
+    if ((!nearExpiry && !stale) || !ch.refresh_token) continue;
     try {
       const r = await refreshImToken(ch.refresh_token);
       if (r.ok) {
@@ -80,6 +83,10 @@ export async function GET(request: Request) {
         refreshedTokens++;
       } else {
         refreshErrors.push(`${ch.shop_id.slice(0, 8)}:${r.error ?? "unknown"}`);
+        // refresh token ถูกปฏิเสธ = การอนุญาตตายแล้ว — ขึ้นแดงเลย อย่าปล่อยให้ expires_at โกหกต่อ
+        if ((r.error ?? "").startsWith("Illegal")) {
+          await markChannelTokenDead(ch.shop_id).catch(() => {});
+        }
       }
     } catch (e) {
       refreshErrors.push(`${ch.shop_id.slice(0, 8)}:${e instanceof Error ? e.message : "throw"}`);

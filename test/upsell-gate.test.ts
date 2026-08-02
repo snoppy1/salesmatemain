@@ -65,8 +65,11 @@ async function ask(customerMsg: string, products: Product[] = PRODUCTS): Promise
 }
 
 /** ประกอบ customerMsg จากประวัติแชต — ฟอร์แมตเดียวกับ prod เป๊ะ */
-function convo(messages: { sender: "customer" | "admin"; text: string }[]): string {
-  return buildConversationContext("ลูกค้าทดสอบ", "lazada", messages).text;
+function convo(
+  messages: { sender: "customer" | "admin"; text: string }[],
+  channel = "lazada",
+): string {
+  return buildConversationContext("ลูกค้าทดสอบ", channel, messages).text;
 }
 
 describe.runIf(RUN)("upsell gate — จังหวะทอง (ยิง API จริง)", () => {
@@ -134,5 +137,34 @@ describe.runIf(RUN)("upsell gate — จังหวะทอง (ยิง API 
     writeFileSync(process.env.GATE_OUT || "upsell-gate.md", out.join("\n")); // เขียนผลก่อน assert — อ่านได้แม้เคสตก
     // ห้ามเสนอ BMS ซ้ำ — เสนอชิ้นอื่นที่เข้าคู่ได้ (ไม่มีในคลังนี้ก็ไม่เสนอเลย)
     expect((r.upsell_product ?? "").includes("BMS")).toBe(false);
+  }, 60_000);
+});
+
+describe.runIf(RUN)("ช่องทาง — วิธีสั่งตามแพลตฟอร์ม (กฎ 10, ยิง API จริง)", () => {
+  const out: string[] = ["# ด่านทดสอบ วิธีสั่งตามช่องทาง (กฎ 10)", ""];
+  const log = (title: string, r: Reply) => {
+    out.push(`## ${title}`, `- needs_human: ${r.needs_human} · should_upsell: ${r.should_upsell}`, `> ${r.message ?? "(no message)"}`, "");
+  };
+
+  it("7. แชต Lazada ถามวิธีสั่ง → ชี้ไปกดสั่งในแอป ห้ามขอที่อยู่/ชวนโอน", async () => {
+    loadEnv();
+    const r = await ask(convo([
+      { sender: "customer", text: "เอาเครื่องชาร์จ 18650 ตัวนี้ครับ สั่งยังไง" },
+    ], "lazada"));
+    log("7. Lazada สั่งยังไง", r);
+    const msg = r.message ?? "";
+    // ห้าม "ขอ" ที่อยู่ (พูดถึงเฉยๆ ได้ เช่น "ระบบจัดการที่อยู่ให้เอง") + ห้ามชวนโอนนอกระบบ
+    expect(/(แจ้ง|ขอ|ส่ง|บอก|กรอก)ที่อยู่/.test(msg)).toBe(false);
+    expect(msg.includes("โอน")).toBe(false);
+  }, 60_000);
+
+  it("8. แชต LINE ถามวิธีสั่ง → รับออเดอร์ในแชตได้ ไม่พาไปกดแอปอื่น", async () => {
+    loadEnv();
+    const r = await ask(convo([
+      { sender: "customer", text: "เอาเครื่องชาร์จ 18650 ตัวนี้ครับ สั่งยังไง" },
+    ], "line"));
+    log("8. LINE สั่งยังไง", r);
+    writeFileSync(process.env.GATE_OUT2 || "upsell-gate-channel.md", out.join("\n"));
+    expect(/lazada/i.test(r.message ?? "")).toBe(false); // แชต LINE ไม่พาไปกด Lazada
   }, 60_000);
 });

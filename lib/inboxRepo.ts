@@ -297,6 +297,17 @@ export async function adminRepliedAfter(
   return Boolean(row);
 }
 
+/** ข้อความล่าสุดในบทสนทนา — ใช้ตัดสินใจปลุก AI หลัง poll กู้ข้อความจาก push ที่หล่น */
+export async function latestMessageBrief(
+  conversationId: string,
+): Promise<{ sender: string; text: string; createdAt: number } | null> {
+  const row = await queryOne<{ sender: string; text: string; created_at: string }>(
+    "SELECT sender, text, created_at FROM messages WHERE conversation_id = $1 ORDER BY created_at DESC LIMIT 1",
+    [conversationId],
+  );
+  return row ? { sender: row.sender, text: row.text, createdAt: Number(row.created_at) } : null;
+}
+
 /** โหมดของบทสนทนา ('manual'|'auto') — null ถ้าไม่มี */
 export async function getConversationMode(
   conversationId: string,

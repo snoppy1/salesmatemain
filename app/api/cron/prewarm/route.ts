@@ -97,9 +97,13 @@ export async function GET(request: Request) {
   }
 
   // poll แชต Lazada ใหม่ผ่าน API — backstop กัน push หยุด (ดึงเข้าเองแม้ push พลาด)
+  // polledWakes = จำนวนแชตที่ปลุก AI ตอบข้อความที่กู้มา (เดิมกู้แล้วเงียบ ลูกค้ารอคนมาเห็นเอง)
   let polledMsgs = 0;
+  let polledWakes = 0;
   try {
-    polledMsgs = await pollAllLazada();
+    const pr = await pollAllLazada();
+    polledMsgs = pr.added;
+    polledWakes = pr.woken;
   } catch (e) {
     console.error("[cron/prewarm] lazada poll failed:", e instanceof Error ? e.message : e);
   }
@@ -136,6 +140,7 @@ export async function GET(request: Request) {
     refreshedTokens,
     refreshErrors,
     polledMsgs,
+    polledWakes,
     matchedUpsells,
     assistOrdersFetched,
     assistTruncated,
@@ -147,6 +152,7 @@ export async function GET(request: Request) {
     refreshedTokens,
     refreshErrors,
     polledMsgs,
+    polledWakes,
     matchedUpsells,
     assistOrdersFetched,
     assistTruncated,

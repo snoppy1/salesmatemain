@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentSuperadmin } from "@/lib/superAuth";
 import { modelUsageRowsSince, dailyCacheWriteRows } from "@/lib/aiUsageRepo";
-import { cacheWriteCostThb, chatCacheTtl } from "@/lib/aiPricing";
+import { cacheWriteCostThb } from "@/lib/aiPricing";
 import { bangkokDayStartMs } from "@/lib/adminStats";
 import { query } from "@/lib/db";
 
@@ -59,11 +59,8 @@ export async function GET(request: Request) {
     };
     cur.chatWrites += r.chatWrites;
     cur.prewarmWrites += r.prewarmWrites;
-    // แชต: TTL ตามโมเดล (Opus 5m / Sonnet 1h), ระบบอุ่น: 1h เสมอ
-    cur.costThb +=
-      chatCacheTtl(r.model) === "5m"
-        ? cacheWriteCostThb(r.model, r.w5mTokens, r.w1hTokens)
-        : cacheWriteCostThb(r.model, 0, r.w5mTokens + r.w1hTokens);
+    // token ถูกแยกก้อนตาม TTL ที่ใช้จริงจาก repo แล้ว (Sonnet เขียนได้ทั้ง 5m/1h ตามความคึกร้าน)
+    cur.costThb += cacheWriteCostThb(r.model, r.w5mTokens, r.w1hTokens);
     dailyMap.set(key, cur);
   }
   const dailyWrites = [...dailyMap.values()]

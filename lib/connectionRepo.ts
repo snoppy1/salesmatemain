@@ -31,6 +31,15 @@ async function getRow(shopId: string, platform: string): Promise<ConnRow | undef
   );
 }
 
+/** ร้านที่เชื่อม marketplace จริง (ไม่นับ mock — กัน sync ไปกวนข้อมูลทดลอง zz-*)
+ *  ใช้โดย cron sync สินค้า/สต๊อกอัตโนมัติ */
+export async function listConnectedShopIds(): Promise<string[]> {
+  const rows = await query<{ shop_id: string }>(
+    "SELECT DISTINCT shop_id FROM connections WHERE is_mock = false",
+  );
+  return rows.map((r) => r.shop_id);
+}
+
 export async function getStatus(
   shopId: string,
   platform: string,

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { listWarmableShopIds, getShopData } from "@/lib/shopRepo";
+import { listWarmableShopIds, getShopData, highTrafficMinMsgs24h } from "@/lib/shopRepo";
+import { syncAllPlatforms } from "@/lib/catalogSync";
+import { listConnectedShopIds } from "@/lib/connectionRepo";
 import { prewarmShop } from "@/lib/claude";
 import { listAllChannels, updateChannelTokens, markChannelTokenDead } from "@/lib/lazadaChannelRepo";
 import { refreshImToken } from "@/lib/lazadaChatClient";
@@ -34,7 +36,8 @@ export async function GET(request: Request) {
   //   แคชตายแล้วไม่จุดเอง (เคยจ่าย 2x จุดทิ้งบ่อย) — ให้ข้อความจริงถัดไปจุดแบบ 1h เอง
   // - กันยิงซ้ำ: ข้ามร้านที่เพิ่งอุ่นใน 10 นาที (เคยเจอ trigger ซ้อนยิง 4 ครั้ง/นาที)
   const PREWARM_WINDOW_MS = Number(process.env.PREWARM_ACTIVE_WINDOW_MS ?? 60 * 60 * 1000);
-  const PREWARM_MIN_MSGS_24H = Number(process.env.PREWARM_MIN_MSGS_24H ?? 15);
+  // เกณฑ์ร้านคึกต้องเป็นตัวเดียวกับ TTL แคช Sonnet (shopRepo.highTrafficMinMsgs24h) — ร้านที่ถูกอุ่น = ร้านที่เขียน 1h
+  const PREWARM_MIN_MSGS_24H = highTrafficMinMsgs24h();
   const CACHE_ALIVE_MS = 55 * 60 * 1000; // อายุแคช 1 ชม. เผื่อ 5 นาที
   const [warmableIds, recentlyWarmed, cacheAlive] = await Promise.all([
     listWarmableShopIds(Date.now() - PREWARM_WINDOW_MS, PREWARM_MIN_MSGS_24H),
@@ -96,6 +99,23 @@ export async function GET(request: Request) {
     console.error("[cron/prewarm] lazada token refresh failed:", refreshErrors.join(", "));
   }
 
+  // sync สินค้า/สต๊อกทุกร้านที่เชื่อม marketplace จริง — เดิม sync เฉพาะตอนร้านเปิดแอปค้างไว้
+  // (log 16 วัน: ร้านเปิดแค่ 2 วัน → AI เคยตอบจากสต๊อก/ราคาค้างเป็นวันๆ เสี่ยงบอกมีของทั้งที่หมด)
+  // งบเวลา 25 วิ กันชน maxDuration 60 วิ — ร้านที่ไม่ทันรอบนี้ รอบหน้าอีก 30 นาทีมาต่อ
+  let syncShops = 0;
+  let syncChanged = 0;
+  const syncStart = Date.now();
+  try {
+    for (const shopId of await listConnectedShopIds()) {
+      if (Date.now() - syncStart > 25_000) break;
+      const rs = await syncAllPlatforms(shopId).catch(() => []);
+      syncShops++;
+      for (const r of rs) syncChanged += r.updated + r.added;
+    }
+  } catch (e) {
+    console.error("[cron/prewarm] catalog sync failed:", e instanceof Error ? e.message : e);
+  }
+
   // poll แชต Lazada ใหม่ผ่าน API — backstop กัน push หยุด (ดึงเข้าเองแม้ push พลาด)
   // polledWakes = จำนวนแชตที่ปลุก AI ตอบข้อความที่กู้มา (เดิมกู้แล้วเงียบ ลูกค้ารอคนมาเห็นเอง)
   let polledMsgs = 0;
@@ -139,6 +159,8 @@ export async function GET(request: Request) {
     total: ids.length,
     refreshedTokens,
     refreshErrors,
+    syncShops,
+    syncChanged,
     polledMsgs,
     polledWakes,
     matchedUpsells,
@@ -151,6 +173,8 @@ export async function GET(request: Request) {
     total: ids.length,
     refreshedTokens,
     refreshErrors,
+    syncShops,
+    syncChanged,
     polledMsgs,
     polledWakes,
     matchedUpsells,

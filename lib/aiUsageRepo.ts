@@ -5,12 +5,14 @@ import { costThb, cacheWriteCostThb, chatCacheTtl, extractUsage, type AiUsage } 
 
 export type UsageKind = "reply" | "choices" | "order" | "prewarm" | "import";
 
-/** บันทึกต้นทุนจริง 1 การเรียก (best-effort — AI ห้ามล้มเพราะบันทึกต้นทุนไม่ได้) */
+/** บันทึกต้นทุนจริง 1 การเรียก (best-effort — AI ห้ามล้มเพราะบันทึกต้นทุนไม่ได้)
+ *  cacheTtl = TTL ที่ใช้จริงตอนยิง (Sonnet เลือกตามความคึกร้านแล้ว — ไม่ส่ง = ถือเป็น 5m แบบร้านเงียบ) */
 export async function recordAiUsage(
   shopId: string,
   model: string,
   kind: UsageKind,
   usage: AiUsage,
+  cacheTtl?: "5m" | "1h",
 ): Promise<void> {
   // ไม่มี token เลย (เช่นเรียกล้มก่อนคิดเงิน) → ไม่ต้องบันทึก
   if (
@@ -19,11 +21,12 @@ export async function recordAiUsage(
   ) {
     return;
   }
+  const ttl = cacheTtl ?? chatCacheTtl(model);
   try {
     await query(
       `INSERT INTO ai_usage
-         (id, shop_id, model, kind, in_tokens, out_tokens, cache_write, cache_read, cost_thb, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+         (id, shop_id, model, kind, in_tokens, out_tokens, cache_write, cache_read, cost_thb, cache_ttl, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
         newId(),
         shopId,
@@ -33,8 +36,8 @@ export async function recordAiUsage(
         usage.outputTokens,
         usage.cacheWriteTokens,
         usage.cacheReadTokens,
-        // TTL ตามโมเดล: Sonnet 1h (กันจุดเตาซ้ำซ้อนกับ prewarm) / Opus 5m (ไม่มี prewarm เขียน 2× ฟรี)
-        costThb(model, usage, chatCacheTtl(model)),
+        costThb(model, usage, ttl),
+        ttl,
         Date.now(),
       ],
     );
@@ -49,9 +52,10 @@ export async function recordUsageFromResponse(
   model: string,
   kind: UsageKind,
   usageRaw: Record<string, unknown> | null | undefined,
+  cacheTtl?: "5m" | "1h",
 ): Promise<void> {
   if (!shopId) return; // ไม่รู้ว่าเป็นร้านไหน → ข้าม (ไม่ทำให้ AI ล้ม)
-  await recordAiUsage(shopId, model, kind, extractUsage(usageRaw));
+  await recordAiUsage(shopId, model, kind, extractUsage(usageRaw), cacheTtl);
 }
 
 /** ร้านที่แคชของโมเดลนี้ "อ่านได้จริง" ใน sinceMs (มี cache_read) — prewarm จะเป็นการอ่านต่ออายุถูกๆ แน่นอน
@@ -82,13 +86,14 @@ export type DailyCacheWriteRow = {
   day: string; // YYYY-MM-DD (เวลาไทย)
   shopId: string;
   model: string;
-  chatWrites: number; // จุดแคชจากข้อความแชต (5m TTL)
-  prewarmWrites: number; // จุดแคชจากระบบอุ่น (1h TTL)
-  w5mTokens: number; // token ที่เขียนฝั่งแชต
-  w1hTokens: number; // token ที่เขียนฝั่งอุ่น
+  chatWrites: number; // จุดแคชจากข้อความแชต
+  prewarmWrites: number; // จุดแคชจากระบบอุ่น
+  w5mTokens: number; // token ที่เขียนแบบ TTL 5m (คิด 1.25×)
+  w1hTokens: number; // token ที่เขียนแบบ TTL 1h (คิด 2×)
 };
 
-/** จำนวนครั้ง "จุดแคชใหม่" รายวัน แยกร้าน/โมเดล — ตัวชี้สุขภาพแคช (จุดบ่อยผิดปกติ = มีอะไรล้างแคช) */
+/** จำนวนครั้ง "จุดแคชใหม่" รายวัน แยกร้าน/โมเดล — ตัวชี้สุขภาพแคช (จุดบ่อยผิดปกติ = มีอะไรล้างแคช)
+ *  token แยกก้อนตาม cache_ttl ที่บันทึกจริง — แถวเก่า (NULL) ใช้กติกาเดิม: แชต=ตามโมเดล, อุ่น=1h */
 export async function dailyCacheWriteRows(sinceMs: number): Promise<DailyCacheWriteRow[]> {
   const rows = await query<{
     shop_id: string;
@@ -96,29 +101,37 @@ export async function dailyCacheWriteRows(sinceMs: number): Promise<DailyCacheWr
     day: string;
     chat_writes: number;
     prewarm_writes: number;
-    w5m: string;
-    w1h: string;
+    t5: string;
+    t1: string;
+    legacy_chat: string;
+    legacy_prewarm: string;
   }>(
     `SELECT shop_id, model,
             to_char(to_timestamp(created_at / 1000) AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM-DD') AS day,
             count(*) FILTER (WHERE cache_write > 1000 AND kind NOT IN ('prewarm', 'import'))::int AS chat_writes,
             count(*) FILTER (WHERE cache_write > 1000 AND kind = 'prewarm')::int AS prewarm_writes,
-            COALESCE(sum(cache_write) FILTER (WHERE kind NOT IN ('prewarm', 'import')), 0)::bigint AS w5m,
-            COALESCE(sum(cache_write) FILTER (WHERE kind = 'prewarm'), 0)::bigint AS w1h
+            COALESCE(sum(cache_write) FILTER (WHERE cache_ttl = '5m'), 0)::bigint AS t5,
+            COALESCE(sum(cache_write) FILTER (WHERE cache_ttl = '1h'), 0)::bigint AS t1,
+            COALESCE(sum(cache_write) FILTER (WHERE cache_ttl IS NULL AND kind NOT IN ('prewarm', 'import')), 0)::bigint AS legacy_chat,
+            COALESCE(sum(cache_write) FILTER (WHERE cache_ttl IS NULL AND kind = 'prewarm'), 0)::bigint AS legacy_prewarm
        FROM ai_usage
       WHERE created_at >= $1
       GROUP BY shop_id, model, day`,
     [sinceMs],
   );
-  return rows.map((r) => ({
-    day: r.day,
-    shopId: r.shop_id,
-    model: r.model,
-    chatWrites: Number(r.chat_writes),
-    prewarmWrites: Number(r.prewarm_writes),
-    w5mTokens: Number(r.w5m),
-    w1hTokens: Number(r.w1h),
-  }));
+  return rows.map((r) => {
+    // แถวก่อนมีคอลัมน์ cache_ttl: แชตใช้กติกาเดิมตามโมเดล (Sonnet 1h / Opus 5m) = chatCacheTtl(model, true)
+    const legacyChat5m = chatCacheTtl(r.model, true) === "5m";
+    return {
+      day: r.day,
+      shopId: r.shop_id,
+      model: r.model,
+      chatWrites: Number(r.chat_writes),
+      prewarmWrites: Number(r.prewarm_writes),
+      w5mTokens: Number(r.t5) + (legacyChat5m ? Number(r.legacy_chat) : 0),
+      w1hTokens: Number(r.t1) + Number(r.legacy_prewarm) + (legacyChat5m ? 0 : Number(r.legacy_chat)),
+    };
+  });
 }
 
 /** ต้นทุนรวม (บาท) ของร้านหนึ่งตั้งแต่ sinceMs */
@@ -173,7 +186,9 @@ export async function modelUsageRowsSince(sinceMs: number): Promise<ModelUsageRo
     imports: number;
     import_cost: number;
     prewarm_cost: number;
-    w5m_tokens: string;
+    cw5: string;
+    cw1: string;
+    cw_legacy: string;
     cold_writes: number;
     total_cost: number;
   }>(
@@ -185,7 +200,9 @@ export async function modelUsageRowsSince(sinceMs: number): Promise<ModelUsageRo
         count(*) FILTER (WHERE kind = 'import')::int AS imports,
         COALESCE(sum(cost_thb) FILTER (WHERE kind = 'import'), 0)::float8 AS import_cost,
         COALESCE(sum(cost_thb) FILTER (WHERE kind = 'prewarm'), 0)::float8 AS prewarm_cost,
-        COALESCE(sum(cache_write) FILTER (WHERE kind NOT IN ('prewarm', 'import')), 0)::bigint AS w5m_tokens,
+        COALESCE(sum(cache_write) FILTER (WHERE kind NOT IN ('prewarm', 'import') AND cache_ttl = '5m'), 0)::bigint AS cw5,
+        COALESCE(sum(cache_write) FILTER (WHERE kind NOT IN ('prewarm', 'import') AND cache_ttl = '1h'), 0)::bigint AS cw1,
+        COALESCE(sum(cache_write) FILTER (WHERE kind NOT IN ('prewarm', 'import') AND cache_ttl IS NULL), 0)::bigint AS cw_legacy,
         count(*) FILTER (WHERE cache_write > 1000 AND kind NOT IN ('prewarm', 'import'))::int AS cold_writes,
         COALESCE(sum(cost_thb), 0)::float8 AS total_cost
        FROM ai_usage
@@ -193,25 +210,28 @@ export async function modelUsageRowsSince(sinceMs: number): Promise<ModelUsageRo
       GROUP BY shop_id, model`,
     [sinceMs],
   );
-  return rows.map((r) => ({
-    shopId: r.shop_id,
-    model: r.model,
-    replies: Number(r.replies),
-    // ต้นทุนตอบแท้ๆ คิดจาก token จริง (ไม่รวมเขียนแคช — แยกแสดงเป็นคอลัมน์ของตัวเอง)
-    replyCostThb: costThb(r.model, {
-      inputTokens: Number(r.r_in),
-      outputTokens: Number(r.r_out),
-      cacheWriteTokens: 0,
-      cacheReadTokens: Number(r.r_read),
-    }),
-    imports: Number(r.imports),
-    importCostThb: Number(r.import_cost),
-    prewarmCostThb: Number(r.prewarm_cost),
-    cacheWriteCostThb:
-      chatCacheTtl(r.model) === "5m"
-        ? cacheWriteCostThb(r.model, Number(r.w5m_tokens), 0)
-        : cacheWriteCostThb(r.model, 0, Number(r.w5m_tokens)),
-    coldWrites: Number(r.cold_writes),
-    totalCostThb: Number(r.total_cost),
-  }));
+  return rows.map((r) => {
+    // แถวก่อนมีคอลัมน์ cache_ttl: ใช้กติกาเดิมตามโมเดล (Sonnet 1h / Opus 5m) = chatCacheTtl(model, true)
+    const legacy5m = chatCacheTtl(r.model, true) === "5m";
+    const w5m = Number(r.cw5) + (legacy5m ? Number(r.cw_legacy) : 0);
+    const w1h = Number(r.cw1) + (legacy5m ? 0 : Number(r.cw_legacy));
+    return {
+      shopId: r.shop_id,
+      model: r.model,
+      replies: Number(r.replies),
+      // ต้นทุนตอบแท้ๆ คิดจาก token จริง (ไม่รวมเขียนแคช — แยกแสดงเป็นคอลัมน์ของตัวเอง)
+      replyCostThb: costThb(r.model, {
+        inputTokens: Number(r.r_in),
+        outputTokens: Number(r.r_out),
+        cacheWriteTokens: 0,
+        cacheReadTokens: Number(r.r_read),
+      }),
+      imports: Number(r.imports),
+      importCostThb: Number(r.import_cost),
+      prewarmCostThb: Number(r.prewarm_cost),
+      cacheWriteCostThb: cacheWriteCostThb(r.model, w5m, w1h),
+      coldWrites: Number(r.cold_writes),
+      totalCostThb: Number(r.total_cost),
+    };
+  });
 }

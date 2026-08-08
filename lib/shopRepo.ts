@@ -242,6 +242,23 @@ export async function listActiveShopIds(since: number): Promise<string[]> {
  * เงื่อนไข "AI ตอบจริง" (ไม่ใช่แค่ลูกค้าทัก): คืนที่ลูกค้าทักแต่ AI ไม่ได้ตอบ (รอตอบ/โหมด manual)
  * เคยทำให้อุ่นเฝ้าทิ้งทั้งคืน ฿7+/คืน ทั้งที่ไม่มีการตอบมาใช้แคชเลย
  */
+/** เกณฑ์ "ร้านคึก" (ลูกค้าทัก ≥N ข้อความ/24ชม.) — ใช้ร่วมกันทั้ง prewarm และ TTL แคช Sonnet
+ *  ต้องเป็นเกณฑ์เดียวกันเสมอ: ร้านที่ถูกอุ่น (1h มีคนต่ออายุ) = ร้านที่เขียนแคช 1h — ไม่งั้นจุดเตาซ้ำซ้อน */
+export function highTrafficMinMsgs24h(): number {
+  return Number(process.env.PREWARM_MIN_MSGS_24H ?? 15);
+}
+
+/** ร้านคึกไหม — ตัวตัดสิน TTL แคช Sonnet ต่อร้าน (คึก 1h / เงียบ 5m ประหยัดค่าเขียน 2×→1.25×) */
+export async function isHighTrafficShop(shopId: string): Promise<boolean> {
+  const row = await queryOne<{ n: number }>(
+    `SELECT count(*)::int AS n
+       FROM messages m JOIN conversations c ON c.id = m.conversation_id
+      WHERE c.shop_id = $1 AND m.sender = 'customer' AND m.created_at >= $2`,
+    [shopId, Date.now() - 24 * 3600e3],
+  );
+  return Number(row?.n ?? 0) >= highTrafficMinMsgs24h();
+}
+
 export async function listWarmableShopIds(
   activeSinceMs: number,
   minCustMsgs24h: number,

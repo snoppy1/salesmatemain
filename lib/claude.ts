@@ -12,7 +12,7 @@ import { getOrder, traceShipment, getOrdersByBuyer } from "./lazadaOrders";
 import { runToolLoop, type ModelTurn } from "./toolLoop";
 import { pickChatModel, CHAT_OPUS, CHAT_SONNET } from "./modelRouter";
 import { embedQuery, embeddingsEnabled } from "./embeddings";
-import { loadEmbeddingsByIds } from "./shopRepo";
+import { loadEmbeddingsByIds, isHighTrafficShop } from "./shopRepo";
 import { RETRIEVAL_MIN_PRODUCTS } from "./catalogRetrieval";
 import { recordUsageFromResponse } from "./aiUsageRepo";
 import { chatCacheTtl } from "./aiPricing";
@@ -85,11 +85,11 @@ async function callClaudeRaw(
   const { stable, promo, customer } = buildUserContentParts(req);
   const imgs = req.imageUrls ?? [];
   // Prompt caching 3 breakpoints: system / (ร้าน+คลัง) / โปรฯ — โปรเปลี่ยนแล้วแคชคลังยังรอด
-  // TTL ตามโมเดล (chatCacheTtl): Sonnet 1h — เคยใช้ 5m แล้วเจอ "จุดเตาซ้ำซ้อน" (แชตเขียน 5m
-  // → ดับก่อน cron 30 นาทีมาถึง → prewarm เขียน 1h ซ้ำ); Opus 5m — ไม่มี prewarm มาเกี่ยว
-  // และ warm read 75% เกิดใน 5 นาที (คุยต่อเนื่อง) เขียน 1h ไปก็หมดอายุก่อนถูกอ่าน = จ่าย 2× ฟรี
+  // TTL ต่อร้าน (chatCacheTtl): Sonnet ร้านคึก 1h (prewarm ต่ออายุ — เกณฑ์เดียวกัน จุดเตาซ้ำซ้อนจึงเกิดไม่ได้)
+  // / ร้านเงียบ 5m (แคช 1h ตายฟรี 26/29 ครั้งจากข้อมูลจริง — จ่ายเขียน 1.25× แทน 2×); Opus 5m เสมอ
   // แคชไม่เปลี่ยนคำตอบ (โมเดลเห็นข้อความเดิมเป๊ะ) แค่ลดต้นทุน token ส่วนที่ซ้ำ; รูปต่อท้าย customer
-  const ttl = chatCacheTtl(model);
+  const hot = req.shopId ? await isHighTrafficShop(req.shopId).catch(() => false) : false;
+  const ttl = chatCacheTtl(model, hot);
   const content = [
     { type: "text", text: stable, cache_control: { type: "ephemeral", ttl } },
     { type: "text", text: promo, cache_control: { type: "ephemeral", ttl } },
@@ -128,7 +128,8 @@ async function callClaudeRaw(
     usage?: Record<string, unknown>;
   } | null;
   // บันทึกต้นทุนจริง (token ถูกใช้ไปแล้วไม่ว่าจะ parse ผลได้ไหม) — ไม่ให้ throw ทับ error หลัก
-  await recordUsageFromResponse(req.shopId, model, kind, data?.usage).catch(() => {});
+  // ส่ง ttl ที่ใช้จริงไปด้วย — Sonnet เขียนได้ทั้ง 5m/1h ตามร้าน คิดเงินย้อนจากโมเดลอย่างเดียวไม่ได้แล้ว
+  await recordUsageFromResponse(req.shopId, model, kind, data?.usage, ttl).catch(() => {});
   const rawText = data?.content?.find((c) => c.type === "text")?.text ?? "";
 
   try {
@@ -152,6 +153,8 @@ export async function generateReply(req: GenerateRequest): Promise<ReplyResult> 
  * best-effort — ใช้ Sonnet (โมเดลหลัก) เพราะแคชแยกตามโมเดล; TTL 1h เพราะ cron อุ่นทุก 30 นาที
  * โครงบล็อกต้องตรงกับ callClaudeRaw เป๊ะ (stable/promo แยกก้อน) ไม่งั้นอุ่นทิ้งฟรี
  */
+// prewarm ใช้ 1h เสมอ — cron คัดเฉพาะร้านคึก (≥เกณฑ์ highTrafficMinMsgs24h) มาอุ่น
+// ซึ่งเป็นร้านกลุ่มเดียวกับที่ฝั่งตอบเขียนแคช 1h → TTL ตรงกันเสมอ ไม่มีจุดเตาซ้ำซ้อน
 export async function prewarmShop(req: GenerateRequest): Promise<boolean> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return false;
@@ -186,7 +189,7 @@ export async function prewarmShop(req: GenerateRequest): Promise<boolean> {
       const data = (await res.json().catch(() => null)) as {
         usage?: Record<string, unknown>;
       } | null;
-      await recordUsageFromResponse(req.shopId, CHAT_SONNET, "prewarm", data?.usage).catch(
+      await recordUsageFromResponse(req.shopId, CHAT_SONNET, "prewarm", data?.usage, "1h").catch(
         () => {},
       );
     }
@@ -314,7 +317,7 @@ export async function generateReplyWithTools(
       usage?: Record<string, unknown>;
     } | null;
     // ต้นทุนของทุก turn ใน tool loop (Opus) — บันทึกทีละ turn รวมยอดเองในภายหลัง
-    await recordUsageFromResponse(req.shopId, CHAT_OPUS, "order", data?.usage).catch(() => {});
+    await recordUsageFromResponse(req.shopId, CHAT_OPUS, "order", data?.usage, chatCacheTtl(CHAT_OPUS)).catch(() => {});
     const content = data?.content ?? [];
     const toolCalls = content
       .filter((c) => c.type === "tool_use")

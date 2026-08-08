@@ -65,10 +65,14 @@ export function cacheWriteCostThb(model: string, tokens5m: number, tokens1h: num
   return ((tokens5m * p.cacheWrite5m + tokens1h * p.cacheWrite1h) / 1_000_000) * usdToThb();
 }
 
-/** TTL แคชฝั่งแชตต่อโมเดล — จุดตัดสินใจเดียว ใช้ทั้งตอนยิง API และตอนคิดเงิน
- *  - Sonnet: 1h (2×) เพราะมี prewarm ทุก 30 นาทีคอยอ่านต่ออายุ — 5m จะดับก่อน cron มาถึง = จุดเตาซ้ำซ้อน
- *  - Opus: 5m (1.25×) เพราะไม่มี prewarm + จากข้อมูลจริง warm read 75% เกิดภายใน 5 นาที (ลูกค้าคุยต่อเนื่อง)
- *    เขียน 1h ไปก็หมดอายุก่อนถูกอ่านรอบถัดไปอยู่ดี — จ่าย 2× ฟรี */
-export function chatCacheTtl(model: string): "5m" | "1h" {
-  return model.includes("opus") ? "5m" : "1h";
+/** TTL แคชฝั่งแชต — จุดตัดสินใจเดียว ใช้ทั้งตอนยิง API และตอนคิดเงิน
+ *  - Opus: 5m (1.25×) เสมอ — ไม่มี prewarm + warm read 75% เกิดภายใน 5 นาที (ลูกค้าคุยต่อเนื่อง)
+ *  - Sonnet: ขึ้นกับความคึกของร้าน (highTraffic = ลูกค้าทัก ≥เกณฑ์/24ชม. เกณฑ์เดียวกับ prewarm):
+ *    · ร้านคึก → 1h (2×) เพราะ prewarm ทุก 30 นาทีคอยอ่านต่ออายุ — 5m จะดับก่อน cron มาถึง = จุดเตาซ้ำซ้อน
+ *    · ร้านเงียบ → 5m (1.25×) — ไม่มี prewarm มาอุ่น (เกณฑ์เดียวกัน) แคช 1h ตายฟรีแทบทุกครั้ง
+ *      (ข้อมูลจริง 16 วัน: เขียน 29 ครั้ง มี 26 ครั้งที่ตอบถัดไปห่างเกิน 1 ชม. + warm read 73% เกิดใน 5 นาที)
+ *  การผูก TTL กับเกณฑ์ prewarm ทำให้ "จุดเตาซ้ำซ้อน" เกิดไม่ได้: ร้านที่ถูกอุ่น = ร้านที่เขียน 1h เสมอ */
+export function chatCacheTtl(model: string, highTraffic = false): "5m" | "1h" {
+  if (model.includes("opus")) return "5m";
+  return highTraffic ? "1h" : "5m";
 }

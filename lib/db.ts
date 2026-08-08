@@ -334,6 +334,9 @@ async function ensureSchema(): Promise<void> {
       created_at   BIGINT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_ai_usage_shop ON ai_usage(shop_id, created_at DESC);
+    -- TTL แคชที่ใช้จริงตอนเขียน ('5m'|'1h') — Sonnet เลือกตามความคึกร้านแล้ว จะคิดเงินย้อนจากโมเดลอย่างเดียวไม่ได้
+    -- แถวเก่าเป็น NULL = ใช้กติกาเดิม (Sonnet 1h / Opus 5m) ตอนคิดเงินย้อนหลัง
+    ALTER TABLE ai_usage ADD COLUMN IF NOT EXISTS cache_ttl TEXT;
 
     -- บันทึกการรันของ cron (หน้าสถานะระบบใน admin console) — เก็บ 50 รายการล่าสุดต่อ job
     CREATE TABLE IF NOT EXISTS cron_runs (
